@@ -1,30 +1,26 @@
-#include "replanner_to_goal.h"
+#include "replanner_base.h"
 
 namespace pathplan
 {
-ReplannerToGoal::ReplannerToGoal(Eigen::VectorXd& current_configuration,
-                                 PathPtr& current_path,
-                                 double max_time,
-                                 const TreeSolverPtr &solver,
-                                 const MetricsPtr& metrics,
-                                 const CollisionCheckerPtr& checker,
-                                 const Eigen::VectorXd& lb,
-                                 const Eigen::VectorXd& ub)
+ReplannerBase::ReplannerBase(const Eigen::VectorXd& current_configuration,
+                             const PathPtr& current_path,
+                             const double& max_time,
+                             const TreeSolverPtr &solver)
 {
   current_configuration_ = current_configuration;
   current_path_ = current_path;
 
   solver_ = solver;
-  metrics_ = metrics;
-  checker_ = checker;
-  lb_ = lb;
-  ub_ = ub;
+  metrics_ = solver->getMetrics();
+  checker_ = solver->getChecker();
+  lb_ = solver->getSampler()->getLB();
+  ub_ = solver->getSampler()->getUB();
 
   max_time_ = max_time;
   success_ = false;
 }
 
-void ReplannerToGoal::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configuration)
+void ReplannerBase::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configuration)
 {
 
   std::vector<pathplan::ConnectionPtr> path_connections;
@@ -223,7 +219,7 @@ void ReplannerToGoal::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &conf
   }
 }
 
-bool ReplannerToGoal::computeConnectingPath(const NodePtr &path1_node_fake,
+bool ReplannerBase::computeConnectingPath(const NodePtr &path1_node_fake,
                                             const NodePtr &path2_node_fake,
                                             const double &diff_subpath_cost,
                                             PathPtr &connecting_path,
@@ -256,10 +252,10 @@ bool ReplannerToGoal::computeConnectingPath(const NodePtr &path1_node_fake,
   return solver_has_solved;
 }
 
-PathPtr ReplannerToGoal::concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn,
-                                                         const std::vector<ConnectionPtr>& subpath2,
-                                                         const NodePtr& path1_node,
-                                                         const NodePtr& path2_node)
+PathPtr ReplannerBase::concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn,
+                                                            const std::vector<ConnectionPtr>& subpath2,
+                                                            const NodePtr& path1_node,
+                                                            const NodePtr& path2_node)
 {
   std::vector<ConnectionPtr> new_connecting_path_conn;
 
@@ -305,48 +301,5 @@ PathPtr ReplannerToGoal::concatConnectingPathAndSubpath2(const std::vector<Conne
 
   return std::make_shared<Path>(new_connecting_path_conn, metrics_, checker_);
 }
-
-bool ReplannerToGoal::connect2goal(const PathPtr& current_path, const NodePtr& node)
-{
-  success_ = false;
-
-  NodePtr goal = current_path->getConnections().back()->getChild();
-  NodePtr node_fake = std::make_shared<Node>(node->getConfiguration());
-  NodePtr goal_node_fake = std::make_shared<Node>(goal->getConfiguration());
-
-  PathPtr connecting_path;
-  bool directly_connected;
-
-  bool solver_has_solved = computeConnectingPath(node_fake, goal_node_fake, std::numeric_limits<double>::infinity(), connecting_path,directly_connected);
-
-  if (solver_has_solved)
-  {
-    ROS_INFO_STREAM("Solution found!");
-
-    std::vector<ConnectionPtr>  connecting_path_conn = connecting_path->getConnections();
-    std::vector<ConnectionPtr>  subpath2_conn;
-
-    subpath2_conn.clear();
-    if(!subpath2_conn.empty()) ROS_ERROR("Subpath2 not empty!");
-
-    PathPtr new_path = concatConnectingPathAndSubpath2(connecting_path_conn,subpath2_conn,node,goal);
-
-    mtx_.lock();
-    replanned_path_ = new_path;
-    success_ = true;
-    mtx_.unlock();
-  }
-  else
-  {
-    ROS_ERROR("New path not found!");
-  }
-
-  //Regardless if you have found a solution or not, delete the fake nodes
-  node_fake->disconnect();
-  goal_node_fake->disconnect();
-
-  return success_;
-}
-
 
 }

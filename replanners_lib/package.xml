@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>replanners_lib</name>
+  <version>0.0.0</version>
+  <description>The replanners_lib package</description>
+
+
+  <maintainer email="cesare@todo.todo">cesare</maintainer>
+
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_export_depend>roscpp</build_export_depend>
+  <exec_depend>roscpp</exec_depend>
+
+  <depend>graph_core</depend>
+  <depend>graph_replanning</depend>
+  <depend>object_loader_msgs</depend>
+  <depend>moveit_planning_helper</depend>
+  <depend>geometry_msgs</depend>
+  <depend>configuration_msgs</depend>
+
+  <export>
+
+  </export>
+</package>
