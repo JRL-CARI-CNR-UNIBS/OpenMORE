@@ -1,0 +1,3 @@
+- git:
+    local-name: motion/replanning_strategies
+    uri: https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies.git
