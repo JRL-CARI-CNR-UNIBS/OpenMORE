@@ -20,7 +20,7 @@ public:
   ReplannerToGoal(Eigen::VectorXd& current_configuration,
                   PathPtr& current_path,
                   const double& max_time,
-                  const TreeSolverPtr& solver): ReplannerBase(current_configuration,current_path,max_time,solver){};
+                  const TreeSolverPtr& solver): ReplannerBase(current_configuration,current_path,max_time,solver){}
 
   bool replan() override;
 };

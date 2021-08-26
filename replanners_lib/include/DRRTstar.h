@@ -2,6 +2,7 @@
 #define DRRTSTAR_H__
 #include <replanner_base.h>
 #include <graph_core/solvers/rrt_star.h>
+#include <typeinfo>
 
 namespace pathplan
 {
@@ -21,7 +22,7 @@ public:
   DynamicRRTstar(Eigen::VectorXd& current_configuration,
                  PathPtr& current_path,
                  const double& max_time,
-                 const RRTStarPtr& solver): ReplannerBase(current_configuration,current_path,max_time,solver){};
+                 const TreeSolverPtr &solver);
 
   bool replan() override;
 };

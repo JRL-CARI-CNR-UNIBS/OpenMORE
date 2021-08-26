@@ -1,0 +1,11 @@
+# Replanner type:
+# - replanner_to_goal
+# - DRRT*
+
+replanner_type: "replanner_to_goal"
+group_name: "cartesian_arm"
+base_link: "world"
+last_link: "end_effector"
+max_time: 0.150
+start_configuration: [0.0, 0.0, 0.0]
+stop_configuration: [0.8, 0.8, 0.8]

@@ -18,6 +18,13 @@ int main(int argc, char **argv)
 
   //  ////////////////////////////////////////// GETTING ROS PARAM ///////////////////////////////////////////////
 
+  std::string replanner_type;
+  if (!nh.getParam("replanner_type",replanner_type))
+  {
+    ROS_INFO("replanner_type not set");
+    return false;
+  }
+
   double max_time;
   if (!nh.getParam("max_time",max_time))
   {
@@ -201,16 +208,36 @@ int main(int argc, char **argv)
   disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),5000,"pathplan",marker_color_sphere_actual);
   //    // //////////////////////////////////////// ADDING A MOBILE OBSTACLE ////////////////////////////////////////////////////////////////
 
-  bool success;
+  bool success = false;
+  ros::WallTime tic;
+  ros::WallTime toc;
 
-  pathplan::ReplannerToGoal replanner = pathplan::ReplannerToGoal(current_configuration,current_path,max_time,solver);
+  pathplan::ReplannerBasePtr replanner;
 
-  ros::WallTime tic = ros::WallTime::now();
-  success =  replanner.replan();
-  ros::WallTime toc = ros::WallTime::now();
+  if(replanner_type == "replanner_to_goal")
+  {
+    replanner = std::make_shared<pathplan::ReplannerToGoal>(current_configuration,current_path,max_time,solver);
+
+    tic = ros::WallTime::now();
+    success =  replanner->replan();
+    toc = ros::WallTime::now();
+
+  }
+  else if(replanner_type ==  "DRRT*")
+  {
+    replanner =  std::make_shared<pathplan::DynamicRRTstar>(current_configuration,current_path,max_time,solver);
+
+    tic = ros::WallTime::now();
+    success =  replanner->replan();
+    toc = ros::WallTime::now();
+  }
+  else
+  {
+    ROS_ERROR("Replanner %s does not exist",replanner_type.c_str());
+  }
 
   if((toc-tic).toSec()>max_time) ROS_ERROR("TIME OUT");
-  ROS_INFO_STREAM("Duration: "<<(toc-tic).toSec()<<" success: "<<success);
+  ROS_INFO_STREAM("Replanner->"<<replanner_type<<"Duration: "<<(toc-tic).toSec()<<" success: "<<success);
 
   if(success)
   {
@@ -219,7 +246,7 @@ int main(int argc, char **argv)
 
     std::vector<double> marker_scale(3,0.01);
     disp->changeConnectionSize(marker_scale);
-    disp->displayPath(replanner.getReplannedPath(),6000,"pathplan",marker_color);
+    disp->displayPath(replanner->getReplannedPath(),6000,"pathplan",marker_color);
   }
 
   return 0;

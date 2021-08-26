@@ -3,13 +3,36 @@
 namespace pathplan
 {
 
+DynamicRRTstar::DynamicRRTstar(Eigen::VectorXd& current_configuration,
+                               PathPtr& current_path,
+                               const double& max_time,
+                               const TreeSolverPtr &solver): ReplannerBase(current_configuration,current_path,max_time,solver)
+{
+  const std::type_info& ti1 = typeid(RRTStarPtr);
+  const std::type_info& ti2 = typeid(solver);
+
+  ROS_INFO_STREAM("SOLVER TYPE: "<<ti2.name());
+  if(std::type_index(ti1) != std::type_index(ti2))
+  {
+    solver_ = std::make_shared<pathplan::RRTStar>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
+  }
+}
+
 bool DynamicRRTstar::nodeBehindObs(NodePtr& node_behind)
 {
   for(int i=current_path_->getConnections().size()-1; i>=0; i--)
   {
     if(current_path_->getConnections().at(i)->getCost() == std::numeric_limits<double>::infinity())
     {
-      node_behind = current_path_->getConnections().at(i)->getChild();
+      if(i < current_path_->getConnections().size()-1)
+      {
+        node_behind = current_path_->getConnections().at(i+1)->getChild();
+      }
+      else
+      {
+        node_behind = current_path_->getConnections().at(i)->getChild();
+      }
+
       return true;
     }
   }
@@ -18,6 +41,8 @@ bool DynamicRRTstar::nodeBehindObs(NodePtr& node_behind)
 
 bool DynamicRRTstar::connectBehindObs(NodePtr& node)
 {
+  ros::WallTime tic = ros::WallTime::now();
+
   success_ = false;
   TreePtr tree = current_path_->getTree();
 
@@ -30,27 +55,37 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
   NodePtr replan_goal;
   if(!nodeBehindObs(replan_goal)) return false;
 
-  double radius = 2*((replan_goal->getConfiguration()-node->getConfiguration()).norm());
+  double radius = 1.5*((replan_goal->getConfiguration()-node->getConfiguration()).norm());
   InformedSampler sampler (node->getConfiguration(),node->getConfiguration(),lb_,ub_,radius);
 
   //*  STEP 1: REWIRING  *//
-  tree->rewireOnly(node,radius);
+
+  //change root!!!!
+  tree->rewireOnly(node,radius,2);
 
   //*  STEP 2: ADDING NEW NODES AND SEARCHING WITH RRT*  *//
-  unsigned int n_existing_nodes = (tree->near(replan_goal,radius)).size();
-  if(n_existing_nodes<1000)
+  ros::WallTime toc = ros::WallTime::now();
+  while(((toc-tic).toSec()-max_time_)>0.0)
   {
-    unsigned int n_new_nodes = (unsigned int) n_existing_nodes/2;
-    ROS_INFO_STREAM("Adding "<<n_new_nodes<<" new nodes inside the proximity circle with readius "<<radius);
-    for(unsigned int i=0;i<n_new_nodes;i++)
+    NodePtr new_node;
+    Eigen::VectorXd q=sampler.sample();
+
+    if (tree->rewire(q,radius,new_node))
     {
-      Eigen::VectorXd sample = sampler.sample();
-      NodePtr new_node = std::make_shared<Node>(sample);
+      if ((new_node->getConfiguration()-replan_goal->getConfiguration()).norm()<1e-03)
+      {
+        if(checker_->checkPath(new_node->getConfiguration(),replan_goal->getConfiguration()))
+        {
+          double cost = metrics_->cost(new_node->getConfiguration(),replan_goal->getConfiguration());
+          Connection conn = Connection(new_node,replan_goal);
+          conn.setCost(cost);
+          conn.add();
 
-      tree->addNode(new_node);
+          break;
+        }
+      }
     }
-
-    tree->rewireOnly(node,radius);
+    toc = ros::WallTime::now();
   }
 
   PathPtr connecting_path = std::make_shared<Path>(tree->getConnectionToNode(replan_goal),metrics_,checker_); //Passa per il mio nodo?
