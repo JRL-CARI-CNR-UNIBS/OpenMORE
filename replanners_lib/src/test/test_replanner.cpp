@@ -237,7 +237,7 @@ int main(int argc, char **argv)
   }
 
   if((toc-tic).toSec()>max_time) ROS_ERROR("TIME OUT");
-  ROS_INFO_STREAM("Replanner->"<<replanner_type<<"Duration: "<<(toc-tic).toSec()<<" success: "<<success);
+  ROS_INFO_STREAM("Replanner->"<<replanner_type<<" Duration: "<<(toc-tic).toSec()<<" success: "<<success);
 
   if(success)
   {

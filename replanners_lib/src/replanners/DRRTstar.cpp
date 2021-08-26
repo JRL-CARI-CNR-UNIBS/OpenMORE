@@ -8,10 +8,9 @@ DynamicRRTstar::DynamicRRTstar(Eigen::VectorXd& current_configuration,
                                const double& max_time,
                                const TreeSolverPtr &solver): ReplannerBase(current_configuration,current_path,max_time,solver)
 {
-  const std::type_info& ti1 = typeid(RRTStarPtr);
-  const std::type_info& ti2 = typeid(solver);
+  const std::type_info& ti1 = typeid(RRTStar);
+  const std::type_info& ti2 = typeid(*solver);
 
-  ROS_INFO_STREAM("SOLVER TYPE: "<<ti2.name());
   if(std::type_index(ti1) != std::type_index(ti2))
   {
     solver_ = std::make_shared<pathplan::RRTStar>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
@@ -36,6 +35,8 @@ bool DynamicRRTstar::nodeBehindObs(NodePtr& node_behind)
       return true;
     }
   }
+
+  ROS_ERROR("Gaol behind obstacle not found");
   return false;
 }
 
@@ -59,10 +60,10 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
   InformedSampler sampler (node->getConfiguration(),node->getConfiguration(),lb_,ub_,radius);
 
   //*  STEP 1: REWIRING  *//
-
-  //change root!!!!
+  tree->changeRoot(node);
   tree->rewireOnly(node,radius,2);
 
+  ROS_WARN("QUAAAAAAAA");
   //*  STEP 2: ADDING NEW NODES AND SEARCHING WITH RRT*  *//
   ros::WallTime toc = ros::WallTime::now();
   while(((toc-tic).toSec()-max_time_)>0.0)
@@ -88,7 +89,7 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
     toc = ros::WallTime::now();
   }
 
-  PathPtr connecting_path = std::make_shared<Path>(tree->getConnectionToNode(replan_goal),metrics_,checker_); //Passa per il mio nodo?
+  PathPtr connecting_path = std::make_shared<Path>(tree->getConnectionToNode(replan_goal),metrics_,checker_);
   connecting_path = connecting_path->getSubpathFromNode(node);
 
   std::vector<ConnectionPtr> new_connections = connecting_path->getConnections();
@@ -106,6 +107,8 @@ bool DynamicRRTstar::replan()
   {
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
     NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
+
+    ROS_INFO_STREAM("N PARENTS: "<<node_replan->getParents().size()<<"N CHILDREN: "<<node_replan->getChildren().size());
 
     connectBehindObs(node_replan);
   }

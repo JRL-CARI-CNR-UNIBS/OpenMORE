@@ -34,9 +34,9 @@ target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
 
-add_executable(test_replanner src/test/test_replanner.cpp)
-add_dependencies(test_replanner ${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(test_replanner
+add_executable(test_replanners src/test/test_replanner.cpp)
+add_dependencies(test_replanners ${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(test_replanners
 ${PROJECT_NAME}
 ${catkin_LIBRARIES}
 )
