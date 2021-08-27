@@ -56,12 +56,16 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
   NodePtr replan_goal;
   if(!nodeBehindObs(replan_goal)) return false;
 
+  replan_goal->disconnectParentConnections();
+
   double radius = 1.5*((replan_goal->getConfiguration()-node->getConfiguration()).norm());
   InformedSampler sampler (node->getConfiguration(),node->getConfiguration(),lb_,ub_,radius);
 
+  std::vector<ConnectionPtr> checked_connections;
+
   //*  STEP 1: REWIRING  *//
   tree->changeRoot(node);
-  tree->rewireOnly(node,radius,2);
+  tree->rewireOnlyWithPathCheck(node,checked_connections,radius,2);
 
   ROS_WARN("QUAAAAAAAA");
   //*  STEP 2: ADDING NEW NODES AND SEARCHING WITH RRT*  *//
@@ -71,7 +75,7 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
     NodePtr new_node;
     Eigen::VectorXd q=sampler.sample();
 
-    if (tree->rewire(q,radius,new_node))
+    if (tree->rewireWithPathCheck(q,checked_connections,radius,new_node))
     {
       if ((new_node->getConfiguration()-replan_goal->getConfiguration()).norm()<1e-03)
       {
@@ -90,7 +94,6 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
   }
 
   PathPtr connecting_path = std::make_shared<Path>(tree->getConnectionToNode(replan_goal),metrics_,checker_);
-  connecting_path = connecting_path->getSubpathFromNode(node);
 
   std::vector<ConnectionPtr> new_connections = connecting_path->getConnections();
   std::vector<ConnectionPtr> subpath_connections = current_path_->getSubpathFromNode(replan_goal)->getConnections();
