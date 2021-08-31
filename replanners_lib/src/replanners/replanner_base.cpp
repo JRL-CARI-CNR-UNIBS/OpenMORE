@@ -18,6 +18,8 @@ ReplannerBase::ReplannerBase(const Eigen::VectorXd& current_configuration,
 
   max_time_ = max_time;
   success_ = false;
+
+  disp_ = NULL;
 }
 
 void ReplannerBase::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configuration)

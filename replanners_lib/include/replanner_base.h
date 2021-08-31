@@ -34,6 +34,7 @@ protected:
   CollisionCheckerPtr checker_;
   Eigen::VectorXd lb_;
   Eigen::VectorXd ub_;
+  DisplayPtr disp_;
 
   bool success_;
   double max_time_;
@@ -76,6 +77,11 @@ public:
   void setChecker(const CollisionCheckerPtr &checker)
   {
     checker_ = checker;
+  }
+
+  void setDisp(DisplayPtr &disp)
+  {
+    disp_ = disp;
   }
 
   bool getSuccess()

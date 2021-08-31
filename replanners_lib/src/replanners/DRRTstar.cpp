@@ -32,6 +32,7 @@ bool DynamicRRTstar::nodeBehindObs(NodePtr& node_behind)
         node_behind = current_path_->getConnections().at(i)->getChild();
       }
 
+      ROS_INFO_STREAM("Replanning goal: \n"<< *node_behind);
       return true;
     }
   }
@@ -56,12 +57,9 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
   NodePtr replan_goal;
   if(!nodeBehindObs(replan_goal)) return false;
 
-  ROS_INFO_STREAM(*replan_goal);
-
-  //  replan_goal->disconnectParentConnections();
-
-  double radius = 1.5*((replan_goal->getConfiguration()-node->getConfiguration()).norm());
-  InformedSampler sampler (node->getConfiguration(),node->getConfiguration(),lb_,ub_,radius);
+  double radius = 1.2*((replan_goal->getConfiguration()-node->getConfiguration()).norm());
+  //  InformedSampler sampler (node->getConfiguration(),node->getConfiguration(),lb_,ub_,radius); DIVISIONE PER ZERO NELLA MATRICE DI ROTAZIONE!
+  InformedSampler sampler (node->getConfiguration(),replan_goal->getConfiguration(),lb_,ub_,std::numeric_limits<double>::infinity());
 
   std::vector<ConnectionPtr> checked_connections;
 
@@ -70,38 +68,57 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
   tree->rewireOnlyWithPathCheck(node,checked_connections,radius,2);
 
   //*  STEP 2: ADDING NEW NODES AND SEARCHING WITH RRT*  *//
+  double max_distance = tree->getMaximumDistance();
+
+  if(disp_ != NULL) disp_->changeNodeSize({0.01,0.01,0.01});
+
   ros::WallTime toc = ros::WallTime::now();
   while(max_time_-((toc-tic).toSec())>0.0)
   {
     NodePtr new_node;
     Eigen::VectorXd q=sampler.sample();
 
-    if (tree->rewireWithPathCheck(q,checked_connections,radius,new_node))
+    /*ELIMINA*/
+    bool skip = false;
+    if((q-node->getConfiguration()).norm()>radius) skip = true;
+    /*      */
+
+    if(!skip) //ELIMINA
     {
-      ROS_INFO("rewire ok");
-
-      if(!success_)  //if success, i should not try to connect to goal but only rewire to improve the path
+      if(tree->rewireWithPathCheck(q,checked_connections,radius,new_node))
       {
-        if ((new_node->getConfiguration()-replan_goal->getConfiguration()).norm()<1e-04)
+        if((new_node->getConfiguration()-node->getConfiguration()).norm()>radius) ROS_INFO_STREAM("dist "<<(new_node->getConfiguration()-node->getConfiguration()).norm());
+
+        if(disp_ != NULL) disp_->displayNode(new_node);
+
+        if(replan_goal->getParents().at(0) == new_node)
         {
+          success_ = true;
+        }
 
-          ROS_INFO("DISTANZA RIDOTTA");
-          if(checker_->checkPath(new_node->getConfiguration(),replan_goal->getConfiguration()))
+        if(!success_)  //if success, i should not try to connect to goal but only rewire to improve the path
+        {
+          if ((new_node->getConfiguration()-replan_goal->getConfiguration()).norm()<max_distance)
           {
-            double cost = metrics_->cost(new_node->getConfiguration(),replan_goal->getConfiguration());
-            Connection conn = Connection(new_node,replan_goal);
-            conn.setCost(cost);
-            conn.add();
+            if(checker_->checkPath(new_node->getConfiguration(),replan_goal->getConfiguration()))
+            {
+              if(replan_goal->getParents().size()>0) replan_goal->getParents().at(0)->disconnect();
 
-            success_ = true;
+              double cost = metrics_->cost(new_node->getConfiguration(),replan_goal->getConfiguration());
+              ConnectionPtr conn = std::make_shared<Connection>(new_node,replan_goal);
+              conn->setCost(cost);
+              conn->add();
 
-            break;
+              success_ = true;
+            }
           }
         }
       }
     }
     toc = ros::WallTime::now();
   }
+
+  if(disp_ != NULL) disp_->defaultNodeSize();
 
   if(success_)
   {
@@ -127,7 +144,7 @@ bool DynamicRRTstar::replan()
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
     NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
 
-    ROS_INFO_STREAM("Conf: "<<node_replan->getConfiguration()<<" N PARENTS: "<<node_replan->getParents().size()<<" N CHILDREN: "<<node_replan->getChildren().size());
+    ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
     connectBehindObs(node_replan);
   }

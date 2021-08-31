@@ -133,8 +133,14 @@ int main(int argc, char **argv)
   Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
 
   pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
-  pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
-  pathplan::PathPtr current_path = trajectory.computePath(start_conf, goal_conf,solver,1);
+  pathplan::RRTConnectPtr solver = std::make_shared<pathplan::RRTConnect>(metrics, checker, sampler);
+
+  pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
+
+  for(unsigned int i=1;i<current_path->getWaypoints().size();i++)
+  {
+    ROS_INFO_STREAM("dist: "<<(current_path->getWaypoints().at(i)-current_path->getWaypoints().at(i-1)).norm());
+  }
 
   disp->displayPathAndWaypoints(current_path,1,1000,"pathplan",{0.5,0.5,0.0,1.0});
 
@@ -196,7 +202,6 @@ int main(int argc, char **argv)
 
   checker->setPlanningSceneMsg(ps_srv.response.scene);
 
-
   //    // ///////////////////////////////////////////////////PATH CHECKING & REPLANNING/////////////////////////////////////////////////////
 
   bool valid;
@@ -212,31 +217,28 @@ int main(int argc, char **argv)
   ros::WallTime tic;
   ros::WallTime toc;
 
-  pathplan::ReplannerBasePtr replanner;
+  pathplan::ReplannerBasePtr replanner = NULL;
 
   if(replanner_type == "replanner_to_goal")
   {
     replanner = std::make_shared<pathplan::ReplannerToGoal>(current_configuration,current_path,max_time,solver);
-
-    tic = ros::WallTime::now();
-    success =  replanner->replan();
-    toc = ros::WallTime::now();
-
   }
   else if(replanner_type ==  "DRRT*")
   {
     replanner =  std::make_shared<pathplan::DynamicRRTstar>(current_configuration,current_path,max_time,solver);
-
-    tic = ros::WallTime::now();
-    success =  replanner->replan();
-    toc = ros::WallTime::now();
   }
   else
   {
     ROS_ERROR("Replanner %s does not exist",replanner_type.c_str());
+    return 0;
   }
 
-  if((toc-tic).toSec()>max_time) ROS_ERROR("TIME OUT");
+  replanner->setDisp(disp);
+
+  tic = ros::WallTime::now();
+  success =  replanner->replan();
+  toc = ros::WallTime::now();
+
   ROS_INFO_STREAM("Replanner->"<<replanner_type<<" Duration: "<<(toc-tic).toSec()<<" success: "<<success);
 
   if(success)
