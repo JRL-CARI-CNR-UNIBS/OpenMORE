@@ -148,6 +148,7 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
               std::vector<ConnectionPtr> conn2new_node;
               if(replan_goal->getParents().size()>0)
               {
+                replan_goal->parent_connections_.erase(replan_goal->parent_connections_.begin()); //delete the connection between replan_goal and the old parent
                 replan_goal->parent_connections_.clear();  //remove the old parent connections because now the parents of replan_goal come frome new_node
                 conn2new_node = new_node->parent_connections_;
               }
@@ -156,7 +157,7 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
               ConnectionPtr conn = std::make_shared<Connection>(new_node,replan_goal);
               conn->setCost(cost);
 
-              conn->add(); //add connection between new_node and replan_goal as first connection in parent_connections of replan_goal
+              conn->add(); //add connection between new_node (the new parent) and replan_goal as first connection in parent_connections of replan_goal
 
               if(!conn2new_node.empty())  //and THEN add all the connections from start to new_node in parent_connections of replan_goal
               {
