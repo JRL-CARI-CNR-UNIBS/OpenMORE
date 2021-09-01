@@ -1,4 +1,4 @@
-#include "DRRTstar.h"
+﻿#include "DRRTstar.h"
 
 namespace pathplan
 {
@@ -63,9 +63,34 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
 
   std::vector<ConnectionPtr> checked_connections;
 
+  int cont = 0;
+  for(const NodePtr tree_node : tree->getNodes()) //ELIMINA
+  {
+    if(tree_node->getParents().size() == 0 && tree_node->getChildren().size() == 0)
+      cont +=1;
+  }
+  ROS_INFO_STREAM("NODES DISCONNECTED: "<<cont);
+
   //*  STEP 1: REWIRING  *//
   tree->changeRoot(node);
+
+  cont = 0;
+  for(const NodePtr tree_node : tree->getNodes()) //ELIMINA
+  {
+    if(tree_node->getParents().size() == 0 && tree_node->getChildren().size() == 0)
+      cont +=1;
+  }
+  ROS_INFO_STREAM("NODES DISCONNECTED: "<<cont);
+
   tree->rewireOnlyWithPathCheck(node,checked_connections,radius,2);
+
+  cont = 0;
+  for(const NodePtr tree_node : tree->getNodes()) //ELIMINA
+  {
+    if(tree_node->getParents().size() == 0 && tree_node->getChildren().size() == 0)
+      cont +=1;
+  }
+  ROS_INFO_STREAM("NODES DISCONNECTED: "<<cont);
 
   //*  STEP 2: ADDING NEW NODES AND SEARCHING WITH RRT*  *//
   double max_distance = tree->getMaximumDistance();
@@ -85,11 +110,20 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
 
     if(!skip) //ELIMINA
     {
+      ROS_INFO("PRIMA REWIRE");
       if(tree->rewireWithPathCheck(q,checked_connections,radius,new_node))
       {
-        if((new_node->getConfiguration()-node->getConfiguration()).norm()>radius) ROS_INFO_STREAM("dist "<<(new_node->getConfiguration()-node->getConfiguration()).norm());
+        int cont =0;
+        for(const NodePtr tree_node : tree->getNodes()) //ELIMINA
+        {
+          if(tree_node->getParents().size() == 0 && tree_node->getChildren().size() == 0)
+            cont +=1;
+        }
+        if(cont>0) ROS_INFO_STREAM("DOPO REWIRE NODES DISCONNECTED: "<<cont);
 
-        if(disp_ != NULL) disp_->displayNode(new_node);
+        ROS_INFO("DOPO REWIRE");
+
+//        if(disp_ != NULL) disp_->displayNode(new_node);
 
         if(replan_goal->getParents().at(0) == new_node)
         {
@@ -102,7 +136,42 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
           {
             if(checker_->checkPath(new_node->getConfiguration(),replan_goal->getConfiguration()))
             {
-              if(replan_goal->getParents().size()>0) replan_goal->getParents().at(0)->disconnect();
+              cont = 0;
+              for(const NodePtr tree_node : tree->getNodes()) //ELIMINA
+              {
+                if(tree_node->getParents().size() == 0 && tree_node->getChildren().size() == 0)
+                  cont +=1;
+              }
+              if(cont>0)ROS_INFO_STREAM("IN1 WHILE NODES DISCONNECTED: "<<cont);
+
+              ROS_INFO_STREAM("replan_goal: "<<*replan_goal);
+              ROS_INFO_STREAM("parent connections:"<<replan_goal->getParents().size());
+              if(replan_goal->getParents().size()>0)
+              {
+                //SISTEMA
+                replan_goal->parent_connections_.clear();
+                std::vector<ConnectionPtr> conn2new_node = tree->getConnectionToNode(new_node);
+                std::reverse(conn2new_node.begin(), conn2new_node.end());
+                replan_goal->parent_connections_.insert(replan_goal->parent_connections_.end(),conn2new_node.begin(),conn2new_node.end());
+              }
+
+              cont = 0;
+              for(const NodePtr tree_node : tree->getNodes()) //ELIMINA
+              {
+                if(tree_node->getParents().size() == 0 && tree_node->getChildren().size() == 0)
+                  cont +=1;
+              }
+              if(cont>0)
+              {
+                ROS_INFO_STREAM("IN2 WHILE NODES DISCONNECTED: "<<cont);
+                disp_->displayTree(tree);
+                int t=0;
+                while(t<100)
+                {
+                  t+=1;
+                  ros::Duration(1).sleep();
+                }
+              }
 
               double cost = metrics_->cost(new_node->getConfiguration(),replan_goal->getConfiguration());
               ConnectionPtr conn = std::make_shared<Connection>(new_node,replan_goal);
@@ -114,6 +183,15 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
           }
         }
       }
+
+      cont = 0;
+      for(const NodePtr tree_node : tree->getNodes()) //ELIMINA
+      {
+        if(tree_node->getParents().size() == 0 && tree_node->getChildren().size() == 0)
+          cont +=1;
+      }
+      if(cont>0)ROS_INFO_STREAM("END WHILE NODES DISCONNECTED: "<<cont);
+      ROS_INFO("---------------------------");
     }
     toc = ros::WallTime::now();
   }

@@ -137,11 +137,6 @@ int main(int argc, char **argv)
 
   pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
 
-  for(unsigned int i=1;i<current_path->getWaypoints().size();i++)
-  {
-    ROS_INFO_STREAM("dist: "<<(current_path->getWaypoints().at(i)-current_path->getWaypoints().at(i-1)).norm());
-  }
-
   disp->displayPathAndWaypoints(current_path,1,1000,"pathplan",{0.5,0.5,0.0,1.0});
 
   int n_conn = 1;

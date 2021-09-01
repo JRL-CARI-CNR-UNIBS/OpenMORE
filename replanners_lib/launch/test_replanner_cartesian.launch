@@ -1,6 +1,5 @@
 <?xml version="1.0"?>
 <launch>
-
   <rosparam command="load" file="$(find replanners_lib)/config/object_test_replanner.yaml"/>
   <rosparam command="load" file="$(find replanners_lib)/config/test_replanner_cartesian.yaml"/>
   <include file="$(find cartesian_moveit_config)/launch/demo.launch"/>
