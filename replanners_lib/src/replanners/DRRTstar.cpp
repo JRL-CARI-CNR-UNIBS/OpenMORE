@@ -61,36 +61,11 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
   //  InformedSampler sampler (node->getConfiguration(),node->getConfiguration(),lb_,ub_,radius); DIVISIONE PER ZERO NELLA MATRICE DI ROTAZIONE!
   InformedSampler sampler (node->getConfiguration(),replan_goal->getConfiguration(),lb_,ub_,std::numeric_limits<double>::infinity());
 
-  std::vector<ConnectionPtr> checked_connections;
-
-  int cont = 0;
-  for(const NodePtr tree_node : tree->getNodes()) //ELIMINA
-  {
-    if(tree_node->getParents().size() == 0 && tree_node->getChildren().size() == 0)
-      cont +=1;
-  }
-  ROS_INFO_STREAM("NODES DISCONNECTED: "<<cont);
-
   //*  STEP 1: REWIRING  *//
   tree->changeRoot(node);
 
-  cont = 0;
-  for(const NodePtr tree_node : tree->getNodes()) //ELIMINA
-  {
-    if(tree_node->getParents().size() == 0 && tree_node->getChildren().size() == 0)
-      cont +=1;
-  }
-  ROS_INFO_STREAM("NODES DISCONNECTED: "<<cont);
-
+  std::vector<ConnectionPtr> checked_connections;
   tree->rewireOnlyWithPathCheck(node,checked_connections,radius,2);
-
-  cont = 0;
-  for(const NodePtr tree_node : tree->getNodes()) //ELIMINA
-  {
-    if(tree_node->getParents().size() == 0 && tree_node->getChildren().size() == 0)
-      cont +=1;
-  }
-  ROS_INFO_STREAM("NODES DISCONNECTED: "<<cont);
 
   //*  STEP 2: ADDING NEW NODES AND SEARCHING WITH RRT*  *//
   double max_distance = tree->getMaximumDistance();
@@ -110,20 +85,9 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
 
     if(!skip) //ELIMINA
     {
-      ROS_INFO("PRIMA REWIRE");
       if(tree->rewireWithPathCheck(q,checked_connections,radius,new_node))
       {
-        int cont =0;
-        for(const NodePtr tree_node : tree->getNodes()) //ELIMINA
-        {
-          if(tree_node->getParents().size() == 0 && tree_node->getChildren().size() == 0)
-            cont +=1;
-        }
-        if(cont>0) ROS_INFO_STREAM("DOPO REWIRE NODES DISCONNECTED: "<<cont);
-
-        ROS_INFO("DOPO REWIRE");
-
-        //        if(disp_ != NULL) disp_->displayNode(new_node);
+        if(disp_ != NULL) disp_->displayNode(new_node);
 
         if(replan_goal->getParents().at(0) == new_node)
         {
@@ -136,21 +100,11 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
           {
             if(checker_->checkPath(new_node->getConfiguration(),replan_goal->getConfiguration()))
             {
-              cont = 0;
-              for(const NodePtr tree_node : tree->getNodes()) //ELIMINA
-              {
-                if(tree_node->getParents().size() == 0 && tree_node->getChildren().size() == 0)
-                  cont +=1;
-              }
-              if(cont>0)ROS_INFO_STREAM("IN1 WHILE NODES DISCONNECTED: "<<cont);
-
-
               std::vector<ConnectionPtr> conn2new_node;
               if(replan_goal->getParents().size()>0)
               {
-                replan_goal->parent_connections_.erase(replan_goal->parent_connections_.begin()); //delete the connection between replan_goal and the old parent
-                replan_goal->parent_connections_.clear();  //remove the old parent connections because now the parents of replan_goal come frome new_node
-                conn2new_node = new_node->parent_connections_;
+                replan_goal->parent_connections_.at(0)->remove(); //delete the connection between replan_goal and the old parent
+                replan_goal->parent_connections_.clear();         //remove the old parent connections because now the parents of replan_goal come frome new_node
               }
 
               double cost = metrics_->cost(new_node->getConfiguration(),replan_goal->getConfiguration());
@@ -159,33 +113,11 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
 
               conn->add(); //add connection between new_node (the new parent) and replan_goal as first connection in parent_connections of replan_goal
 
-              if(!conn2new_node.empty())  //and THEN add all the connections from start to new_node in parent_connections of replan_goal
-              {
-                replan_goal->parent_connections_.insert(replan_goal->parent_connections_.end(),conn2new_node.begin(),conn2new_node.end());
-              }
-
-              cont = 0;
-              for(const NodePtr tree_node : tree->getNodes()) //ELIMINA
-              {
-                if(tree_node->getParents().size() == 0 && tree_node->getChildren().size() == 0)
-                  cont +=1;
-              }
-              if(cont>0) ROS_INFO_STREAM("IN2 WHILE NODES DISCONNECTED: "<<cont);
-
               success_ = true;
             }
           }
         }
       }
-
-      cont = 0;
-      for(const NodePtr tree_node : tree->getNodes()) //ELIMINA
-      {
-        if(tree_node->getParents().size() == 0 && tree_node->getChildren().size() == 0)
-          cont +=1;
-      }
-      if(cont>0)ROS_INFO_STREAM("END WHILE NODES DISCONNECTED: "<<cont);
-      ROS_INFO("---------------------------");
     }
     toc = ros::WallTime::now();
   }
