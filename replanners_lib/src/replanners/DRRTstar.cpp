@@ -24,13 +24,9 @@ bool DynamicRRTstar::nodeBehindObs(NodePtr& node_behind)
     if(current_path_->getConnections().at(i)->getCost() == std::numeric_limits<double>::infinity())
     {
       if(i < current_path_->getConnections().size()-1)
-      {
         node_behind = current_path_->getConnections().at(i+1)->getChild();
-      }
       else
-      {
         node_behind = current_path_->getConnections().at(i)->getChild();
-      }
 
       ROS_INFO_STREAM("Replanning goal: \n"<< *node_behind);
       return true;
@@ -96,11 +92,10 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
 
         if(!success_)  //if success, i should not try to connect to goal but only rewire to improve the path
         {
-          if ((new_node->getConfiguration()-replan_goal->getConfiguration()).norm()<max_distance)
+          if((new_node->getConfiguration()-replan_goal->getConfiguration()).norm()<max_distance)
           {
             if(checker_->checkPath(new_node->getConfiguration(),replan_goal->getConfiguration()))
             {
-              std::vector<ConnectionPtr> conn2new_node;
               if(replan_goal->getParents().size()>0)
               {
                 replan_goal->parent_connections_.at(0)->remove(); //delete the connection between replan_goal and the old parent
@@ -111,7 +106,7 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
               ConnectionPtr conn = std::make_shared<Connection>(new_node,replan_goal);
               conn->setCost(cost);
 
-              conn->add(); //add connection between new_node (the new parent) and replan_goal as first connection in parent_connections of replan_goal
+              conn->add(); //add connection between new_node (the new parent) and replan_goal in parent_connections of replan_goal
 
               success_ = true;
             }
