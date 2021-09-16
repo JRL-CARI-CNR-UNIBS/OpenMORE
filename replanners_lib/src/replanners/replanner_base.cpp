@@ -222,42 +222,57 @@ void ReplannerBase::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &config
 }
 
 bool ReplannerBase::computeConnectingPath(const NodePtr &path1_node_fake,
-                                            const NodePtr &path2_node_fake,
-                                            const double &diff_subpath_cost,
-                                            PathPtr &connecting_path,
-                                            bool &directly_connected)
+                                          const NodePtr &path2_node_fake,
+                                          const double &diff_subpath_cost,
+                                          PathPtr &connecting_path,
+                                          bool &directly_connected)
+{
+  return computeConnectingPath(path1_node_fake,
+                               path2_node_fake,
+                               diff_subpath_cost,
+                               connecting_path,
+                               directly_connected,
+                               solver_);
+}
+
+bool ReplannerBase::computeConnectingPath(const NodePtr &path1_node_fake,
+                                          const NodePtr &path2_node_fake,
+                                          const double &diff_subpath_cost,
+                                          PathPtr &connecting_path,
+                                          bool &directly_connected,
+                                          TreeSolverPtr& solver)
 {
   SamplerPtr sampler = std::make_shared<InformedSampler>(path1_node_fake->getConfiguration(), path2_node_fake->getConfiguration(), lb_, ub_,diff_subpath_cost);
 
-  solver_->setSampler(sampler);
-  solver_->resetProblem();
-  solver_->addStart(path1_node_fake);
+  solver->setSampler(sampler);
+  solver->resetProblem();
+  solver->addStart(path1_node_fake);
 
   ros::WallTime tic_solver = ros::WallTime::now();
-  solver_->addGoal(path2_node_fake,max_time_);
+  solver->addGoal(path2_node_fake,max_time_);
   ros::WallTime toc_solver = ros::WallTime::now();
 
-  directly_connected = solver_->solved();
+  directly_connected = solver->solved();
   bool solver_has_solved;
 
   if(directly_connected)
   {
-    connecting_path = solver_->getSolution();
+    connecting_path = solver->getSolution();
     solver_has_solved = true;
   }
   else
   {
     double solver_time = max_time_-(toc_solver-tic_solver).toSec();
-    solver_has_solved = solver_->solve(connecting_path,10000,solver_time);
+    solver_has_solved = solver->solve(connecting_path,10000,solver_time);
   }
 
   return solver_has_solved;
 }
 
 PathPtr ReplannerBase::concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn,
-                                                            const std::vector<ConnectionPtr>& subpath2,
-                                                            const NodePtr& path1_node,
-                                                            const NodePtr& path2_node)
+                                                       const std::vector<ConnectionPtr>& subpath2,
+                                                       const NodePtr& path1_node,
+                                                       const NodePtr& path2_node)
 {
   std::vector<ConnectionPtr> new_connecting_path_conn;
 

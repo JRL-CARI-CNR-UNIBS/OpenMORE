@@ -3,25 +3,104 @@
 namespace pathplan
 {
 
+bool ReplannerToGoal::asyncComputeConnectingPath(const Eigen::VectorXd path1_node_conf,
+                                                 const Eigen::VectorXd path2_node_conf,
+                                                 const double diff_subpath_cost,
+                                                 const int index)
+{
+  NodePtr path1_node = std::make_shared<Node>(path1_node_conf);
+  NodePtr path2_node = std::make_shared<Node>(path2_node_conf);
+
+  SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(path1_node_conf, path2_node_conf, lb_, ub_);
+  MetricsPtr metrics = metrics_->clone();
+  CollisionCheckerPtr checker = checker_->clone();
+
+  TreeSolverPtr solver = solver_->clone(metrics, checker, sampler); //sampler will be re-defined
+  solver->config(solver_->getNodeHandle());
+
+  PathPtr connecting_path = NULL;
+  bool directly_connected = false;
+
+  bool success = ReplannerBase::computeConnectingPath(path1_node,
+                                                      path2_node,
+                                                      diff_subpath_cost,
+                                                      connecting_path,
+                                                      directly_connected,
+                                                      solver);
+  mtx_.lock();
+  connecting_path_vector_.at(index) = connecting_path;
+  directly_connected_vector_.at(index) = directly_connected;
+
+  node_to_delete_.push_back(path1_node);
+  node_to_delete_.push_back(path2_node);
+  mtx_.unlock();
+
+  double cost;
+  if(success)
+    cost = connecting_path->cost();
+  else
+    cost = -1;
+
+  ROS_INFO_STREAM("\n--- THREAD REASUME ---\nthread n: "<<index<<"\nsuccess: "<<success<<"\ndirectly connected: "<<directly_connected<<"\nconnecting path cost: "<< cost);
+  return success;
+}
+
 bool ReplannerToGoal::connect2goal(const NodePtr& node)
 {
   success_ = false;
+  std::vector<std::shared_future<bool>> futures;
 
-  NodePtr node_fake = std::make_shared<Node>(node->getConfiguration());
-  NodePtr goal_node_fake = std::make_shared<Node>(current_path_->getWaypoints().back());
-
-  PathPtr connecting_path;
-  bool directly_connected;
-  bool solver_has_solved = computeConnectingPath(node_fake, goal_node_fake, std::numeric_limits<double>::infinity(), connecting_path, directly_connected);
-
-  if (solver_has_solved)
+  for(unsigned int i=0; i<number_of_parallel_plannings_;i++)
   {
-    std::vector<ConnectionPtr>  connecting_path_conn = connecting_path->getConnections();
+    int index = i;
+    double cost = std::numeric_limits<double>::infinity();
+
+    futures.push_back(std::async(std::launch::async,
+                                 &ReplannerToGoal::asyncComputeConnectingPath,
+                                 this,
+                                 node->getConfiguration(),
+                                 current_path_->getWaypoints().back(),
+                                 cost,
+                                 index));
+  }
+
+  int idd = 10000;
+  std::vector<double> marker_color;
+  marker_color = {1.0,1.0,0.0,1.0};
+
+  unsigned int idx;
+  double best_cost = std::numeric_limits<double>::infinity();
+
+  for(unsigned int i=0; i<number_of_parallel_plannings_;i++)
+  {
+    bool solver_has_solved = futures.at(i).get();
+    if(solver_has_solved)
+    {
+      if(connecting_path_vector_.at(i) == NULL) assert(0);
+
+      success_ = true;
+      double i_cost = connecting_path_vector_.at(i)->cost();
+
+      if(i_cost<best_cost)
+      {
+        best_cost = i_cost;
+        idx = i;
+
+        ROS_INFO_STREAM("New cost: "<<best_cost);
+      }
+
+      disp_->displayPath(connecting_path_vector_.at(i),idd,"pathplan",marker_color); //ELIMINA
+      idd= idd+500;
+    }
+  }
+
+  if (success_)
+  {
+    std::vector<ConnectionPtr>  connecting_path_conn = connecting_path_vector_.at(idx)->getConnections();
 
     PathPtr new_path = concatWithNewPathToGoal(connecting_path_conn, node);
 
     replanned_path_ = new_path;
-    success_ = true;
 
     ROS_INFO_STREAM("Solution found! -> cost: " << new_path->cost());
   }
@@ -31,14 +110,15 @@ bool ReplannerToGoal::connect2goal(const NodePtr& node)
   }
 
   //Regardless if you have found a solution or not, delete the fake nodes
-  node_fake->disconnect();
-  goal_node_fake->disconnect();
+  for(const NodePtr& n:node_to_delete_)
+    n->disconnect();
 
   return success_;
 }
 
+
 PathPtr ReplannerToGoal::concatWithNewPathToGoal(const std::vector<ConnectionPtr>& connecting_path_conn,
-                                             const NodePtr& path1_node)
+                                                 const NodePtr& path1_node)
 {
   NodePtr path2_node = std::make_shared<Node>(current_path_->getWaypoints().back());
   std::vector<ConnectionPtr> subpath2;

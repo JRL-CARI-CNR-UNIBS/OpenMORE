@@ -2,6 +2,7 @@
 #define DRRTSTAR_H__
 #include <replanner_base.h>
 #include <graph_core/solvers/rrt_star.h>
+#include <graph_core/local_informed_sampler.h>
 #include <typeinfo>
 
 namespace pathplan

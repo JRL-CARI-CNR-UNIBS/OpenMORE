@@ -53,9 +53,9 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
   NodePtr replan_goal;
   if(!nodeBehindObs(replan_goal)) return false;
 
-  double radius = 1.2*((replan_goal->getConfiguration()-node->getConfiguration()).norm());
-  //  InformedSampler sampler (node->getConfiguration(),node->getConfiguration(),lb_,ub_,radius); DIVISIONE PER ZERO NELLA MATRICE DI ROTAZIONE!
-  InformedSampler sampler (node->getConfiguration(),replan_goal->getConfiguration(),lb_,ub_,std::numeric_limits<double>::infinity());
+  double radius = 1*((replan_goal->getConfiguration()-node->getConfiguration()).norm());
+  LocalInformedSampler sampler (node->getConfiguration(),replan_goal->getConfiguration(),lb_,ub_,std::numeric_limits<double>::infinity());
+  sampler.addBall(node->getConfiguration(),radius);
 
   //*  STEP 1: REWIRING  *//
   tree->changeRoot(node);
@@ -74,42 +74,34 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
     NodePtr new_node;
     Eigen::VectorXd q=sampler.sample();
 
-    /*ELIMINA*/
-    bool skip = false;
-    if((q-node->getConfiguration()).norm()>radius) skip = true;
-    /*      */
-
-    if(!skip) //ELIMINA
+    if(tree->rewireWithPathCheck(q,checked_connections,radius,new_node))
     {
-      if(tree->rewireWithPathCheck(q,checked_connections,radius,new_node))
+      if(disp_ != NULL) disp_->displayNode(new_node);
+
+      if(replan_goal->getParents().at(0) == new_node)
       {
-        if(disp_ != NULL) disp_->displayNode(new_node);
+        success_ = true;
+      }
 
-        if(replan_goal->getParents().at(0) == new_node)
+      if(!success_)  //if success, i should not try to connect to goal but only rewire to improve the path
+      {
+        if((new_node->getConfiguration()-replan_goal->getConfiguration()).norm()<max_distance)
         {
-          success_ = true;
-        }
-
-        if(!success_)  //if success, i should not try to connect to goal but only rewire to improve the path
-        {
-          if((new_node->getConfiguration()-replan_goal->getConfiguration()).norm()<max_distance)
+          if(checker_->checkPath(new_node->getConfiguration(),replan_goal->getConfiguration()))
           {
-            if(checker_->checkPath(new_node->getConfiguration(),replan_goal->getConfiguration()))
+            if(replan_goal->getParents().size()>0)
             {
-              if(replan_goal->getParents().size()>0)
-              {
-                replan_goal->parent_connections_.at(0)->remove(); //delete the connection between replan_goal and the old parent
-                replan_goal->parent_connections_.clear();         //remove the old parent connections because now the parents of replan_goal come frome new_node
-              }
-
-              double cost = metrics_->cost(new_node->getConfiguration(),replan_goal->getConfiguration());
-              ConnectionPtr conn = std::make_shared<Connection>(new_node,replan_goal);
-              conn->setCost(cost);
-
-              conn->add(); //add connection between new_node (the new parent) and replan_goal in parent_connections of replan_goal
-
-              success_ = true;
+              replan_goal->parent_connections_.at(0)->remove(); //delete the connection between replan_goal and the old parent
+              replan_goal->parent_connections_.clear();         //remove the old parent connections because now the parents of replan_goal come frome new_node
             }
+
+            double cost = metrics_->cost(new_node->getConfiguration(),replan_goal->getConfiguration());
+            ConnectionPtr conn = std::make_shared<Connection>(new_node,replan_goal);
+            conn->setCost(cost);
+
+            conn->add(); //add connection between new_node (the new parent) and replan_goal in parent_connections of replan_goal
+
+            success_ = true;
           }
         }
       }

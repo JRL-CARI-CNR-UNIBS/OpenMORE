@@ -216,7 +216,7 @@ int main(int argc, char **argv)
 
   if(replanner_type == "replanner_to_goal")
   {
-    replanner = std::make_shared<pathplan::ReplannerToGoal>(current_configuration,current_path,max_time,solver);
+    replanner = std::make_shared<pathplan::ReplannerToGoal>(current_configuration,current_path,max_time,solver,5);
   }
   else if(replanner_type ==  "DRRT*")
   {
