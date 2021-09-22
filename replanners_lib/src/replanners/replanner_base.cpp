@@ -24,7 +24,6 @@ ReplannerBase::ReplannerBase(const Eigen::VectorXd& current_configuration,
 
 void ReplannerBase::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configuration)
 {
-
   std::vector<pathplan::ConnectionPtr> path_connections;
   std::vector<pathplan::ConnectionPtr> connections;
 

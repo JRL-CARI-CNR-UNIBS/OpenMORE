@@ -1,6 +1,7 @@
 # Replanner strategy:
 # - replanner_to_goal
 # - DRRT*
+# - DRRT
 
 replanner_type: "replanner_to_goal"
 group_name: "cartesian_arm"

@@ -5,6 +5,8 @@
 #include <graph_core/local_informed_sampler.h>
 #include <typeinfo>
 
+//Dynamic path planning and replanning for mobile robots using RRT*
+
 namespace pathplan
 {
 class DynamicRRTstar;

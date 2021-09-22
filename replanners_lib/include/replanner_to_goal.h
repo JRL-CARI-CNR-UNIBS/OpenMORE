@@ -6,6 +6,8 @@
 #include <future>
 #include <mutex>
 
+//High-frequency replanning under uncertainty using parallel sampling-based motion planning
+
 namespace pathplan
 {
 class ReplannerToGoal;

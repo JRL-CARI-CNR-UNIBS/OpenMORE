@@ -123,6 +123,7 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
     }
 
     replanned_path_ = std::make_shared<Path>(new_connections,metrics_,checker_);
+    replanned_path_->setTree(tree);
   }
 
   return success_;

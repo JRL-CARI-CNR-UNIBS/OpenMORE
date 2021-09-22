@@ -7,6 +7,7 @@
 #include <object_loader_msgs/RemoveObjects.h>
 #include <replanner_to_goal.h>
 #include <DRRTstar.h>
+#include <DRRT.h>
 
 int main(int argc, char **argv)
 {
@@ -221,6 +222,10 @@ int main(int argc, char **argv)
   else if(replanner_type ==  "DRRT*")
   {
     replanner =  std::make_shared<pathplan::DynamicRRTstar>(current_configuration,current_path,max_time,solver);
+  }
+  else if(replanner_type ==  "DRRT*")
+  {
+    replanner =  std::make_shared<pathplan::DynamicRRT>(current_configuration,current_path,max_time,solver);
   }
   else
   {
