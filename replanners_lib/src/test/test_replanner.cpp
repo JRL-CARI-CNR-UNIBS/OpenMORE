@@ -134,7 +134,7 @@ int main(int argc, char **argv)
   Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
 
   pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
-  pathplan::RRTConnectPtr solver = std::make_shared<pathplan::RRTConnect>(metrics, checker, sampler);
+  pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler);
 
   pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
 
@@ -223,7 +223,7 @@ int main(int argc, char **argv)
   {
     replanner =  std::make_shared<pathplan::DynamicRRTstar>(current_configuration,current_path,max_time,solver);
   }
-  else if(replanner_type ==  "DRRT*")
+  else if(replanner_type == "DRRT")
   {
     replanner =  std::make_shared<pathplan::DynamicRRT>(current_configuration,current_path,max_time,solver);
   }

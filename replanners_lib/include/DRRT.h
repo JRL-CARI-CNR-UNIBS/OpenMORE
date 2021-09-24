@@ -29,7 +29,7 @@ public:
              const double& max_time,
              const TreeSolverPtr &solver);
 
-  bool replan() override;
+  virtual bool replan() override;
 };
 }
 
