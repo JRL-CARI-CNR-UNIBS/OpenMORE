@@ -14,8 +14,6 @@ typedef std::shared_ptr<AnytimeDynamicRRT> AnytimeDynamicRRTPtr;
 class AnytimeDynamicRRT: public DynamicRRT
 {
 protected:
-  AnytimeRRTPtr solver_;
-
   bool improvePath(NodePtr &node, const double& max_time);
   void updatePath(NodePtr& node);
 

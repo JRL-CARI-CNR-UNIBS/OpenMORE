@@ -17,15 +17,14 @@ AnytimeDynamicRRT::AnytimeDynamicRRT(Eigen::VectorXd& current_configuration,
   {
     solver_ = std::make_shared<pathplan::AnytimeRRT>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
     solver_->importFromSolver(solver); //copy the required fields
-
-//    solver_->import
-
-//    if(!solver->solved())
-//      assert(0);
-
-    if(goal_conf_ != solver_->getGoal()->getConfiguration())
-      assert(0);
   }
+
+  if(!solver->solved())
+    assert(0);
+
+  AnytimeRRTPtr forced_cast_solver = std::static_pointer_cast<AnytimeRRT>(solver_);
+  if(goal_conf_ != forced_cast_solver->getGoal()->getConfiguration())
+    assert(0);
 }
 void AnytimeDynamicRRT::updatePath(NodePtr& node)
 {
@@ -39,6 +38,17 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
 {
   ros::WallTime tic = ros::WallTime::now();
 
+  const std::type_info& ti1 = typeid(AnytimeRRT);
+  const std::type_info& ti2 = typeid(*solver_);
+
+  if(ti1 != ti2)
+  {
+    ROS_ERROR_STREAM("Solver not of type AnytimeRRT");
+    return false;
+  }
+
+  AnytimeRRTPtr forced_cast_solver = std::static_pointer_cast<AnytimeRRT>(solver_);
+
   PathPtr solution;
   double time = (ros::WallTime::now()-tic).toSec();
   while(time<max_time)
@@ -46,7 +56,7 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
     NodePtr start_node = std::make_shared<Node>(node->getConfiguration());
     NodePtr goal_node  = std::make_shared<Node>(goal_conf_);
 
-    bool success = solver_->improve(start_node,goal_node,solution,1000,(max_time-time));
+    bool success = forced_cast_solver->improve(start_node,goal_node,solution,1000,(max_time-time));
 
     if(success)
     {
