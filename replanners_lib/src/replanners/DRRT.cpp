@@ -28,8 +28,8 @@ bool DynamicRRT::trimInvalidTree(NodePtr& node)
   TreePtr tree= current_path_->getTree();
   NodePtr goal_node = current_path_->getConnections().back()->getChild();
 
-  if(!tree->isInTree(goal_node))
-    assert(0);
+//  if(!tree->isInTree(goal_node))
+//    assert(0);
 
   //Check for all connections of the tree
   std::vector<ConnectionPtr> connections2goal = tree->getConnectionToNode(goal_node);
