@@ -8,6 +8,7 @@
 #include <replanner_to_goal.h>
 #include <DRRTstar.h>
 #include <DRRT.h>
+#include <anytimeDRRT.h>
 
 int main(int argc, char **argv)
 {
@@ -130,7 +131,8 @@ int main(int argc, char **argv)
   Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
 
   pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
-  pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler);
+//  pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler);
+  pathplan::RRTPtr solver = std::make_shared<pathplan::AnytimeRRT>(metrics, checker, sampler);
 
   pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
 
@@ -142,6 +144,7 @@ int main(int argc, char **argv)
 
   Eigen::VectorXd current_configuration = parent + (child-parent)*0.5;
 
+  return 0;
   //    ////////////////////////////////////////// REPLAN ////////////////////////////////////////////////////////////////
   bool success = false;
   ros::WallTime tic;
@@ -160,6 +163,10 @@ int main(int argc, char **argv)
   else if(replanner_type == "DRRT")
   {
     replanner =  std::make_shared<pathplan::DynamicRRT>(current_configuration,current_path,max_time,solver);
+  }
+  else if(replanner_type == "anytimeDRRT")
+  {
+    replanner =  std::make_shared<pathplan::AnytimeDynamicRRT>(current_configuration,current_path,max_time,solver);
   }
   else
   {

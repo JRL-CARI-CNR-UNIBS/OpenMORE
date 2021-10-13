@@ -91,6 +91,9 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
           replanned_path_ = std::make_shared<Path>(trimmed_tree_->getConnectionToNode(initial_goal), metrics_, checker_);
           replanned_path_->setTree(trimmed_tree_);
 
+          solver_->setStartTree(trimmed_tree_);
+          solver_->setSolution(replanned_path_);
+
           success_ = true;
           break;
         }

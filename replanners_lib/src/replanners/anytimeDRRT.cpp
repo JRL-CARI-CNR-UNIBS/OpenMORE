@@ -38,6 +38,8 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
 {
   ros::WallTime tic = ros::WallTime::now();
 
+  bool success = false;
+
   const std::type_info& ti1 = typeid(AnytimeRRT);
   const std::type_info& ti2 = typeid(*solver_);
 
@@ -56,16 +58,18 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
     NodePtr start_node = std::make_shared<Node>(node->getConfiguration());
     NodePtr goal_node  = std::make_shared<Node>(goal_conf_);
 
-    bool success = forced_cast_solver->improve(start_node,goal_node,solution,1000,(max_time-time));
+    bool improved = forced_cast_solver->improve(start_node,goal_node,solution,1000,(max_time-time));
 
-    if(success)
+    if(improved)
     {
       replanned_path_ = solution;
-      success_ = true;
+      success = true;
     }
 
     time = (ros::WallTime::now()-tic).toSec();
   }
+
+  return success;
 }
 
 bool AnytimeDynamicRRT::replan()
@@ -79,26 +83,28 @@ bool AnytimeDynamicRRT::replan()
 
     ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
-    regrowRRT(node_replan);
+    if(regrowRRT(node_replan))
+    {
+      updatePath(node_replan);
 
-    updatePath(node_replan);
-
-    double max_time_impr = 0.98*max_time_-(ros::WallTime::now()-tic).toSec();
-    improvePath(node_replan,max_time_impr);
+      double max_time_impr = 0.98*max_time_-(ros::WallTime::now()-tic).toSec();
+      improvePath(node_replan,max_time_impr); //if not improved, success_ = true anyway beacuse a new path has been found with regrowRRT()
+    }
   }
   else //replan not needed
   {
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
     NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
 
-    success_ = false;
-
     ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
     updatePath(node_replan);
 
     double max_time_impr = 0.98*max_time_-(ros::WallTime::now()-tic).toSec();
-    improvePath(node_replan,max_time_impr);
+    if(improvePath(node_replan,max_time_impr))
+      success_ = true;
+    else
+      success_ = false;
   }
 
   return success_;

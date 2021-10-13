@@ -9,6 +9,7 @@ ReplannerBase::ReplannerBase(const Eigen::VectorXd& current_configuration,
 {
   current_configuration_ = current_configuration;
   current_path_ = current_path;
+  replanned_path_ = current_path;
 
   solver_ = solver;
   metrics_ = solver->getMetrics();
