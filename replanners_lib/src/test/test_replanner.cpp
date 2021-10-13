@@ -19,6 +19,9 @@ int main(int argc, char **argv)
 
   //  ////////////////////////////////////////// GETTING ROS PARAM ///////////////////////////////////////////////
 
+  int n_iter = 1;
+  nh.getParam("n_iter",n_iter);
+
   std::string replanner_type;
   if (!nh.getParam("replanner_type",replanner_type))
   {
@@ -94,8 +97,6 @@ int main(int argc, char **argv)
 
   ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::AddObjects>("add_object_to_scene");
   ros::ServiceClient remove_obj=nh.serviceClient<object_loader_msgs::RemoveObjects>("remove_object_from_scene");
-  object_loader_msgs::AddObjects add_srv;
-  object_loader_msgs::RemoveObjects remove_srv;
 
   //  // ///////////////////////////////////UPDATING THE PLANNING STATIC SCENE////////////////////////////////////
   ros::ServiceClient ps_client=nh.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
@@ -146,58 +147,6 @@ int main(int argc, char **argv)
 
   Eigen::VectorXd current_configuration = parent + (child-parent)*0.5;
 
-  //    // ///////////////////////////////////////////////////////////////////////////
-
-  if (!add_obj.waitForExistence(ros::Duration(10)))
-  {
-    ROS_FATAL("srv not found");
-    return 1;
-  }
-
-  object_loader_msgs::AddObjects srv;
-  object_loader_msgs::Object obj;
-  obj.object_type="scatola";
-
-  int obj_conn_pos = n_conn+1;
-  pathplan::ConnectionPtr obj_conn = current_path->getConnections().at(obj_conn_pos);
-  pathplan::NodePtr obj_parent = obj_conn->getParent();
-  pathplan::NodePtr obj_child = obj_conn->getChild();
-  Eigen::VectorXd obj_pos = (obj_child->getConfiguration()+obj_parent->getConfiguration())/2;
-
-  pathplan::MoveitUtils moveit_utils(planning_scene,group_name);
-  moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
-  tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
-  obj.pose.header.frame_id="world";
-
-  srv.request.objects.push_back(obj);
-  if (!add_obj.call(srv))
-  {
-    ROS_ERROR("call to srv not ok");
-    return 1;
-  }
-  if (!srv.response.success)
-  {
-    ROS_ERROR("srv error");
-    return 1;
-  }
-  else
-  {
-    remove_srv.request.obj_ids.clear();
-    for (const std::string& str: srv.response.ids)
-    {
-      remove_srv.request.obj_ids.push_back(str);
-    }
-  }
-  //      // ///////////////////////////////////UPDATING THE PLANNING SCENE WITH THE NEW OBSTACLE ////////////////////////////////////////
-
-  if (!ps_client.call(ps_srv))
-  {
-    ROS_ERROR("call to srv not ok");
-    return 1;
-  }
-
-  checker->setPlanningSceneMsg(ps_srv.response.scene);
-
   //    // ///////////////////////////////////////////////////PATH CHECKING & REPLANNING/////////////////////////////////////////////////////
 
   bool valid;
@@ -207,7 +156,7 @@ int main(int argc, char **argv)
   //    // ///////////////////////////////////////// VISUALIZATION OF CURRENT NODE ///////////////////////////////////////////////////////////
   std::vector<double> marker_color_sphere_actual = {1.0,0.0,1.0,1.0};
   disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),5000,"pathplan",marker_color_sphere_actual);
-  //    // //////////////////////////////////////// ADDING A MOBILE OBSTACLE ////////////////////////////////////////////////////////////////
+  //    // //////////////////////////////////////// REPLAN ////////////////////////////////////////////////////////////////
 
   bool success = false;
   ros::WallTime tic;
@@ -235,20 +184,94 @@ int main(int argc, char **argv)
 
   replanner->setDisp(disp);
 
-  tic = ros::WallTime::now();
-  success =  replanner->replan();
-  toc = ros::WallTime::now();
-
-  ROS_INFO_STREAM("Replanner->"<<replanner_type<<" Duration: "<<(toc-tic).toSec()<<" success: "<<success);
-
-  if(success)
+  for(unsigned int i=0;i<n_iter;i++)
   {
-    std::vector<double> marker_color;
-    marker_color = {1.0,1.0,0.0,1.0};
+    //    // ///////////////////////////ADDING THE OBSTACLE ////////////////////////////////////////////////
 
-    std::vector<double> marker_scale(3,0.01);
-    disp->changeConnectionSize(marker_scale);
-    disp->displayPath(replanner->getReplannedPath(),6000,"pathplan",marker_color);
+    if (!add_obj.waitForExistence(ros::Duration(10)))
+    {
+      ROS_FATAL("srv not found");
+      return 1;
+    }
+
+    object_loader_msgs::AddObjects add_srv;
+    object_loader_msgs::RemoveObjects remove_srv;
+    object_loader_msgs::Object obj;
+    obj.object_type="scatola";
+
+    int obj_conn_pos = n_conn+1;
+    pathplan::ConnectionPtr obj_conn = current_path->getConnections().at(obj_conn_pos);
+    pathplan::NodePtr obj_parent = obj_conn->getParent();
+    pathplan::NodePtr obj_child = obj_conn->getChild();
+    Eigen::VectorXd obj_pos = (obj_child->getConfiguration()+obj_parent->getConfiguration())/2;
+
+    pathplan::MoveitUtils moveit_utils(planning_scene,group_name);
+    moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
+    tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
+    obj.pose.header.frame_id="world";
+
+    add_srv.request.objects.push_back(obj);
+    if (!add_obj.call(add_srv))
+    {
+      ROS_ERROR("call to srv not ok");
+      return 1;
+    }
+    if (!add_srv.response.success)
+    {
+      ROS_ERROR("srv error");
+      return 1;
+    }
+    else
+    {
+      remove_srv.request.obj_ids.clear();
+      for (const std::string& str: add_srv.response.ids)
+      {
+        remove_srv.request.obj_ids.push_back(str);
+      }
+    }
+    //      // ///////////////////////////////////UPDATING THE PLANNING SCENE WITH THE NEW OBSTACLE ////////////////////////////////////////
+
+    if (!ps_client.call(ps_srv))
+    {
+      ROS_ERROR("call to srv not ok");
+      return 1;
+    }
+
+    checker->setPlanningSceneMsg(ps_srv.response.scene);
+
+    //      // ///////////////////////////////////REPLANNING ////////////////////////////////////////
+
+    tic = ros::WallTime::now();
+    success =  replanner->replan();
+    toc = ros::WallTime::now();
+
+    ROS_INFO_STREAM("Replanner->"<<replanner_type<<" Duration: "<<(toc-tic).toSec()<<" success: "<<success);
+
+    if(success)
+    {
+      std::vector<double> marker_color;
+      marker_color = {1.0,1.0,0.0,1.0};
+
+      std::vector<double> marker_scale(3,0.01);
+      disp->changeConnectionSize(marker_scale);
+      disp->displayPath(replanner->getReplannedPath(),6000,"pathplan",marker_color);
+    }
+
+    n_conn = n_conn - 1;
+
+    if(n_conn<0) break;
+
+    Eigen::VectorXd parent = current_path->getConnections().at(n_conn)->getParent()->getConfiguration();
+    Eigen::VectorXd child = current_path->getConnections().at(n_conn)->getChild()->getConfiguration();
+
+    current_configuration = parent + (child-parent)*0.5;
+    replanner->setCurrentConf(current_configuration);
+
+    if (!remove_obj.call(remove_srv))
+    {
+      ROS_ERROR("call to srv not ok");
+      return 1;
+    }
   }
 
   return 0;

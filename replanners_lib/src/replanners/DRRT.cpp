@@ -63,7 +63,7 @@ bool DynamicRRT::trimInvalidTree(NodePtr& node)
     {
       NodePtr child = conn->getChild();
       tree->purgeFromHere(child,white_list,removed_nodes); //remove the successors and the connection from parent to child
-                                                           //NB: parent is free, otherwise the previous connection would have been reported as colliding
+      //NB: parent is free, otherwise the previous connection would have been reported as colliding
       trimmed = true;
       break;
     }
@@ -109,7 +109,7 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
 
           trimmed_tree_->addNode(goal_node);
           replanned_path_ = std::make_shared<Path>(trimmed_tree_->getConnectionToNode(goal_node), metrics_, checker_);
-          replanned_path_->setTree(trimmed_tree_);
+          replanned_path_->setTree(trimmed_tree_);  //dopo gli cambio la root, è un problema?
 
           success_ = true;
           break;
