@@ -136,7 +136,7 @@ int main(int argc, char **argv)
 
   disp->displayPathAndWaypoints(current_path,1,1000,"pathplan",{0.5,0.5,0.0,1.0});
 
-  int n_conn = 2;
+  int n_conn = 1;
   Eigen::VectorXd parent = current_path->getConnections().at(n_conn)->getParent()->getConfiguration();
   Eigen::VectorXd child = current_path->getConnections().at(n_conn)->getChild()->getConfiguration();
 
@@ -190,11 +190,10 @@ int main(int argc, char **argv)
     object_loader_msgs::Object obj;
     obj.object_type="scatola";
 
-    int obj_conn_pos = n_conn+1;
+    int obj_conn_pos = n_conn;
     pathplan::ConnectionPtr obj_conn = current_path->getConnections().at(obj_conn_pos);
-    pathplan::NodePtr obj_parent = obj_conn->getParent();
     pathplan::NodePtr obj_child = obj_conn->getChild();
-    Eigen::VectorXd obj_pos = (obj_child->getConfiguration()+obj_parent->getConfiguration())/2;
+    Eigen::VectorXd obj_pos = obj_child->getConfiguration();
 
     moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
     tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
@@ -233,6 +232,8 @@ int main(int argc, char **argv)
     valid =current_path->isValid();
     ROS_INFO_STREAM("current path valid: "<<valid);
 
+    disp->nextButton();
+
     //      /////////////////////////////////////REPLANNING ////////////////////////////////////////
     tic = ros::WallTime::now();
     success =  replanner->replan();
@@ -255,7 +256,8 @@ int main(int argc, char **argv)
     else
       break;
 
-    disp->nextButton();
+    if(i<((unsigned int)n_iter-1))
+      disp->nextButton();
 
     if (!remove_obj.call(remove_srv))
     {
@@ -267,7 +269,7 @@ int main(int argc, char **argv)
 
     Eigen::VectorXd parent = current_path->getConnections().at(n_conn)->getParent()->getConfiguration();
     Eigen::VectorXd child = current_path->getConnections().at(n_conn)->getChild()->getConfiguration();
-    current_configuration = parent + (child-parent)*0.5;
+    current_configuration = parent + (child-parent)*0.1;
 
     replanner->setCurrentConf(current_configuration);
     replanner->setCurrentPath(current_path);

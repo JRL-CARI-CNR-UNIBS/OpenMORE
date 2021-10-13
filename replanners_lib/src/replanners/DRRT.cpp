@@ -14,9 +14,8 @@ DynamicRRT::DynamicRRT(Eigen::VectorXd& current_configuration,
   if(std::type_index(ti1) != std::type_index(ti2))
   {
     solver_ = std::make_shared<pathplan::RRT>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
+    solver_->importFromSolver(solver); //copy the required fields
   }
-
-  goal_conf_ = current_path->getConnections().back()->getChild()->getConfiguration();
 }
 
 bool DynamicRRT::trimInvalidTree(NodePtr& node)
@@ -26,31 +25,7 @@ bool DynamicRRT::trimInvalidTree(NodePtr& node)
   bool trimmed = false;
 
   TreePtr tree= current_path_->getTree();
-  NodePtr goal_node = current_path_->getConnections().back()->getChild();
-
-//  if(!tree->isInTree(goal_node))
-//    assert(0);
-
-  //Check for all connections of the tree
-  std::vector<ConnectionPtr> connections2goal = tree->getConnectionToNode(goal_node);
-  std::vector<ConnectionPtr> node2goal;
-  bool from_here = false;
-  for(const ConnectionPtr &conn: connections2goal)
-  {
-    if(!from_here)
-    {
-      if(conn->getParent() == node)
-      {
-        node2goal.push_back(conn);
-        from_here = true;
-      }
-    }
-    else
-      node2goal.push_back(conn);
-  }
-
-  if(!from_here)
-    assert(0);
+  std::vector<ConnectionPtr> node2goal = tree->getConnectionToNode(node); //Note: the root must be the goal (set in regrowRRT())
 
   std::vector<NodePtr> white_list; //not needed
   unsigned int removed_nodes;      //not needed
@@ -63,7 +38,7 @@ bool DynamicRRT::trimInvalidTree(NodePtr& node)
     {
       NodePtr child = conn->getChild();
       tree->purgeFromHere(child,white_list,removed_nodes); //remove the successors and the connection from parent to child
-      //NB: parent is free, otherwise the previous connection would have been reported as colliding
+
       trimmed = true;
       break;
     }
@@ -80,15 +55,18 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
 
   success_ = false;
 
+  //First thing to do: set the goal as the root
+  NodePtr initial_goal = current_path_->getConnections().back()->getChild();
+  current_path_->getTree()->changeRoot(initial_goal); //revert the tree so the goal is the root
+
+  //Trim the tree
   if(!trimInvalidTree(node))
   {
     ROS_INFO("Tree not trimmed");
     return false;
   }
 
-  NodePtr old_root = trimmed_tree_->getRoot();
-  trimmed_tree_->changeRoot(node);
-
+  //Regrow the tree
   double max_distance = trimmed_tree_->getMaximumDistance();
   InformedSampler sampler (lb_,ub_,lb_,ub_);
 
@@ -98,18 +76,20 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
     NodePtr new_node;
     if(trimmed_tree_->extend(sampler.sample(),new_node))
     {
-      if((new_node->getConfiguration() - goal_conf_).norm() < max_distance)
+      if((new_node->getConfiguration() - node->getConfiguration()).norm() < max_distance)
       {
-        if(checker_->checkPath(new_node->getConfiguration(), goal_conf_))
+        if(checker_->checkPath(new_node->getConfiguration(), node->getConfiguration()))
         {
-          NodePtr goal_node = std::make_shared<Node>(goal_conf_);
-          ConnectionPtr conn = std::make_shared<Connection>(new_node, goal_node);
-          conn->setCost(metrics_->cost(new_node, goal_node));
+          ConnectionPtr conn = std::make_shared<Connection>(new_node, node);
+          conn->setCost(metrics_->cost(new_node, node));
           conn->add();
 
-          trimmed_tree_->addNode(goal_node);
-          replanned_path_ = std::make_shared<Path>(trimmed_tree_->getConnectionToNode(goal_node), metrics_, checker_);
-          replanned_path_->setTree(trimmed_tree_);  //dopo gli cambio la root, è un problema?
+          trimmed_tree_->addNode(node);
+
+          //Set the root in the node and extract the new path
+          trimmed_tree_->changeRoot(node);
+          replanned_path_ = std::make_shared<Path>(trimmed_tree_->getConnectionToNode(initial_goal), metrics_, checker_);
+          replanned_path_->setTree(trimmed_tree_);
 
           success_ = true;
           break;
@@ -118,8 +98,6 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
     }
     time = (ros::WallTime::now()-tic).toSec();
   }
-
-  trimmed_tree_->changeRoot(old_root);
 
   return success_;
 }

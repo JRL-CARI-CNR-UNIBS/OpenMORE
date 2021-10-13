@@ -10,4 +10,4 @@ last_link: "end_effector"
 max_time: 1000000000
 start_configuration: [0.2, 0.2, 0.2]
 stop_configuration: [0.8, 0.8, 0.8]
-n_iter: 2
+n_iter: 4

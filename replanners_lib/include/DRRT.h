@@ -15,7 +15,6 @@ typedef std::shared_ptr<DynamicRRT> DynamicRRTPtr;
 class DynamicRRT: public ReplannerBase
 {
 protected:
-  Eigen::VectorXd goal_conf_;
   TreePtr trimmed_tree_;
 
   bool trimInvalidTree(NodePtr& node);
