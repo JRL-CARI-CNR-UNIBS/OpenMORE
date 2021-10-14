@@ -51,18 +51,25 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
 
   AnytimeRRTPtr forced_cast_solver = std::static_pointer_cast<AnytimeRRT>(solver_);
 
+  double path_cost = solver_->getSolution()->cost();
+  double imprv = forced_cast_solver->getCostImpr();
+
   PathPtr solution;
+  double cost2beat;
   double time = (ros::WallTime::now()-tic).toSec();
   while(time<max_time)
   {
     NodePtr start_node = std::make_shared<Node>(node->getConfiguration());
     NodePtr goal_node  = std::make_shared<Node>(goal_conf_);
 
-    bool improved = forced_cast_solver->improve(start_node,goal_node,solution,1000,(max_time-time));
+    cost2beat = (1-imprv)*path_cost;
+
+    bool improved = forced_cast_solver->improve(start_node,goal_node,solution,cost2beat,1000,(max_time-time));
 
     if(improved)
     {
       replanned_path_ = solution;
+      path_cost = solution->cost();
       success = true;
     }
 
