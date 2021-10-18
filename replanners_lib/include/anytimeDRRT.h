@@ -8,6 +8,8 @@
 
 namespace pathplan
 {
+#define FAILED_ITER 3
+
 class AnytimeDynamicRRT;
 typedef std::shared_ptr<AnytimeDynamicRRT> AnytimeDynamicRRTPtr;
 

@@ -11,10 +11,17 @@ DynamicRRTstar::DynamicRRTstar(Eigen::VectorXd& current_configuration,
   const std::type_info& ti1 = typeid(RRTStar);
   const std::type_info& ti2 = typeid(*solver);
 
+  RRTStarPtr tmp_solver;
+
   if(std::type_index(ti1) != std::type_index(ti2))
   {
-    solver_ = std::make_shared<pathplan::RRTStar>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
+    tmp_solver = std::make_shared<pathplan::RRTStar>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
+    tmp_solver->importFromSolver(solver); //copy the required fields
   }
+  else
+    tmp_solver = std::static_pointer_cast<RRTStar>(solver);
+
+  solver_ = tmp_solver;
 }
 
 bool DynamicRRTstar::nodeBehindObs(NodePtr& node_behind)

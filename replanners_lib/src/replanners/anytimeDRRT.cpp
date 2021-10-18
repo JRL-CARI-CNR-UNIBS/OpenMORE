@@ -13,17 +13,23 @@ AnytimeDynamicRRT::AnytimeDynamicRRT(Eigen::VectorXd& current_configuration,
   const std::type_info& ti1 = typeid(AnytimeRRT);
   const std::type_info& ti2 = typeid(*solver);
 
+  AnytimeRRTPtr tmp_solver;
   if(std::type_index(ti1) != std::type_index(ti2))
   {
-    solver_ = std::make_shared<pathplan::AnytimeRRT>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
-    solver_->importFromSolver(solver); //copy the required fields
+    tmp_solver = std::make_shared<pathplan::AnytimeRRT>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
+    tmp_solver->importFromSolver(solver); //copy the required fields+
   }
+  else
+    tmp_solver = std::static_pointer_cast<AnytimeRRT>(solver);
 
-  if(!solver->solved())
+  solver_ = tmp_solver;
+
+  ROS_INFO_STREAM("Utopia: "<<tmp_solver->getUtopia());
+
+  if(!tmp_solver->solved())
     assert(0);
 
-  AnytimeRRTPtr forced_cast_solver = std::static_pointer_cast<AnytimeRRT>(solver_);
-  if(goal_conf_ != forced_cast_solver->getGoal()->getConfiguration())
+  if(goal_conf_ != tmp_solver->getGoal()->getConfiguration())
     assert(0);
 }
 void AnytimeDynamicRRT::updatePath(NodePtr& node)
@@ -51,16 +57,19 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
 
   AnytimeRRTPtr forced_cast_solver = std::static_pointer_cast<AnytimeRRT>(solver_);
 
-  double path_cost = solver_->getSolution()->cost();
+  double path_cost = solver_->getSolution()->getCostFromConf(node->getConfiguration());
   double imprv = forced_cast_solver->getCostImpr();
 
+  int n_fail = 0;
   PathPtr solution;
   double cost2beat;
   double time = (ros::WallTime::now()-tic).toSec();
-  while(time<max_time)
+  while(time<max_time && n_fail<FAILED_ITER)
   {
     NodePtr start_node = std::make_shared<Node>(node->getConfiguration());
     NodePtr goal_node  = std::make_shared<Node>(goal_conf_);
+
+    ROS_INFO_STREAM("start: "<<start_node->getConfiguration().transpose());
 
     cost2beat = (1-imprv)*path_cost;
 
@@ -70,8 +79,12 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
     {
       replanned_path_ = solution;
       path_cost = solution->cost();
+      ROS_INFO_STREAM("NEW COST: "<<path_cost);
       success = true;
+      n_fail = 0;
     }
+    else
+      n_fail +=1;
 
     time = (ros::WallTime::now()-tic).toSec();
   }
@@ -92,10 +105,15 @@ bool AnytimeDynamicRRT::replan()
 
     if(regrowRRT(node_replan))
     {
+      ROS_INFO("TREE REGROWN");
       updatePath(node_replan);
 
+      ROS_INFO("PATH UPDATED");
+
       double max_time_impr = 0.98*max_time_-(ros::WallTime::now()-tic).toSec();
-      improvePath(node_replan,max_time_impr); //if not improved, success_ = true anyway beacuse a new path has been found with regrowRRT()
+      bool improved = improvePath(node_replan,max_time_impr); //if not improved, success_ = true anyway beacuse a new path has been found with regrowRRT()
+
+      ROS_INFO_STREAM("PATH IMPROVED? "<<improved);
     }
   }
   else //replan not needed
@@ -106,10 +124,15 @@ bool AnytimeDynamicRRT::replan()
     ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
     updatePath(node_replan);
+    ROS_INFO("2PATH UPDATED");
 
     double max_time_impr = 0.98*max_time_-(ros::WallTime::now()-tic).toSec();
     if(improvePath(node_replan,max_time_impr))
+    {
       success_ = true;
+      ROS_INFO("2PATH IMPROVED");
+
+    }
     else
       success_ = false;
   }

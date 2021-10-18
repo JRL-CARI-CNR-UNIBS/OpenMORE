@@ -11,11 +11,17 @@ DynamicRRT::DynamicRRT(Eigen::VectorXd& current_configuration,
   const std::type_info& ti1 = typeid(RRT);
   const std::type_info& ti2 = typeid(*solver);
 
+  RRTPtr tmp_solver;
+
   if(std::type_index(ti1) != std::type_index(ti2))
   {
-    solver_ = std::make_shared<pathplan::RRT>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
-    solver_->importFromSolver(solver); //copy the required fields
+    tmp_solver = std::make_shared<pathplan::RRT>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
+    tmp_solver->importFromSolver(solver); //copy the required fields
   }
+  else
+    tmp_solver = std::static_pointer_cast<RRT>(solver);
+
+  solver_ = tmp_solver;
 }
 
 bool DynamicRRT::trimInvalidTree(NodePtr& node)

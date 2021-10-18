@@ -134,7 +134,7 @@ int main(int argc, char **argv)
 //  pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler);
   pathplan::RRTPtr solver = std::make_shared<pathplan::AnytimeRRT>(metrics, checker, sampler);
 
-  pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
+  pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true,1.0);
 
   disp->displayPathAndWaypoints(current_path,1,1000,"pathplan",{0.5,0.5,0.0,1.0});
 
@@ -144,7 +144,6 @@ int main(int argc, char **argv)
 
   Eigen::VectorXd current_configuration = parent + (child-parent)*0.5;
 
-  return 0;
   //    ////////////////////////////////////////// REPLAN ////////////////////////////////////////////////////////////////
   bool success = false;
   ros::WallTime tic;
