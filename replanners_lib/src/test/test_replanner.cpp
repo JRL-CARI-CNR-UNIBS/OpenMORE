@@ -134,7 +134,7 @@ int main(int argc, char **argv)
 //  pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler);
   pathplan::RRTPtr solver = std::make_shared<pathplan::AnytimeRRT>(metrics, checker, sampler);
 
-  pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true,1.0);
+  pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
 
   disp->displayPathAndWaypoints(current_path,1,1000,"pathplan",{0.5,0.5,0.0,1.0});
 
@@ -165,7 +165,9 @@ int main(int argc, char **argv)
   }
   else if(replanner_type == "anytimeDRRT")
   {
+    ROS_INFO("PRIMA DI REPLANNER");
     replanner =  std::make_shared<pathplan::AnytimeDynamicRRT>(current_configuration,current_path,max_time,solver);
+    ROS_INFO("DOPO REPLANNER");
   }
   else
   {

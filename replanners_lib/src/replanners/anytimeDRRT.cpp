@@ -8,21 +8,31 @@ AnytimeDynamicRRT::AnytimeDynamicRRT(Eigen::VectorXd& current_configuration,
                                      const double& max_time,
                                      const TreeSolverPtr &solver): DynamicRRT(current_configuration,current_path,max_time,solver)
 {
+  ROS_INFO("CREAZIONE ANYTIMEDRRT");
   goal_conf_ = current_path->getConnections().back()->getChild()->getConfiguration();
 
   const std::type_info& ti1 = typeid(AnytimeRRT);
   const std::type_info& ti2 = typeid(*solver);
 
+  ROS_INFO("CHECK TYPE SOLVER");
+
   AnytimeRRTPtr tmp_solver;
   if(std::type_index(ti1) != std::type_index(ti2))
   {
+    ROS_INFO("TYPE NOT ANYTIME");
+
     tmp_solver = std::make_shared<pathplan::AnytimeRRT>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
     tmp_solver->importFromSolver(solver); //copy the required fields+
   }
   else
+  {
+    ROS_INFO("TYPE ANYTIME");
     tmp_solver = std::static_pointer_cast<AnytimeRRT>(solver);
+  }
 
   solver_ = tmp_solver;
+
+  ROS_INFO("SOLVER COPIED");
 
   ROS_INFO_STREAM("Utopia: "<<tmp_solver->getUtopia());
 
