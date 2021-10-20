@@ -131,8 +131,8 @@ int main(int argc, char **argv)
   Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
 
   pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
-//  pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler);
-  pathplan::RRTPtr solver = std::make_shared<pathplan::AnytimeRRT>(metrics, checker, sampler);
+  pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler);
+  //  pathplan::AnytimeRRTPtr solver = std::make_shared<pathplan::AnytimeRRT>(metrics, checker, sampler);
 
   pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
 
@@ -142,7 +142,7 @@ int main(int argc, char **argv)
   Eigen::VectorXd parent = current_path->getConnections().at(n_conn)->getParent()->getConfiguration();
   Eigen::VectorXd child = current_path->getConnections().at(n_conn)->getChild()->getConfiguration();
 
-  Eigen::VectorXd current_configuration = parent + (child-parent)*0.5;
+  Eigen::VectorXd current_configuration = parent + (child-parent)*0.1;
 
   //    ////////////////////////////////////////// REPLAN ////////////////////////////////////////////////////////////////
   bool success = false;
@@ -165,9 +165,7 @@ int main(int argc, char **argv)
   }
   else if(replanner_type == "anytimeDRRT")
   {
-    ROS_INFO("PRIMA DI REPLANNER");
     replanner =  std::make_shared<pathplan::AnytimeDynamicRRT>(current_configuration,current_path,max_time,solver);
-    ROS_INFO("DOPO REPLANNER");
   }
   else
   {
@@ -201,29 +199,33 @@ int main(int argc, char **argv)
     int obj_conn_pos = n_conn;
     pathplan::ConnectionPtr obj_conn = current_path->getConnections().at(obj_conn_pos);
     pathplan::NodePtr obj_child = obj_conn->getChild();
-    Eigen::VectorXd obj_pos = obj_child->getConfiguration();
+    pathplan::NodePtr obj_parent = obj_conn->getParent();
+    Eigen::VectorXd obj_pos = obj_parent->getConfiguration() + 0.75*(obj_child->getConfiguration()-obj_parent->getConfiguration());
 
     moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
     tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
     obj.pose.header.frame_id="world";
 
-    add_srv.request.objects.push_back(obj);
-    if (!add_obj.call(add_srv))
+    if(i<(unsigned int)n_iter-1)
     {
-      ROS_ERROR("call to srv not ok");
-      return 1;
-    }
-    if (!add_srv.response.success)
-    {
-      ROS_ERROR("srv error");
-      return 1;
-    }
-    else
-    {
-      remove_srv.request.obj_ids.clear();
-      for (const std::string& str: add_srv.response.ids)
+      add_srv.request.objects.push_back(obj);
+      if (!add_obj.call(add_srv))
       {
-        remove_srv.request.obj_ids.push_back(str);
+        ROS_ERROR("call to srv not ok");
+        return 1;
+      }
+      if (!add_srv.response.success)
+      {
+        ROS_ERROR("srv error");
+        return 1;
+      }
+      else
+      {
+        remove_srv.request.obj_ids.clear();
+        for (const std::string& str: add_srv.response.ids)
+        {
+          remove_srv.request.obj_ids.push_back(str);
+        }
       }
     }
     //      /////////////////////////////////////UPDATING THE PLANNING SCENE WITH THE NEW OBSTACLE ////////////////////////////////////////
@@ -267,10 +269,13 @@ int main(int argc, char **argv)
     if(i<((unsigned int)n_iter-1))
       disp->nextButton();
 
-    if (!remove_obj.call(remove_srv))
+    if(i < (unsigned int)n_iter-1)
     {
-      ROS_ERROR("call to srv not ok");
-      return 1;
+      if (!remove_obj.call(remove_srv))
+      {
+        ROS_ERROR("call to srv not ok");
+        return 1;
+      }
     }
 
     current_path = replanner->getReplannedPath();
@@ -281,7 +286,6 @@ int main(int argc, char **argv)
 
     replanner->setCurrentConf(current_configuration);
     replanner->setCurrentPath(current_path);
-
   }
 
   return 0;

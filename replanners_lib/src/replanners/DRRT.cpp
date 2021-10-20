@@ -98,7 +98,7 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
           replanned_path_->setTree(trimmed_tree_);
 
           solver_->setStartTree(trimmed_tree_);
-          solver_->setSolution(replanned_path_);
+          solver_->setSolution(replanned_path_,true);
 
           success_ = true;
           break;

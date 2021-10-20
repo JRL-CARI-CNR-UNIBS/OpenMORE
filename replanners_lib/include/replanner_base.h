@@ -65,14 +65,19 @@ public:
   void setCurrentConf(const Eigen::VectorXd& q)
   {
     current_configuration_ = q;
-    solver_->resetProblem();
-    solver_->addStart(std::make_shared<Node>(q));
+//    solver_->resetProblem();
+//    solver_->addStart(std::make_shared<Node>(q));
     success_ = 0;
   }
 
   Eigen::VectorXd getCurrentConf()
   {
     return current_configuration_;
+  }
+
+  TreeSolverPtr getSolver()
+  {
+    return solver_;
   }
 
   void setChecker(const CollisionCheckerPtr &checker)
