@@ -1,6 +1,6 @@
 #ifndef DRRT_H__
 #define DRRT_H__
-#include <replanner_base.h>
+#include <replanners_lib/replanners/replanner_base.h>
 #include <graph_core/solvers/rrt.h>
 #include <graph_core/local_informed_sampler.h>
 #include <typeinfo>

@@ -1,6 +1,6 @@
 #ifndef ANYTIMEDRRT_H__
 #define ANYTIMEDRRT_H__
-#include <DRRT.h>
+#include <replanners_lib/replanners/DRRT.h>
 #include <graph_core/solvers/anytime_rrt.h>
 
 

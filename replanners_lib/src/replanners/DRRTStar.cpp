@@ -1,9 +1,9 @@
-﻿#include "DRRTstar.h"
+﻿#include "replanners_lib/replanners/DRRTStar.h"
 
 namespace pathplan
 {
 
-DynamicRRTstar::DynamicRRTstar(Eigen::VectorXd& current_configuration,
+DynamicRRTStar::DynamicRRTStar(Eigen::VectorXd& current_configuration,
                                PathPtr& current_path,
                                const double& max_time,
                                const TreeSolverPtr &solver): ReplannerBase(current_configuration,current_path,max_time,solver)
@@ -24,7 +24,7 @@ DynamicRRTstar::DynamicRRTstar(Eigen::VectorXd& current_configuration,
   solver_ = tmp_solver;
 }
 
-bool DynamicRRTstar::nodeBehindObs(NodePtr& node_behind)
+bool DynamicRRTStar::nodeBehindObs(NodePtr& node_behind)
 {
   for(int i=current_path_->getConnections().size()-1; i>=0; i--)
   {
@@ -44,7 +44,7 @@ bool DynamicRRTstar::nodeBehindObs(NodePtr& node_behind)
   return false;
 }
 
-bool DynamicRRTstar::connectBehindObs(NodePtr& node)
+bool DynamicRRTStar::connectBehindObs(NodePtr& node)
 {
   ros::WallTime tic = ros::WallTime::now();
 
@@ -139,7 +139,7 @@ bool DynamicRRTstar::connectBehindObs(NodePtr& node)
   return success_;
 }
 
-bool DynamicRRTstar::replan()
+bool DynamicRRTStar::replan()
 {
   if(current_path_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
   {

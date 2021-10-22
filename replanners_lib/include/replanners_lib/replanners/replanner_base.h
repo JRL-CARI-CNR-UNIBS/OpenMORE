@@ -47,13 +47,18 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   ReplannerBase(const Eigen::VectorXd &current_configuration,
-                     const PathPtr &current_path,
-                     const double &max_time,
-                     const TreeSolverPtr& solver);
+                const PathPtr &current_path,
+                const double &max_time,
+                const TreeSolverPtr& solver);
 
   PathPtr getReplannedPath()
   {
     return replanned_path_;
+  }
+
+  PathPtr getCurrentPath()
+  {
+    return current_path_;
   }
 
   void setCurrentPath(const PathPtr& path)
@@ -62,11 +67,16 @@ public:
     success_ = 0;
   }
 
+  void setMaxTime(const double& max_time)
+  {
+    max_time_ = max_time;
+  }
+
   void setCurrentConf(const Eigen::VectorXd& q)
   {
     current_configuration_ = q;
-//    solver_->resetProblem();
-//    solver_->addStart(std::make_shared<Node>(q));
+    //    solver_->resetProblem();
+    //    solver_->addStart(std::make_shared<Node>(q));
     success_ = 0;
   }
 

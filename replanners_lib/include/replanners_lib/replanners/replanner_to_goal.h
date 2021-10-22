@@ -1,6 +1,6 @@
 #ifndef REPLANNERTOGOAL_H__
 #define REPLANNERTOGOAL_H__
-#include <replanner_base.h>
+#include <replanners_lib/replanners/replanner_base.h>
 #include <graph_core/moveit_collision_checker.h>
 #include <graph_core/parallel_moveit_collision_checker.h>
 #include <future>

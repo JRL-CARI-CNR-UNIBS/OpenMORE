@@ -1,4 +1,4 @@
-﻿#include "anytimeDRRT.h"
+﻿#include "replanners_lib/replanners/anytimeDRRT.h"
 
 namespace pathplan
 {
@@ -16,11 +16,13 @@ AnytimeDynamicRRT::AnytimeDynamicRRT(Eigen::VectorXd& current_configuration,
   AnytimeRRTPtr tmp_solver;
   if(std::type_index(ti1) != std::type_index(ti2))
   {
+    ROS_INFO("NO ANY");
     tmp_solver = std::make_shared<pathplan::AnytimeRRT>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
     tmp_solver->importFromSolver(solver); //copy the required fields
   }
   else
   {
+    ROS_INFO(" ANY");
     tmp_solver = std::static_pointer_cast<AnytimeRRT>(solver);
   }
 

@@ -1,6 +1,6 @@
 #ifndef DRRTSTAR_H__
 #define DRRTSTAR_H__
-#include <replanner_base.h>
+#include <replanners_lib/replanners/replanner_base.h>
 #include <graph_core/solvers/rrt_star.h>
 #include <graph_core/local_informed_sampler.h>
 
@@ -8,10 +8,10 @@
 
 namespace pathplan
 {
-class DynamicRRTstar;
-typedef std::shared_ptr<DynamicRRTstar> DynamicRRTstarPtr;
+class DynamicRRTStar;
+typedef std::shared_ptr<DynamicRRTStar> DynamicRRTStarPtr;
 
-class DynamicRRTstar: public ReplannerBase
+class DynamicRRTStar: public ReplannerBase
 {
 protected:
 
@@ -21,7 +21,7 @@ protected:
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  DynamicRRTstar(Eigen::VectorXd& current_configuration,
+  DynamicRRTStar(Eigen::VectorXd& current_configuration,
                  PathPtr& current_path,
                  const double& max_time,
                  const TreeSolverPtr &solver);

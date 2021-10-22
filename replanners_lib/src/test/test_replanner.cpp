@@ -5,10 +5,10 @@
 #include <graph_replanning/replanner.h>
 #include <object_loader_msgs/AddObjects.h>
 #include <object_loader_msgs/RemoveObjects.h>
-#include <replanner_to_goal.h>
-#include <DRRTstar.h>
-#include <DRRT.h>
-#include <anytimeDRRT.h>
+#include <replanners_lib/replanners/replanner_to_goal.h>
+#include <replanners_lib/replanners/DRRTStar.h>
+#include <replanners_lib/replanners/DRRT.h>
+#include <replanners_lib/replanners/anytimeDRRT.h>
 
 int main(int argc, char **argv)
 {
@@ -132,7 +132,7 @@ int main(int argc, char **argv)
 
   pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
   pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler);
-  //  pathplan::AnytimeRRTPtr solver = std::make_shared<pathplan::AnytimeRRT>(metrics, checker, sampler);
+//    pathplan::AnytimeRRTPtr solver = std::make_shared<pathplan::AnytimeRRT>(metrics, checker, sampler);
 
   pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
 
@@ -157,7 +157,7 @@ int main(int argc, char **argv)
   }
   else if(replanner_type ==  "DRRT*")
   {
-    replanner =  std::make_shared<pathplan::DynamicRRTstar>(current_configuration,current_path,max_time,solver);
+    replanner =  std::make_shared<pathplan::DynamicRRTStar>(current_configuration,current_path,max_time,solver);
   }
   else if(replanner_type == "DRRT")
   {
