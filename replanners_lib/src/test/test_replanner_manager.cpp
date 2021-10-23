@@ -145,7 +145,7 @@ int main(int argc, char **argv)
     return 0;
   }
 
-  replanner_manager->start();
+  replanner_manager->startWithoutReplanning();
 
   return 0;
 }
