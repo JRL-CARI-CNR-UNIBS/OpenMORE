@@ -121,23 +121,26 @@ int main(int argc, char **argv)
 
   //    ////////////////////////////////////////// REPLAN ////////////////////////////////////////////////////////////////
 
+  ROS_INFO_STREAM("goal conf: "<<solver->getGoal()->getConfiguration());
+  ROS_INFO("---------------------------------------------");
+
   pathplan::ReplannerManagerBasePtr replanner_manager = NULL;
 
   if(replanner_type == "replanner_to_goal")
   {
-    replanner_manager = std::make_shared<pathplan::ReplannerManagerToGoal>(current_path,nh);
+    replanner_manager = std::make_shared<pathplan::ReplannerManagerToGoal>(current_path,solver,nh);
   }
   else if(replanner_type ==  "DRRT*")
   {
-    replanner_manager =  std::make_shared<pathplan::ReplannerManagerDRRTStar>(current_path,nh);
+    replanner_manager =  std::make_shared<pathplan::ReplannerManagerDRRTStar>(current_path,solver,nh);
   }
   else if(replanner_type == "DRRT")
   {
-    replanner_manager =  std::make_shared<pathplan::ReplannerManagerDRRT>(current_path,nh);
+    replanner_manager =  std::make_shared<pathplan::ReplannerManagerDRRT>(current_path,solver,nh);
   }
   else if(replanner_type == "anytimeDRRT")
   {
-    replanner_manager =  std::make_shared<pathplan::ReplannerManagerAnytimeDRRT>(current_path,nh);
+    replanner_manager =  std::make_shared<pathplan::ReplannerManagerAnytimeDRRT>(current_path,solver,nh);
   }
   else
   {
@@ -145,7 +148,7 @@ int main(int argc, char **argv)
     return 0;
   }
 
-  replanner_manager->start();
+  replanner_manager->startWithoutReplanning();
 
   return 0;
 }

@@ -23,6 +23,7 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   ReplannerManagerToGoal(PathPtr &current_path,
+                         TreeSolverPtr solver,
                          ros::NodeHandle &nh);
 
 };

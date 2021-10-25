@@ -13,7 +13,7 @@ class ReplannerManagerDRRT: public ReplannerManagerBase
 {
 protected:
 
-  bool haveToReplan(const bool path_osbtructed);
+  bool haveToReplan(const bool path_obstructed);
   bool replan();
   void initReplanner();
 
@@ -21,7 +21,8 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   ReplannerManagerDRRT(PathPtr &current_path,
-                       ros::NodeHandle &nh):ReplannerManagerBase(current_path,nh){}
+                       TreeSolverPtr solver,
+                       ros::NodeHandle &nh);
 
 };
 

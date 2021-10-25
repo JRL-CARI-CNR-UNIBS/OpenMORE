@@ -3,9 +3,11 @@
 namespace pathplan
 {
 ReplannerManagerBase::ReplannerManagerBase(PathPtr &current_path,
+                                           TreeSolverPtr &solver,
                                            ros::NodeHandle &nh)
 {
   current_path_ = current_path;
+  solver_       = solver      ;
   nh_           = nh          ;
 
   fromParam();

@@ -27,13 +27,14 @@ class ReplannerManagerBase: public std::enable_shared_from_this<ReplannerManager
 protected:
 
   // To be assigned by the constructor
-  PathPtr              current_path_                      ;
   double               trj_exec_thread_frequency_         ;
   double               collision_checker_thread_frequency_;
   double               dt_replan_                         ;
+  PathPtr              current_path_                      ;
   std::string          group_name_                        ;
   std::string          base_link_                         ;
   std::string          last_link_                         ;
+  TreeSolverPtr        solver_                            ;
   ros::NodeHandle      nh_                                ;
 
   // Global variables
@@ -131,7 +132,8 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   ReplannerManagerBase(PathPtr &current_path,
-                      ros::NodeHandle &nh);
+                       TreeSolverPtr &solver,
+                       ros::NodeHandle &nh);
 
   trajectory_msgs::JointTrajectoryPoint getJointTarget()
   {

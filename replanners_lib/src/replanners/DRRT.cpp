@@ -11,6 +11,8 @@ DynamicRRT::DynamicRRT(Eigen::VectorXd& current_configuration,
   const std::type_info& ti1 = typeid(RRT);
   const std::type_info& ti2 = typeid(*solver);
 
+  ROS_INFO_STREAM("type: "<<ti2.name());
+
   RRTPtr tmp_solver;
 
   if(std::type_index(ti1) != std::type_index(ti2))
