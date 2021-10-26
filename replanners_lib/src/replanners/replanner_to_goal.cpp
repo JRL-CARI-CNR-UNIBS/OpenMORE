@@ -3,6 +3,51 @@
 namespace pathplan
 {
 
+ReplannerToGoal::ReplannerToGoal(Eigen::VectorXd& current_configuration,
+                                 PathPtr& current_path,
+                                 const double& max_time,
+                                 const TreeSolverPtr& solver,
+                                 const unsigned int& number_of_parallel_plannings): ReplannerBase(current_configuration,current_path,max_time,solver)
+{
+  const std::type_info& ti1 = typeid(RRT);
+  const std::type_info& ti2 = typeid(*solver);
+
+  RRTPtr tmp_solver;
+
+  if(std::type_index(ti1) != std::type_index(ti2))
+  {
+    tmp_solver = std::make_shared<pathplan::RRT>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
+    tmp_solver->importFromSolver(solver); //copy the required fields
+  }
+  else
+  {
+    tmp_solver = std::static_pointer_cast<RRT>(solver);
+  }
+
+  solver_ = tmp_solver;
+
+  if(number_of_parallel_plannings<1)
+    number_of_parallel_plannings_ = 1;
+  else
+    number_of_parallel_plannings_ =  number_of_parallel_plannings;
+
+  solver_vector_.clear();
+  for(unsigned int i=0;i<number_of_parallel_plannings_;i++)
+  {
+    SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(lb_,ub_,lb_,ub_);
+    MetricsPtr metrics = metrics_->clone();
+
+    CollisionCheckerPtr checker = checker_->clone();
+    RRTPtr sv = std::static_pointer_cast<RRT>(solver_->clone(metrics, checker, sampler));
+    sv->importFromSolver(solver_);
+
+    solver_vector_.push_back(sv);
+  }
+
+  connecting_path_vector_   .resize(number_of_parallel_plannings_,NULL);
+  directly_connected_vector_.resize(number_of_parallel_plannings_);
+}
+
 bool ReplannerToGoal::asyncComputeConnectingPath(const Eigen::VectorXd path1_node_conf,
                                                  const Eigen::VectorXd path2_node_conf,
                                                  const double diff_subpath_cost,
@@ -11,15 +56,9 @@ bool ReplannerToGoal::asyncComputeConnectingPath(const Eigen::VectorXd path1_nod
   NodePtr path1_node = std::make_shared<Node>(path1_node_conf);
   NodePtr path2_node = std::make_shared<Node>(path2_node_conf);
 
-  SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(path1_node_conf, path2_node_conf, lb_, ub_);
-  MetricsPtr metrics = metrics_->clone();
-  CollisionCheckerPtr checker = checker_->clone();
-
-  TreeSolverPtr solver = solver_->clone(metrics, checker, sampler); //sampler will be re-defined
-  solver->config(solver_->getNodeHandle());
-
   PathPtr connecting_path = NULL;
   bool directly_connected = false;
+  TreeSolverPtr solver = solver_vector_.at(index);
 
   bool success = ReplannerBase::computeConnectingPath(path1_node,
                                                       path2_node,
@@ -27,6 +66,7 @@ bool ReplannerToGoal::asyncComputeConnectingPath(const Eigen::VectorXd path1_nod
                                                       connecting_path,
                                                       directly_connected,
                                                       solver);
+
   mtx_.lock();
   connecting_path_vector_.at(index) = connecting_path;
   directly_connected_vector_.at(index) = directly_connected;
@@ -37,11 +77,16 @@ bool ReplannerToGoal::asyncComputeConnectingPath(const Eigen::VectorXd path1_nod
 
   double cost;
   if(success)
+  {
+    ROS_WARN("a solution has been found");
     cost = connecting_path->cost();
+  }
   else
     cost = -1;
 
-  ROS_INFO_STREAM("\n--- THREAD REASUME ---\nthread n: "<<index<<"\nsuccess: "<<success<<"\ndirectly connected: "<<directly_connected<<"\nconnecting path cost: "<< cost);
+  if(verbose_)
+    ROS_INFO_STREAM("\n--- THREAD REASUME ---\nthread n: "<<index<<"\nsuccess: "<<success<<"\ndirectly connected: "<<directly_connected<<"\nconnecting path cost: "<< cost);
+
   return success;
 }
 
@@ -86,11 +131,15 @@ bool ReplannerToGoal::connect2goal(const NodePtr& node)
         best_cost = i_cost;
         idx = i;
 
-        ROS_INFO_STREAM("New cost: "<<best_cost);
+        if(verbose_)
+          ROS_INFO_STREAM("New cost: "<<best_cost);
       }
 
-      disp_->displayPath(connecting_path_vector_.at(i),idd,"pathplan",marker_color); //ELIMINA
-      idd= idd+500;
+      if(disp_)
+      {
+        disp_->displayPath(connecting_path_vector_.at(i),idd,"pathplan",marker_color);
+        idd= idd+500;
+      }
     }
   }
 
@@ -133,10 +182,18 @@ PathPtr ReplannerToGoal::concatWithNewPathToGoal(const std::vector<ConnectionPtr
 
 bool ReplannerToGoal::replan()
 {
+  //Update the scene for all the planning threads
+  moveit_msgs::PlanningScene scene_msg;
+  checker_->getPlanningScene()->getPlanningSceneMsg(scene_msg);
+
+  for(const RRTPtr& solver:solver_vector_)
+    solver->getChecker()->setPlanningSceneMsg(scene_msg);
+
+  //Replan
   if(current_path_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
   {
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
+    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,false);
 
     connect2goal(node_replan);
   }

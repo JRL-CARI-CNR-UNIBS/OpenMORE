@@ -37,6 +37,7 @@ protected:
   DisplayPtr disp_;
 
   bool success_;
+  bool verbose_;
   double max_time_;
 
   virtual bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, const double &diff_subpath_cost, PathPtr &connecting_path, bool &directly_connected);
@@ -70,6 +71,11 @@ public:
   void setMaxTime(const double& max_time)
   {
     max_time_ = max_time;
+  }
+
+  void setVerbosity(const bool& verbose)
+  {
+    verbose_ = verbose;
   }
 
   void setCurrentConf(const Eigen::VectorXd& q)

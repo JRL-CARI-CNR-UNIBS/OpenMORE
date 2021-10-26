@@ -144,7 +144,7 @@ bool DynamicRRTStar::replan()
   if(current_path_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
   {
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
+    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true); //false?
 
     ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 

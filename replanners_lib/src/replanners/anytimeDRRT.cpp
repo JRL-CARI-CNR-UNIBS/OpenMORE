@@ -8,7 +8,6 @@ AnytimeDynamicRRT::AnytimeDynamicRRT(Eigen::VectorXd& current_configuration,
                                      const double& max_time,
                                      const TreeSolverPtr &solver): DynamicRRT(current_configuration,current_path,max_time,solver)
 {
-  ROS_INFO("QUA");
 
   goal_conf_ = current_path->getConnections().back()->getChild()->getConfiguration();
 
@@ -34,9 +33,15 @@ AnytimeDynamicRRT::AnytimeDynamicRRT(Eigen::VectorXd& current_configuration,
   {
 
     ROS_INFO("QUA5");
-    tmp_solver->importFromSolver(solver);
-//    tmp_solver = std::static_pointer_cast<AnytimeRRT>(solver);
-    ROS_INFO_STREAM("goal conf: "<<tmp_solver->getGoal()->getConfiguration());
+
+    tmp_solver = std::static_pointer_cast<AnytimeRRT>(solver);
+
+    const std::type_info& ti3 = typeid(*tmp_solver);
+    ROS_INFO_STREAM("type tmp solver "<<ti3.name());
+    ROS_INFO_STREAM("type solver "<<ti2.name());
+    ROS_INFO("QUA5.5");
+
+//    ROS_INFO_STREAM("goal conf: "<<tmp_solver->getGoal()->getConfiguration());
   }
 
   solver_ = tmp_solver;
@@ -48,10 +53,10 @@ AnytimeDynamicRRT::AnytimeDynamicRRT(Eigen::VectorXd& current_configuration,
 
   ROS_INFO("QUA7");
 
-  if(goal_conf_ != tmp_solver->getGoal()->getConfiguration())
-    assert(0);
+//  if(goal_conf_ != tmp_solver->getGoal()->getConfiguration())
+//    assert(0);
 
-    ROS_INFO("QUA8");
+//    ROS_INFO("QUA8");
 }
 void AnytimeDynamicRRT::updatePath(NodePtr& node)
 {

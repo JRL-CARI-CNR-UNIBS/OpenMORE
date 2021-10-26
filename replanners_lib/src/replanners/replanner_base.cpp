@@ -11,9 +11,12 @@ ReplannerBase::ReplannerBase(const Eigen::VectorXd& current_configuration,
   current_path_ = current_path;
   replanned_path_ = current_path;
 
-  solver_ = solver;
+  solver_  = solver;
   metrics_ = solver->getMetrics();
   checker_ = solver->getChecker();
+
+  ROS_INFO_STREAM("CHECKER REPL BASE: "<<checker_);
+
   lb_ = solver->getSampler()->getLB();
   ub_ = solver->getSampler()->getUB();
 
@@ -21,6 +24,7 @@ ReplannerBase::ReplannerBase(const Eigen::VectorXd& current_configuration,
   success_ = false;
 
   disp_ = NULL;
+  verbose_ = false;
 }
 
 void ReplannerBase::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configuration)

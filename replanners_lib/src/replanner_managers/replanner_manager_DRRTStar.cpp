@@ -6,8 +6,10 @@ ReplannerManagerDRRTStar::ReplannerManagerDRRTStar(PathPtr &current_path,
                                                    TreeSolverPtr solver,
                                                    ros::NodeHandle &nh):ReplannerManagerBase(current_path,solver,nh)
 {
-  solver_  = std::make_shared<pathplan::RRTStar>(solver_->getMetrics(), checker_, solver_->getSampler());
-  solver_->importFromSolver(solver);
+  RRTStarPtr tmp_solver = std::make_shared<pathplan::RRTStar>(solver_->getMetrics(), checker_, solver_->getSampler());
+  tmp_solver->importFromSolver(solver);
+
+  solver_  = tmp_solver;
 }
 
 bool ReplannerManagerDRRTStar::haveToReplan(const bool path_obstructed)

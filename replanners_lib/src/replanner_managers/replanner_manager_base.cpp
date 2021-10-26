@@ -90,7 +90,8 @@ void ReplannerManagerBase::attributeInitialization()
   dt_                              = 1/trj_exec_thread_frequency_        ;
   replan_offset_                   = (dt_replan_-dt_)*K_OFFSET           ;
   t_replan_                        = t_+replan_offset_                   ;
-  replanning_thread_frequency_     = 1/dt_replan_                        ;
+  //  replanning_thread_frequency_     = 1/dt_replan_                    ;
+  replanning_thread_frequency_     = 100                                 ;
   global_override_                 = 1.0                                 ;
 
   if(group_name_.empty()) throw std::invalid_argument("group name not set");
@@ -131,6 +132,7 @@ void ReplannerManagerBase::attributeInitialization()
   checker_thread_cc_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_, group_name_,5, checker_resol_           );
   checker_           = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_, group_name_,5, checker_resol_);
   current_path_->setChecker(checker_);
+  solver_->setChecker(checker_);
 
   trajectory_                              = std::make_shared<pathplan::Trajectory>(current_path_,nh_,planning_scn_replanning_,group_name_);
   robot_trajectory::RobotTrajectoryPtr trj = trajectory_->fromPath2Trj()                                                                   ;
@@ -220,6 +222,7 @@ void ReplannerManagerBase::replanningThread()
   bool success = false;
   bool path_obstructed = true;
   bool old_path_obstructed = path_obstructed_;
+  double replanning_duration = 0;
   int n_conn_replan = 0;
   Eigen::VectorXd past_configuration_replan = configuration_replan_;
   Eigen::VectorXd goal = replanner_->getCurrentPath()->getConnections().back()->getChild()->getConfiguration();
@@ -241,7 +244,7 @@ void ReplannerManagerBase::replanningThread()
     ros::WallTime tic=ros::WallTime::now();
 
     trj_mtx_.lock();
-    t_replan_ = t_+replan_offset_;
+    //t_replan_ = t_+replan_offset_; updated in trj_thread
 
     interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_);
     for(unsigned int i=0; i<pnt_replan_.positions.size();i++) point2project[i] = pnt_replan_.positions.at(i);
@@ -301,23 +304,23 @@ void ReplannerManagerBase::replanningThread()
       replanner_mtx_.unlock();
       checker_mtx_.unlock();
 
-
+      success = false;
+      replanning_duration = 0;
       if(haveToReplan(path_obstructed))
       {
         planning_mtx_.lock();
-
         replanning_ = true;
         tic_rep=ros::WallTime::now();
         success = replan();
         toc_rep=ros::WallTime::now();
         replanning_ = false;
-
         planning_mtx_.unlock();
+
+        replanning_duration = (toc_rep-tic_rep).toSec();
       }
 
-
       if((toc_rep-tic_rep).toSec()>=dt_replan_/0.9 && display_timing_warning_) ROS_WARN("Replanning duration: %f",(toc_rep-tic_rep).toSec());
-      if(display_replanning_success_) ROS_INFO_STREAM("Success: " << (toc_rep-tic_rep).toSec());
+      if(display_replanning_success_) ROS_INFO_STREAM("Success: "<< success <<" in "<< replanning_duration <<" seconds");
 
       stop_mtx_.lock();
       bool stop = stop_;
@@ -482,9 +485,9 @@ bool ReplannerManagerBase::run()
 
   display_thread_                   = std::thread(&ReplannerManagerBase::displayThread             ,this);  //it must be the first one launched, otherwise the first paths will be not displayed in time
   if(spawn_objs_) spawn_obj_thread_ = std::thread(&ReplannerManagerBase::spawnObjects              ,this);
-  ros::Duration(2).sleep()                                                                           ;
   replanning_thread_                = std::thread(&ReplannerManagerBase::replanningThread          ,this);
   col_check_thread_                 = std::thread(&ReplannerManagerBase::collisionCheckThread      ,this);
+  ros::Duration(2).sleep()                                                                               ;
   trj_exec_thread_                  = std::thread(&ReplannerManagerBase::trajectoryExecutionThread ,this);
 
   return true;
@@ -512,6 +515,9 @@ bool ReplannerManagerBase::startWithoutReplanning()
 
   display_thread_  = std::thread(&ReplannerManagerBase::displayThread             ,this);
   trj_exec_thread_ = std::thread(&ReplannerManagerBase::trajectoryExecutionThread ,this);
+
+  if(display_thread_ .joinable()) display_thread_ .join();
+  if(trj_exec_thread_.joinable()) trj_exec_thread_.join();
 
   return true;
 }
@@ -551,6 +557,7 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     else                   scaling = scaling_from_param_;
 
     t_+= scaling*dt_;
+    t_replan_ = t_+(replan_offset_*scaling);
 
     interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling);
     interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,    1.0);
@@ -655,7 +662,7 @@ void ReplannerManagerBase::displayThread()
     disp->displayPathAndWaypoints(current_path,path_id,wp_id,"pathplan",marker_color);
 
     marker_color =  {0.0,1.0,0.0,1.0};
-    disp->displayPathAndWaypoints(initial_path,path_id,wp_id+1000,"pathplan",marker_color);
+    disp->displayPathAndWaypoints(initial_path,path_id+2000,wp_id+2000,"pathplan",marker_color);
     disp->defaultConnectionSize();
 
     //    disp->changeNodeSize(marker_scale_sphere);
@@ -672,10 +679,10 @@ void ReplannerManagerBase::displayThread()
     //    marker_color = {0.0,0.0,0.0,1.0};
     //    disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),node_id,"pathplan",marker_color);
 
-    //    for(unsigned int i=0; i<pnt_replan.positions.size();i++) point2project[i] = pnt_replan.positions.at(i);
-    //    node_id +=1;
-    //    marker_color = {0.5,0.5,0.5,1.0};
-    //    disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
+    for(unsigned int i=0; i<pnt_replan.positions.size();i++) point2project[i] = pnt_replan.positions.at(i);
+    node_id +=1;
+    marker_color = {0.5,0.5,0.5,1.0};
+    disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
 
     disp->defaultNodeSize();
 
@@ -702,9 +709,9 @@ void ReplannerManagerBase::spawnObjects()
   bool stop = stop_;
   stop_mtx_.unlock();
 
-  while (!stop && ros::ok())
+  while(!stop && ros::ok())
   {
-    // ////////////////////////////////////////////SPAWNING THE OBJECT/////////////////////////////////////////////
+    //    // ////////////////////////////////////////////SPAWNING THE OBJECT/////////////////////////////////////////////
     if(real_time_>=2.0 && !second_object_spawned)
     {
       second_object_spawned = true;

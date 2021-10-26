@@ -121,9 +121,6 @@ int main(int argc, char **argv)
 
   //    ////////////////////////////////////////// REPLAN ////////////////////////////////////////////////////////////////
 
-  ROS_INFO_STREAM("goal conf: "<<solver->getGoal()->getConfiguration());
-  ROS_INFO("---------------------------------------------");
-
   pathplan::ReplannerManagerBasePtr replanner_manager = NULL;
 
   if(replanner_type == "replanner_to_goal")
@@ -148,7 +145,7 @@ int main(int argc, char **argv)
     return 0;
   }
 
-  replanner_manager->startWithoutReplanning();
+  replanner_manager->start();
 
   return 0;
 }

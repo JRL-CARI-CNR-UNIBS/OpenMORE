@@ -132,7 +132,7 @@ int main(int argc, char **argv)
 
   pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
   pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler);
-//    pathplan::AnytimeRRTPtr solver = std::make_shared<pathplan::AnytimeRRT>(metrics, checker, sampler);
+  //  pathplan::AnytimeRRTPtr solver = std::make_shared<pathplan::AnytimeRRT>(metrics, checker, sampler);
 
   pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
 

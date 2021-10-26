@@ -3,6 +3,7 @@
 #include <replanners_lib/replanners/replanner_base.h>
 #include <graph_core/moveit_collision_checker.h>
 #include <graph_core/parallel_moveit_collision_checker.h>
+#include <graph_core/solvers/rrt.h>
 #include <future>
 #include <mutex>
 
@@ -17,6 +18,7 @@ class ReplannerToGoal: public ReplannerBase
 {
 protected:
   unsigned int number_of_parallel_plannings_;
+  std::vector<RRTPtr> solver_vector_;
   std::vector<PathPtr> connecting_path_vector_;
   std::vector<bool> directly_connected_vector_;
   std::vector<NodePtr> node_to_delete_;
@@ -33,16 +35,7 @@ public:
                   PathPtr& current_path,
                   const double& max_time,
                   const TreeSolverPtr& solver,
-                  const unsigned int& number_of_parallel_plannings = 1): ReplannerBase(current_configuration,current_path,max_time,solver)
-  {
-    if(number_of_parallel_plannings<1)
-      number_of_parallel_plannings_ = 1;
-    else
-      number_of_parallel_plannings_ =  number_of_parallel_plannings;
-
-    connecting_path_vector_   .resize(number_of_parallel_plannings_,NULL);
-    directly_connected_vector_.resize(number_of_parallel_plannings_);
-  }
+                  const unsigned int& number_of_parallel_plannings = 1);
 
   bool replan() override;
 };

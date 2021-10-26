@@ -11,20 +11,15 @@ DynamicRRT::DynamicRRT(Eigen::VectorXd& current_configuration,
   const std::type_info& ti1 = typeid(RRT);
   const std::type_info& ti2 = typeid(*solver);
 
-  ROS_INFO_STREAM("type: "<<ti2.name());
-
   RRTPtr tmp_solver;
 
   if(std::type_index(ti1) != std::type_index(ti2))
   {
-    ROS_INFO("NO RRT");
-
     tmp_solver = std::make_shared<pathplan::RRT>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
     tmp_solver->importFromSolver(solver); //copy the required fields
   }
   else
   {
-    ROS_INFO("RRT");
     tmp_solver = std::static_pointer_cast<RRT>(solver);
   }
 

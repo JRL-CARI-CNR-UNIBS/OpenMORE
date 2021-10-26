@@ -7,8 +7,10 @@ ReplannerManagerToGoal::ReplannerManagerToGoal(PathPtr &current_path,
                                                TreeSolverPtr solver,
                                                ros::NodeHandle &nh):ReplannerManagerBase(current_path,solver,nh)
 {
-  solver_  = std::make_shared<pathplan::RRT>(solver_->getMetrics(), checker_, solver_->getSampler());
-  solver_->importFromSolver(solver);
+  RRTPtr tmp_solver = std::make_shared<pathplan::RRT>(solver_->getMetrics(), checker_, solver_->getSampler());
+  tmp_solver->importFromSolver(solver);
+
+  solver_ = tmp_solver;
 
   additionalParams();
 }
@@ -17,14 +19,14 @@ void ReplannerManagerToGoal::additionalParams()
 {
   if(!nh_.getParam("/to_goal/n_threads_replan",n_threads_replan_))
   {
-    ROS_ERROR("n_thread_replan not set, set 5");
+    ROS_ERROR("n_threads_replan not set, set 5");
     n_threads_replan_ = 5;
   }
   else
   {
     if(n_threads_replan_<1)
     {
-      ROS_ERROR("n_thread_replan can not be less than 1, set 1");
+      ROS_ERROR("n_threads_replan can not be less than 1, set 1");
       n_threads_replan_ = 1;
     }
   }
@@ -37,11 +39,6 @@ bool ReplannerManagerToGoal::haveToReplan(const bool path_obstructed)
 
 void ReplannerManagerToGoal::initReplanner()
 {
-//  pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
-//  pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(current_path_->getWaypoints().front(), current_path_->getWaypoints().back(), lb_, ub_);
-//  pathplan::RRTPtr     solver  = std::make_shared<pathplan::RRT>(metrics, checker_, sampler);
-//  solver->config(nh_);
-
   double time_for_repl = 0.9*dt_replan_;
   replanner_ = std::make_shared<pathplan::ReplannerToGoal>(configuration_replan_, current_path_, time_for_repl, solver_,n_threads_replan_);
 }
