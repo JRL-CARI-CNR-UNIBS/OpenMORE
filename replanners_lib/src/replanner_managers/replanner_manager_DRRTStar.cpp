@@ -6,10 +6,15 @@ ReplannerManagerDRRTStar::ReplannerManagerDRRTStar(PathPtr &current_path,
                                                    TreeSolverPtr solver,
                                                    ros::NodeHandle &nh):ReplannerManagerBase(current_path,solver,nh)
 {
-  RRTStarPtr tmp_solver = std::make_shared<pathplan::RRTStar>(solver_->getMetrics(), checker_, solver_->getSampler());
+  RRTStarPtr tmp_solver = std::make_shared<pathplan::RRTStar>(solver_->getMetrics(), checker_replanning_, solver_->getSampler());
   tmp_solver->importFromSolver(solver);
 
   solver_  = tmp_solver;
+}
+
+void ReplannerManagerDRRTStar::connectToReplannedPath()
+{
+  replanner_->startReplannedPathFromNewCurrentConf(current_configuration_);
 }
 
 bool ReplannerManagerDRRTStar::haveToReplan(const bool path_obstructed)
@@ -19,13 +24,8 @@ bool ReplannerManagerDRRTStar::haveToReplan(const bool path_obstructed)
 
 void ReplannerManagerDRRTStar::initReplanner()
 {
-  //  pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
-  //  pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(current_path_->getWaypoints().front(), current_path_->getWaypoints().back(), lb_, ub_);
-  //  pathplan::RRTStarPtr solver  = std::make_shared<pathplan::RRTStar>(metrics, checker_, sampler);
-  //  solver->config(nh_);
-
   double time_for_repl = 0.9*dt_replan_;
-  replanner_ = std::make_shared<pathplan::DynamicRRTStar>(configuration_replan_, current_path_, time_for_repl, solver_);
+  replanner_ = std::make_shared<pathplan::DynamicRRTStar>(configuration_replan_, current_path_replanning_, time_for_repl, solver_);
 }
 
 bool ReplannerManagerDRRTStar::replan()

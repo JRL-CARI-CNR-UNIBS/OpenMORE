@@ -73,7 +73,8 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
   //*  STEP 2: ADDING NEW NODES AND SEARCHING WITH RRT*  *//
   double max_distance = tree->getMaximumDistance();
 
-  if(disp_ != NULL) disp_->changeNodeSize({0.01,0.01,0.01});
+  if(disp_)
+    disp_->changeNodeSize({0.01,0.01,0.01});
 
   ros::WallTime toc = ros::WallTime::now();
   while(max_time_-((toc-tic).toSec())>0.0)
@@ -83,7 +84,8 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
 
     if(tree->rewireWithPathCheck(q,checked_connections,radius,new_node))
     {
-      if(disp_ != NULL) disp_->displayNode(new_node);
+      if(disp_)
+        disp_->displayNode(new_node);
 
       if(replan_goal->getParents().at(0) == new_node)
       {
@@ -116,7 +118,8 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
     toc = ros::WallTime::now();
   }
 
-  if(disp_ != NULL) disp_->defaultNodeSize();
+  if(disp_)
+    disp_->defaultNodeSize();
 
   if(success_)
   {
@@ -144,9 +147,10 @@ bool DynamicRRTStar::replan()
   if(current_path_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
   {
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true); //false?
+    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
 
     ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
+    ROS_INFO_STREAM("node replan in tree: "<<current_path_->getTree()->isInTree(node_replan));
 
     connectBehindObs(node_replan);
   }

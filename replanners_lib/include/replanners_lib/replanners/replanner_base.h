@@ -68,6 +68,11 @@ public:
     success_ = 0;
   }
 
+  void setReplannedPath(const PathPtr& path)
+  {
+    replanned_path_ = path;
+  }
+
   void setMaxTime(const double& max_time)
   {
     max_time_ = max_time;

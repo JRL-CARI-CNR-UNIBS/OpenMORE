@@ -240,7 +240,7 @@ int main(int argc, char **argv)
     //    /////////////////////////////////////////////////////PATH CHECKING & REPLANNING////////////////////////////////////
     bool valid;
     valid =current_path->isValid();
-    ROS_INFO_STREAM("current path valid: "<<valid);
+    ROS_INFO_STREAM("current path valid: "<<valid<<", cost: "<<current_path->cost());
 
     disp->nextButton();
 

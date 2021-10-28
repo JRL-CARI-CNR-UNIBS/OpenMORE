@@ -4,21 +4,21 @@
 # - DRRT
 # - anytimeDRRT
 
-replanner_type: "replanner_to_goal"
+replanner_type: "DRRT*"
 group_name: "cartesian_arm"
 base_link: "world"
 last_link: "end_effector"
 start_configuration: [0.2, 0.2, 0.2]
 stop_configuration: [0.8, 0.8, 0.8]
-dt_replan: 0.1
+dt_replan: 0.2
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 spawn_objs: true
 display_timing_warning: false
 display_replanning_success: true
-scaling: 0.7
+scaling: 0.5
 read_real_joints_values_: false
-checker_resolution: 0.01
+checker_resolution: 0.05
 
 to_goal:
   n_threads_replan: 5

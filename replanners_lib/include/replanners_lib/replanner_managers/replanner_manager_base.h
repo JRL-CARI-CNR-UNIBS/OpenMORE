@@ -30,7 +30,8 @@ protected:
   double               trj_exec_thread_frequency_         ;
   double               collision_checker_thread_frequency_;
   double               dt_replan_                         ;
-  PathPtr              current_path_                      ;
+  PathPtr              current_path_replanning_           ;
+  PathPtr              current_path_shared_               ;
   std::string          group_name_                        ;
   std::string          base_link_                         ;
   std::string          last_link_                         ;
@@ -65,10 +66,10 @@ protected:
   ReplannerBasePtr                          replanner_               ;
   Eigen::VectorXd                           current_configuration_   ;
   Eigen::VectorXd                           configuration_replan_    ;
-  CollisionCheckerPtr                       checker_thread_cc_       ;
-  CollisionCheckerPtr                       checker_                 ;
+  CollisionCheckerPtr                       checker_cc_              ;
+  CollisionCheckerPtr                       checker_replanning_      ;
   TrajectoryPtr                             trajectory_              ;
-  planning_scene::PlanningScenePtr          planning_scn_            ;
+  planning_scene::PlanningScenePtr          planning_scn_cc_         ;
   planning_scene::PlanningScenePtr          planning_scn_replanning_ ;
   trajectory_processing::SplineInterpolator interpolator_            ;
   trajectory_msgs::JointTrajectoryPoint     pnt_                     ;
@@ -114,8 +115,10 @@ protected:
   void spawnObjects()              ;
   void trajectoryExecutionThread() ;
   double readScalingTopics()       ;
-  virtual bool replan()=0          ;
-  virtual void initReplanner()=0   ;
+
+  virtual bool replan()=0                ;
+  virtual void initReplanner()=0         ;
+  virtual void connectToReplannedPath()=0;
   virtual bool haveToReplan(const bool path_obstructed)=0;
 
   bool alwaysReplan()

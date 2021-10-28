@@ -18,6 +18,7 @@ protected:
   bool haveToReplan(const bool path_obstructed);
   void initReplanner();
   void additionalParams();
+  void connectToReplannedPath();
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
