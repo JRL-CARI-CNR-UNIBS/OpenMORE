@@ -14,7 +14,7 @@ ReplannerManagerDRRT::ReplannerManagerDRRT(PathPtr &current_path,
 
 void ReplannerManagerDRRT::connectToReplannedPath()
 {
-  replanner_->startReplannedPathFromNewCurrentConf(current_configuration_);
+//  replanner_->startReplannedPathFromNewCurrentConf(current_configuration_);
 }
 
 bool ReplannerManagerDRRT::haveToReplan(const bool path_obstructed)

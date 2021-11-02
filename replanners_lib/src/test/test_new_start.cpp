@@ -247,7 +247,7 @@ int main(int argc, char **argv)
 
   new_current_configuration = parent_node->getConfiguration()+0.1*(child_node->getConfiguration()-parent_node->getConfiguration());
 
-  rep->startReplannedPathFromNewCurrentConf(new_current_configuration);
+//  rep->startReplannedPathFromNewCurrentConf(new_current_configuration);
 
   for(const pathplan::ConnectionPtr& c: rep->getReplannedPath()->getConnections())
   {
@@ -267,7 +267,7 @@ int main(int argc, char **argv)
 
   new_current_configuration = current_path->getWaypoints().at(0)+0.1*(current_path->getWaypoints().at(1)-current_path->getWaypoints().at(0));
 
-  rep->startReplannedPathFromNewCurrentConf(new_current_configuration);
+//  rep->startReplannedPathFromNewCurrentConf(new_current_configuration);
 
   for(const pathplan::ConnectionPtr& c: rep->getReplannedPath()->getConnections())
   {
@@ -287,7 +287,7 @@ int main(int argc, char **argv)
 
   new_current_configuration = parent_node->getConfiguration()+0.7*(child_node->getConfiguration()-parent_node->getConfiguration());
 
-  rep->startReplannedPathFromNewCurrentConf(new_current_configuration);
+//  rep->startReplannedPathFromNewCurrentConf(new_current_configuration);
 
   for(const pathplan::ConnectionPtr& c: rep->getReplannedPath()->getConnections())
   {
@@ -320,7 +320,7 @@ int main(int argc, char **argv)
 
   new_current_configuration = parent_node->getConfiguration()+0.3*(child_node->getConfiguration()-parent_node->getConfiguration());
 
-  rep->startReplannedPathFromNewCurrentConf(new_current_configuration);
+//  rep->startReplannedPathFromNewCurrentConf(new_current_configuration);
 
   for(const pathplan::ConnectionPtr& c: rep->getReplannedPath()->getConnections())
   {

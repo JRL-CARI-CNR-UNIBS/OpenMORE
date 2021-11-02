@@ -43,6 +43,7 @@ protected:
   virtual bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, const double &diff_subpath_cost, PathPtr &connecting_path, bool &directly_connected);
   virtual bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, const double &diff_subpath_cost, PathPtr &connecting_path, bool &directly_connected, TreeSolverPtr &solver);
   virtual PathPtr concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn, const std::vector<ConnectionPtr>& subpath2, const NodePtr& path1_node, const NodePtr& path2_node);
+//  virtual std::vector<ConnectionPtr> fromCurrentConfToReplannedPath(const Eigen::VectorXd &configuration, std::vector<ConnectionPtr> connecting_conns, NodePtr starting_node, NodePtr node_on_replanned_path);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -116,7 +117,9 @@ public:
     return success_;
   }
 
-  virtual void startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configuration);
+  virtual void startReplannedTreeFromNewCurrentConf(const Eigen::VectorXd &configuration);
+  virtual void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd &configuration);
+
   virtual bool replan() = 0;
 };
 }
