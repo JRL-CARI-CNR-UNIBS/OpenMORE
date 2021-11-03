@@ -15,7 +15,7 @@ ReplannerManagerAnytimeDRRT::ReplannerManagerAnytimeDRRT(PathPtr &current_path,
 
 void ReplannerManagerAnytimeDRRT::connectToReplannedPath()
 {
-//  replanner_->startReplannedPathFromNewCurrentConf(current_configuration_);
+  connectCurrentConfToTree();
 }
 
 bool ReplannerManagerAnytimeDRRT::haveToReplan(const bool path_obstructed)
@@ -34,13 +34,20 @@ void ReplannerManagerAnytimeDRRT::initReplanner()
   double time_for_repl = 0.9*dt_replan_;
   replanner_ = std::make_shared<pathplan::AnytimeDynamicRRT>(configuration_replan_, current_path_replanning_, time_for_repl, solver_);
   ROS_WARN("QUA1");
-
-
 }
 
 bool ReplannerManagerAnytimeDRRT::replan()
 {
-  return replanner_->replan();
+  std::vector<NodePtr> nodes;
+  std::vector<double> costs;
+
+  detachAddedBranch(nodes,costs);
+  bool replanned = replanner_->replan();
+
+  if(!replanned)
+    attachAddedBranch(nodes,costs);
+
+  return replanned;
 }
 
 }

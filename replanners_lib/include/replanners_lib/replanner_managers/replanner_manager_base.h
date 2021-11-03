@@ -69,6 +69,7 @@ protected:
   CollisionCheckerPtr                       checker_cc_              ;
   CollisionCheckerPtr                       checker_replanning_      ;
   TrajectoryPtr                             trajectory_              ;
+  std::vector<ConnectionPtr>                added_branch_            ;
   planning_scene::PlanningScenePtr          planning_scn_cc_         ;
   planning_scene::PlanningScenePtr          planning_scn_replanning_ ;
   trajectory_processing::SplineInterpolator interpolator_            ;
@@ -115,6 +116,10 @@ protected:
   void spawnObjects()              ;
   void trajectoryExecutionThread() ;
   double readScalingTopics()       ;
+  void connectCurrentConfToTree()  ;
+  bool detachAddedBranch(std::vector<NodePtr>& nodes, std::vector<double>& costs);
+  bool attachAddedBranch(const std::vector<NodePtr> &nodes, const std::vector<double> &costs);
+
 
   virtual bool replan()=0                ;
   virtual void initReplanner()=0         ;

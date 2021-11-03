@@ -14,7 +14,7 @@ ReplannerManagerDRRT::ReplannerManagerDRRT(PathPtr &current_path,
 
 void ReplannerManagerDRRT::connectToReplannedPath()
 {
-//  replanner_->startReplannedPathFromNewCurrentConf(current_configuration_);
+  connectCurrentConfToTree();
 }
 
 bool ReplannerManagerDRRT::haveToReplan(const bool path_obstructed)
@@ -30,6 +30,15 @@ void ReplannerManagerDRRT::initReplanner()
 
 bool ReplannerManagerDRRT::replan()
 {
-  return replanner_->replan();
+  std::vector<NodePtr> nodes;
+  std::vector<double> costs;
+
+  detachAddedBranch(nodes,costs);
+  bool replanned = replanner_->replan();
+
+  if(!replanned)
+    attachAddedBranch(nodes,costs);
+
+  return replanned;
 }
 }

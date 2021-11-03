@@ -224,14 +224,14 @@ void ReplannerManagerBase::replanningThread()
   bool do_replan = true;
   bool success = false;
   bool path_obstructed = true;
-//  bool old_path_obstructed = path_obstructed_;
+  //  bool old_path_obstructed = path_obstructed_;
   double replanning_duration = 0;
   int n_conn_replan = 0;
   Eigen::VectorXd past_configuration_replan = configuration_replan_;
   Eigen::VectorXd goal = replanner_->getCurrentPath()->getConnections().back()->getChild()->getConfiguration();
 
-  double abscissa;
-  double past_abscissa;
+  //  double abscissa;
+  //  double past_abscissa;
   PathPtr path2project_on;
   Eigen::VectorXd projection;
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
@@ -305,17 +305,17 @@ void ReplannerManagerBase::replanningThread()
       replanner_mtx_.unlock();
       checker_mtx_.unlock();
 
-//      ROS_INFO_STREAM("Current path REP cost: "<<current_path_replanning_->cost());
-//      ROS_INFO_STREAM("Current path SHA cost: "<<current_path_shared_->cost());
-//      ROS_INFO_STREAM("Current path cost: "<<replanner_->getCurrentPath()->cost());
-//      ROS_INFO_STREAM("Current path cost from conf: "<<replanner_->getCurrentPath()->getCostFromConf(current_configuration_));
-//      ROS_INFO_STREAM("path_obstructed: "<<path_obstructed);
+      //      ROS_INFO_STREAM("Current path REP cost: "<<current_path_replanning_->cost());
+      //      ROS_INFO_STREAM("Current path SHA cost: "<<current_path_shared_->cost());
+      //      ROS_INFO_STREAM("Current path cost: "<<replanner_->getCurrentPath()->cost());
+      //      ROS_INFO_STREAM("Current path cost from conf: "<<replanner_->getCurrentPath()->getCostFromConf(current_configuration_));
+      //      ROS_INFO_STREAM("path_obstructed: "<<path_obstructed);
 
       success = false;
       replanning_duration = 0;
       if(haveToReplan(path_obstructed))
       {
-//        ROS_ERROR("DEVE RIPIANIFICARE");
+        //        ROS_ERROR("DEVE RIPIANIFICARE");
 
         checker_mtx_.lock();
         computing_avoiding_path_ = true;
@@ -415,7 +415,7 @@ void ReplannerManagerBase::collisionCheckThread()
 
   while (!stop && ros::ok())
   {
-//    ROS_INFO("INIZIO CC");
+    //    ROS_INFO("INIZIO CC");
     ros::WallTime tic = ros::WallTime::now();
 
     scene_mtx_.lock();
@@ -452,12 +452,12 @@ void ReplannerManagerBase::collisionCheckThread()
 
     checker_mtx_.lock();
 
-//    if(path_obstructed)
-//      ROS_INFO("collision check current path cost INF"); //ELIMINA
+    //    if(path_obstructed)
+    //      ROS_INFO("collision check current path cost INF"); //ELIMINA
 
     if(!computing_avoiding_path_)
     {
-//      ROS_INFO_STREAM("update path_obstructed_ "<<path_obstructed);
+      //      ROS_INFO_STREAM("update path_obstructed_ "<<path_obstructed);
       path_obstructed_ = path_obstructed;
     }
 
@@ -476,7 +476,7 @@ void ReplannerManagerBase::collisionCheckThread()
     stop_mtx_.unlock();
 
     lp.sleep();
-//    ROS_INFO("FINE CC");
+    //    ROS_INFO("FINE CC");
   }
 }
 
@@ -829,17 +829,17 @@ void ReplannerManagerBase::spawnObjects()
         }
       }
 
-//      moveit_msgs::GetPlanningScene ps_srv;//elimina da qua
-//      if (!plannning_scene_client_.call(ps_srv))
-//      {
-//        ROS_ERROR("call to srv not ok");
-//      }
-//      checker_cc_->setPlanningSceneMsg(ps_srv.response.scene);
-//      bool valid = (current_path_shared_->clone())->isValid(checker_cc_); // a qua
-//      bool valid2 = checker_cc_->checkConnection(obj_conn);
+      //      moveit_msgs::GetPlanningScene ps_srv;//elimina da qua
+      //      if (!plannning_scene_client_.call(ps_srv))
+      //      {
+      //        ROS_ERROR("call to srv not ok");
+      //      }
+      //      checker_cc_->setPlanningSceneMsg(ps_srv.response.scene);
+      //      bool valid = (current_path_shared_->clone())->isValid(checker_cc_); // a qua
+      //      bool valid2 = checker_cc_->checkConnection(obj_conn);
 
       ROS_WARN("OBJECT SPAWNED");
-//      ROS_INFO_STREAM("VALID1: "<<valid<< " VLID2: "<<valid2);
+      //      ROS_INFO_STREAM("VALID1: "<<valid<< " VLID2: "<<valid2);
 
       scene_mtx_.unlock();
 
@@ -870,4 +870,62 @@ void ReplannerManagerBase::spawnObjects()
   }
   scene_mtx_.unlock();
 }
+
+void ReplannerManagerBase::connectCurrentConfToTree()
+{
+  paths_mtx_.lock();
+  PathPtr current_path_copy = current_path_shared_->clone();
+  paths_mtx_.unlock();
+
+  std::vector<ConnectionPtr> new_branch;
+  new_branch = replanner_->startReplannedTreeFromNewCurrentConf(current_configuration_,current_path_copy);
+
+  added_branch_.clear();  //removed before replanning
+  if(!new_branch.empty())
+    added_branch_ = new_branch;
+}
+
+bool ReplannerManagerBase::detachAddedBranch(std::vector<NodePtr>& nodes,
+                                             std::vector<double>& costs)
+{
+  if(added_branch_.empty())
+    return true;
+
+  //Saving the branch
+  nodes.clear();
+  nodes.push_back(added_branch_.at(0)->getParent());
+  for(const ConnectionPtr& conn:added_branch_)
+  {
+    nodes.push_back(conn->getChild());
+    costs.push_back(conn->getCost());
+  }
+
+  //Removing the branch
+  std::vector<NodePtr> white_list;
+  unsigned int removed_nodes;
+  NodePtr node_purge_from = added_branch_.at(0)->getChild();
+  return replanner_->getReplannedPath()->getTree()->purgeFromHere(node_purge_from,white_list,removed_nodes);
+}
+
+bool ReplannerManagerBase::attachAddedBranch(const std::vector<NodePtr>& nodes,
+                                             const std::vector<double>& costs)
+{
+  if(added_branch_.empty())
+    return true;
+
+  //Re-build the branch
+  added_branch_.clear();
+  for(unsigned int i=0;i<costs.size();i++)
+  {
+    ConnectionPtr conn = std::make_shared<Connection>(nodes.at(i),nodes.at(i+1));
+    conn->setCost(costs.at(i));
+    conn->add();
+
+    added_branch_.push_back(conn);
+  }
+
+  //Attach the branch
+  return replanner_->getReplannedPath()->getTree()->addBranch(added_branch_);
+}
+
 }

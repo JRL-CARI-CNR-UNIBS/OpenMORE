@@ -117,7 +117,7 @@ public:
     return success_;
   }
 
-  virtual void startReplannedTreeFromNewCurrentConf(const Eigen::VectorXd &configuration);
+  virtual std::vector<ConnectionPtr> startReplannedTreeFromNewCurrentConf(const Eigen::VectorXd &configuration, const PathPtr &current_path_copy);
   virtual void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd &configuration);
 
   virtual bool replan() = 0;
