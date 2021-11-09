@@ -145,6 +145,8 @@ int main(int argc, char **argv)
     return 0;
   }
 
+  ROS_INFO_STREAM("Launching replanner of type: "<<replanner_type.c_str());
+
   replanner_manager->start();
 
   return 0;

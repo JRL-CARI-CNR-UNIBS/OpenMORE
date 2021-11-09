@@ -123,6 +123,8 @@ bool DynamicRRT::replan()
     ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
     regrowRRT(node_replan);
+    if(!success_)
+      current_path_->removeNodeAddedInConn(node_replan);
   }
   else //replan not needed
   {

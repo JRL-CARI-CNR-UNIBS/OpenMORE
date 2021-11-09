@@ -94,6 +94,8 @@ std::vector<ConnectionPtr> ReplannerBase::startReplannedTreeFromNewCurrentConf(c
     tree->addBranch(new_tree_branch_connections);
     tree->changeRoot(current_node);
 
+    new_tree_branch_connections = tree->getConnectionToNode(replanned_path_start);
+
     path_connections = tree->getConnectionToNode(goal);
     replanned_path_->setConnections(path_connections);
 
@@ -129,10 +131,12 @@ std::vector<ConnectionPtr> ReplannerBase::startReplannedTreeFromNewCurrentConf(c
       tree->addNode(current_node);
       tree->changeRoot(current_node);
 
+      new_tree_branch_connections = tree->getConnectionToNode(child);
+
       path_connections = tree->getConnectionToNode(goal);
       replanned_path_->setConnections(path_connections);
 
-      new_tree_branch_connections.push_back(conn);
+//      new_tree_branch_connections.push_back(conn);
       return new_tree_branch_connections;
     }
     else
@@ -196,6 +200,8 @@ std::vector<ConnectionPtr> ReplannerBase::startReplannedTreeFromNewCurrentConf(c
       current_node = new_tree_branch_connections.back()->getChild();
       tree->addBranch(new_tree_branch_connections);
       tree->changeRoot(current_node);
+
+      new_tree_branch_connections = tree->getConnectionToNode(new_tree_branch_connections.front()->getParent());
 
       path_connections = tree->getConnectionToNode(goal);
       replanned_path_->setConnections(path_connections);

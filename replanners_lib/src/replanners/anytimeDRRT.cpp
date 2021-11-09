@@ -123,13 +123,13 @@ bool AnytimeDynamicRRT::replan()
 {
   ros::WallTime tic = ros::WallTime::now();
 
+  ConnectionPtr conn = current_path_->findConnection(current_configuration_);
+  NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
+
+  ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
+
   if(current_path_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
   {
-    ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
-
-    ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
-
     if(regrowRRT(node_replan))
     {
       //      updatePath(node_replan);
@@ -140,11 +140,6 @@ bool AnytimeDynamicRRT::replan()
   }
   else //replan not needed
   {
-    ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
-
-    ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
-
     //    updatePath(node_replan);
 
     double max_time_impr = 0.98*max_time_-(ros::WallTime::now()-tic).toSec();
@@ -153,6 +148,9 @@ bool AnytimeDynamicRRT::replan()
     else
       success_ = false;
   }
+
+  if(!success_)
+    current_path_->removeNodeAddedInConn(node_replan);
 
   return success_;
 }

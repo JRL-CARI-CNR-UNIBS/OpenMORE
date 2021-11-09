@@ -121,8 +121,8 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
   if(disp_)
     disp_->defaultNodeSize();
 
-  if(success_)
-  {
+//  if(success_)
+//  {
     PathPtr connecting_path = std::make_shared<Path>(tree->getConnectionToNode(replan_goal),metrics_,checker_);
     std::vector<ConnectionPtr> new_connections = connecting_path->getConnections();
 
@@ -137,15 +137,20 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
 
     solver_->setStartTree(tree);
     solver_->setSolution(replanned_path_);
-  }
+//  }
 
-  return success_;
+    return true;
+
+//  return success_;
 }
 
 bool DynamicRRTStar::replan()
 {
+  ROS_INFO_STREAM("ROOT IN REPLAN: "<< *(replanned_path_->getTree()->getRoot())<<"\n"<<replanned_path_->getTree()->getRoot());
+
   if(current_path_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
   {
+    NodePtr root = current_path_->getTree()->getRoot();
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
     NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
 
@@ -153,13 +158,30 @@ bool DynamicRRTStar::replan()
     ROS_INFO_STREAM("node replan in tree: "<<current_path_->getTree()->isInTree(node_replan));
 
     connectBehindObs(node_replan);
+    if(!success_)
+    {
+      if(!current_path_->getTree()->isInTree(root))
+        assert(0);
+
+      current_path_->getTree()->changeRoot(root);
+
+      ROS_INFO_STREAM("before removing added node");
+      for(const Eigen::VectorXd& wp:current_path_->getWaypoints())
+        ROS_INFO_STREAM("path node: "<<wp.transpose());
+
+      current_path_->removeNodeAddedInConn(node_replan);
+
+      ROS_INFO_STREAM("after removing added node");
+      for(const Eigen::VectorXd& wp:current_path_->getWaypoints())
+        ROS_INFO_STREAM("path node: "<<wp.transpose());
+    }
   }
   else //replan not needed
   {
     success_ = false;
     replanned_path_ = current_path_;
   }
-
+  ROS_INFO_STREAM("NUOVA ROOT IN REPLAN: "<< *(replanned_path_->getTree()->getRoot())<<"\n"<<replanned_path_->getTree()->getRoot());
   return success_;
 }
 

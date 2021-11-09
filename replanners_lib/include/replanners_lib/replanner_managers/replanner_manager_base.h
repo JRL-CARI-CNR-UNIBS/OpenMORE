@@ -70,6 +70,8 @@ protected:
   CollisionCheckerPtr                       checker_replanning_      ;
   TrajectoryPtr                             trajectory_              ;
   std::vector<ConnectionPtr>                added_branch_            ;
+  NodePtr                                   root_for_attach_         ;
+  NodePtr                                   root_for_detach_         ;
   planning_scene::PlanningScenePtr          planning_scn_cc_         ;
   planning_scene::PlanningScenePtr          planning_scn_replanning_ ;
   trajectory_processing::SplineInterpolator interpolator_            ;
