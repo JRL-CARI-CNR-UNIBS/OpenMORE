@@ -18,7 +18,7 @@ display_timing_warning: true
 display_replanning_success: true
 scaling: 0.5
 read_real_joints_values_: false
-checker_resolution: 0.01
+checker_resolution: 0.03
 
 to_goal:
   n_threads_replan: 5

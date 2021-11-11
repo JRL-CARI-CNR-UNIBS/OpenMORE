@@ -85,6 +85,7 @@ void ReplannerManagerBase::attributeInitialization()
   computing_avoiding_path_         = false;
   current_path_changed_            = false;
   n_conn_                          = 0    ;
+  scaling_                         = 1.0  ;
   real_time_                       = 0.0  ;
   t_                               = 0.0  ;
   dt_                              = 1/trj_exec_thread_frequency_;
@@ -342,7 +343,6 @@ void ReplannerManagerBase::replanningThread()
         ROS_INFO_STREAM("curr conf "<<current_configuration_.transpose());
         ROS_INFO_STREAM("repl conf "<<configuration_replan_.transpose());
 
-
         tic_rep=ros::WallTime::now();
         path_changed = replan();      //path may have changed even though replanning was unsuccessful
         toc_rep=ros::WallTime::now();
@@ -355,7 +355,7 @@ void ReplannerManagerBase::replanningThread()
         replanning_duration = (toc_rep-tic_rep).toSec();
       }
 
-      if(replanning_duration>=dt_replan_/0.9 && display_timing_warning_) ROS_WARN("Replanning duration: %f",(toc_rep-tic_rep).toSec());
+      if(replanning_duration>=dt_replan_/0.9 && display_timing_warning_) ROS_WARN("Replanning duration: %f",replanning_duration);
       if(display_replanning_success_) ROS_INFO_STREAM("Success: "<< success <<" in "<< replanning_duration <<" seconds");
 
       stop_mtx_.lock();
@@ -385,8 +385,8 @@ void ReplannerManagerBase::replanningThread()
         interpolator_.setSplineOrder(1);
 
         t_=0;
-        t_replan_=0;
         n_conn_ = 0;
+        t_replan_=t_+(replan_offset_*scaling_);
         n_conn_replan = 0;
 
         trj_mtx_.unlock();
@@ -414,7 +414,7 @@ void ReplannerManagerBase::replanningThread()
       if(display_timing_warning_ && duration>(dt_replan_/0.9))
       {
         ROS_WARN("Replanning thread time expired: duration-> %f",duration);
-        ROS_WARN("replanning time-> %f",(toc_rep-tic_rep).toSec());
+        ROS_WARN("replanning time-> %f",replanning_duration);
       }
     }
 
@@ -441,14 +441,24 @@ void ReplannerManagerBase::collisionCheckThread()
   while (!stop && ros::ok())
   {
     ros::WallTime tic = ros::WallTime::now();
+    double duration1, duration2, duration3, duration4, duration5;
 
+    ros::WallTime tic1 = ros::WallTime::now();
     scene_mtx_.lock();
+    ros::WallTime tic2 = ros::WallTime::now();
     if (!plannning_scene_client_.call(ps_srv))
     {
       ROS_ERROR("call to srv not ok");
     }
+    duration5 = (ros::WallTime::now()-tic2).toSec();
     checker_cc_->setPlanningSceneMsg(ps_srv.response.scene);
     scene_mtx_.unlock();
+    duration1 = (ros::WallTime::now()-tic1).toSec();
+
+    tic1 = ros::WallTime::now();
+    trj_mtx_.lock();
+    current_configuration_copy = current_configuration_;
+    trj_mtx_.unlock();
 
     paths_mtx_.lock();
     if(current_path_changed_)
@@ -458,12 +468,11 @@ void ReplannerManagerBase::collisionCheckThread()
     }
     paths_mtx_.unlock();
 
-    trj_mtx_.lock();
-    current_configuration_copy = current_configuration_;
-    trj_mtx_.unlock();
+    duration2 = (ros::WallTime::now()-tic1).toSec();
 
     bool path_obstructed = !(current_path_copy->isValidFromConf(current_configuration_copy,checker_cc_));
 
+    tic1 = ros::WallTime::now();
     paths_mtx_.lock();
     if(!current_path_changed_)  //if changed, it is useless checking current_path_copy
     {
@@ -471,14 +480,17 @@ void ReplannerManagerBase::collisionCheckThread()
       {
         current_path_shared_->getConnections().at(z)->setCost(current_path_copy->getConnections().at(z)->getCost());
       }
+      current_path_shared_->cost();
 
-      if(current_path_shared_->cost() == std::numeric_limits<double>::infinity())
+      if(path_obstructed)
         ROS_WARN("path obstructed");
       else
         ROS_INFO("path free");
     }
     paths_mtx_.unlock();
+    duration3 = (ros::WallTime::now()-tic1).toSec();
 
+    tic1 = ros::WallTime::now();
     checker_mtx_.lock();
 
     if(!computing_avoiding_path_)
@@ -486,13 +498,14 @@ void ReplannerManagerBase::collisionCheckThread()
 
 
     checker_mtx_.unlock();
+    duration4 = (ros::WallTime::now()-tic1).toSec();
 
     ros::WallTime toc=ros::WallTime::now();
     double duration = (toc-tic).toSec();
 
     if(duration>(1/collision_checker_thread_frequency_) && display_timing_warning_)
     {
-      ROS_WARN("Collision checking thread time expired: duration-> %f",duration);
+      ROS_WARN("Collision checking thread time expired: duration-> %f, duration1.0-> %f, duration1.1-> %f, duration2-> %f, duration3-> %f, duration4-> %f",duration,duration1,duration5,duration2,duration3,duration4);
     }
 
     stop_mtx_.lock();
@@ -603,18 +616,18 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
     trj_mtx_.lock();
 
-    double scaling = 1.0;
-    if(read_safe_scaling_) scaling = readScalingTopics();
-    else                   scaling = scaling_from_param_;
+    scaling_ = 1.0;
+    if(read_safe_scaling_) scaling_ = readScalingTopics();
+    else                   scaling_ = scaling_from_param_;
 
-    t_+= scaling*dt_;
-    t_replan_ = t_+(replan_offset_*scaling);
+    t_+= scaling_*dt_;
+    t_replan_ = t_+(replan_offset_*scaling_);
 
     paths_mtx_.lock();
     path2project_on = current_path_shared_->clone();
     paths_mtx_.unlock();
 
-    interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling);
+    interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling_);
     interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,    1.0);
 
     pnt          = pnt_         ;
@@ -731,7 +744,7 @@ void ReplannerManagerBase::displayThread()
 
     for(unsigned int i=0; i<pnt_replan.positions.size();i++) point2project[i] = pnt_replan.positions.at(i);
     node_id +=1;
-    marker_color = {0.5,0.5,0.5,1.0};
+    marker_color = {0.5,0.5,0.5,0.2};
     disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
 
     disp->defaultNodeSize();
@@ -922,6 +935,14 @@ bool ReplannerManagerBase::detachAddedBranch(std::vector<NodePtr>& nodes,
     costs.push_back(conn->getCost());
   }
 
+  //Test da eliminare
+  PathPtr path = current_path_replanning_->clone();
+  path->setConnections(added_branch_);
+  if(path->findConnection(configuration_replan_))
+  {
+    assert(0);
+  }
+
   //Removing the branch
   std::vector<NodePtr> white_list;
   unsigned int removed_nodes;
@@ -972,13 +993,15 @@ bool ReplannerManagerBase::attachAddedBranch(const std::vector<NodePtr>& nodes,
   replanner_->getReplannedPath()->getTree()->changeRoot(root_for_attach_);
   std::reverse(added_branch_.begin(),added_branch_.end());
 
-  //  current_path_replanning_->setConnections()
+  NodePtr goal = replanner_->getReplannedPath()->getNodes().back();
+  std::vector<ConnectionPtr> connections = replanner_->getReplannedPath()->getTree()->getConnectionToNode(goal);
+  replanner_->getReplannedPath()->setConnections(connections);
 
   ROS_INFO_STREAM("NUOVA ROOT IN ATTACH: "<< *(replanner_->getReplannedPath()->getTree()->getRoot())<<"\n"<<replanner_->getReplannedPath()->getTree()->getRoot());
 
-  ROS_INFO_STREAM("current path replanning size: "<<current_path_replanning_->getConnections().size()<<" current path shared size: "<<current_path_shared_->getConnections().size());
+  ROS_INFO_STREAM("current path replanning size: "<<replanner_->getReplannedPath()->getConnections().size()<<" current path shared size: "<<current_path_shared_->getConnections().size());
 
-  for(const ConnectionPtr conn:current_path_replanning_->getConnections())
+  for(const ConnectionPtr conn:replanner_->getReplannedPath()->getConnections())
   {
     ROS_INFO_STREAM("r parent: "<<conn->getParent()->getConfiguration().transpose());
     ROS_INFO_STREAM("r child : "<<conn->getChild()->getConfiguration().transpose());

@@ -115,7 +115,11 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
 
 bool DynamicRRT::replan()
 {
-  if(current_path_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
+  double cost_from_conf = current_path_->getCostFromConf(current_configuration_);
+
+  ROS_INFO("COST FROM CONF: %f",cost_from_conf);
+
+  if(cost_from_conf == std::numeric_limits<double>::infinity())
   {
     NodePtr root = current_path_->getTree()->getRoot();
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
@@ -146,6 +150,9 @@ bool DynamicRRT::replan()
   }
   else //replan not needed
   {
+    bool valid = current_path_->isValidFromConf(current_configuration_);
+    ROS_INFO("path validity %f",valid);
+
     success_ = false;
     replanned_path_ = current_path_;
   }

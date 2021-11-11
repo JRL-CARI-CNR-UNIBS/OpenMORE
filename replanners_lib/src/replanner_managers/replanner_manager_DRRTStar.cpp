@@ -14,7 +14,19 @@ ReplannerManagerDRRTStar::ReplannerManagerDRRTStar(PathPtr &current_path,
 
 void ReplannerManagerDRRTStar::connectToReplannedPath()
 {
+  NodePtr replan_node = replanner_->getReplannedPath()->getTree()->getRoot();
   connectCurrentConfToTree();
+
+  if(replanner_->getReplannedPath()->getTree()->getRoot() == replan_node)
+    assert(0);
+
+  if((replan_node->getParents().size() == 1) && (replan_node->getChildren().size() == 1))
+  {
+    bool removed = replanner_->getReplannedPath()->removeNodeAddedInConn(replan_node);
+    ROS_INFO_STREAM("removed node: "<<removed);
+  }
+  else
+    ROS_INFO_STREAM("node can not be removed");
 }
 
 bool ReplannerManagerDRRTStar::haveToReplan(const bool path_obstructed)
@@ -30,14 +42,14 @@ void ReplannerManagerDRRTStar::initReplanner()
 
 bool ReplannerManagerDRRTStar::replan()
 {
-  std::vector<NodePtr> nodes;
-  std::vector<double> costs;
+  //  std::vector<NodePtr> nodes;
+  //  std::vector<double> costs;
 
-  detachAddedBranch(nodes,costs);
+  //  detachAddedBranch(nodes,costs);
   bool replanned = replanner_->replan();
 
-  if(!replanned)
-    attachAddedBranch(nodes,costs);
+  //  if(!replanned)
+  //    attachAddedBranch(nodes,costs);
 
   return replanned;
 }

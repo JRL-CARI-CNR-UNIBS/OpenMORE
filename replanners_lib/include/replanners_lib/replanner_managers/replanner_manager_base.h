@@ -60,6 +60,7 @@ protected:
   double scaling_from_param_         ;
   double checker_resol_              ;
   double goal_toll_                  ;
+  double scaling_                    ;
 
   Eigen::VectorXd lb_;
   Eigen::VectorXd ub_;

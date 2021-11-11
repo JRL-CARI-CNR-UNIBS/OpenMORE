@@ -136,7 +136,7 @@ std::vector<ConnectionPtr> ReplannerBase::startReplannedTreeFromNewCurrentConf(c
       path_connections = tree->getConnectionToNode(goal);
       replanned_path_->setConnections(path_connections);
 
-//      new_tree_branch_connections.push_back(conn);
+      //      new_tree_branch_connections.push_back(conn);
       return new_tree_branch_connections;
     }
     else
