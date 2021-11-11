@@ -117,14 +117,32 @@ bool DynamicRRT::replan()
 {
   if(current_path_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
   {
+    NodePtr root = current_path_->getTree()->getRoot();
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
     NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
 
     ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
     regrowRRT(node_replan);
+
     if(!success_)
+    {
+      if(!current_path_->getTree()->isInTree(root))
+        assert(0);
+
+      current_path_->getTree()->changeRoot(root);
+
+      ROS_INFO_STREAM("before removing added node");
+      for(const Eigen::VectorXd& wp:current_path_->getWaypoints())
+        ROS_INFO_STREAM("path node: "<<wp.transpose());
+
       current_path_->removeNodeAddedInConn(node_replan);
+
+      ROS_INFO_STREAM("after removing added node");
+      for(const Eigen::VectorXd& wp:current_path_->getWaypoints())
+        ROS_INFO_STREAM("path node: "<<wp.transpose());
+    }
+
   }
   else //replan not needed
   {

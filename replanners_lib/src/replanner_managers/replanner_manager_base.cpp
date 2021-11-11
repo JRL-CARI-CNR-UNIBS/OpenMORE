@@ -339,8 +339,12 @@ void ReplannerManagerBase::replanningThread()
 
         replanning_ = true;
 
+        ROS_INFO_STREAM("curr conf "<<current_configuration_.transpose());
+        ROS_INFO_STREAM("repl conf "<<configuration_replan_.transpose());
+
+
         tic_rep=ros::WallTime::now();
-        path_changed = replan();
+        path_changed = replan();      //path may have changed even though replanning was unsuccessful
         toc_rep=ros::WallTime::now();
 
         success = replanner_->getSuccess();
@@ -390,7 +394,9 @@ void ReplannerManagerBase::replanningThread()
 
         checker_mtx_.lock();
 
-        path_obstructed_ = false;
+        if(success)
+          path_obstructed_ = false;
+
         computing_avoiding_path_ = false;
 
         checker_mtx_.unlock();
@@ -921,7 +927,7 @@ bool ReplannerManagerBase::detachAddedBranch(std::vector<NodePtr>& nodes,
   unsigned int removed_nodes;
   NodePtr node_purge_from = added_branch_.back()->getParent(); //added_banch goes from current conf to replanned node
 
-//  NodePtr new_root = added_branch_.back()->getChild();
+  //  NodePtr new_root = added_branch_.back()->getChild();
   NodePtr new_root = root_for_detach_;
   root_for_attach_ = replanner_->getReplannedPath()->getTree()->getRoot();
   ROS_INFO_STREAM("new root: "<<*new_root);
@@ -966,7 +972,7 @@ bool ReplannerManagerBase::attachAddedBranch(const std::vector<NodePtr>& nodes,
   replanner_->getReplannedPath()->getTree()->changeRoot(root_for_attach_);
   std::reverse(added_branch_.begin(),added_branch_.end());
 
-//  current_path_replanning_->setConnections()
+  //  current_path_replanning_->setConnections()
 
   ROS_INFO_STREAM("NUOVA ROOT IN ATTACH: "<< *(replanner_->getReplannedPath()->getTree()->getRoot())<<"\n"<<replanner_->getReplannedPath()->getTree()->getRoot());
 

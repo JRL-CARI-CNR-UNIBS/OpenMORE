@@ -33,11 +33,11 @@ bool ReplannerManagerDRRT::replan()
   std::vector<NodePtr> nodes;
   std::vector<double> costs;
 
-  detachAddedBranch(nodes,costs);
+//  detachAddedBranch(nodes,costs);
   bool replanned = replanner_->replan();
 
-  if(!replanned)
-    attachAddedBranch(nodes,costs);
+//  if(!replanned)
+//    attachAddedBranch(nodes,costs);
 
   return replanned;
 }
