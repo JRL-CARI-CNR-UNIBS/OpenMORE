@@ -70,7 +70,6 @@ protected:
   CollisionCheckerPtr                       checker_cc_              ;
   CollisionCheckerPtr                       checker_replanning_      ;
   TrajectoryPtr                             trajectory_              ;
-  std::vector<ConnectionPtr>                added_branch_            ;
   NodePtr                                   path_start_              ;
   NodePtr                                   old_path_start_          ;
   NodePtr                                   root_for_next_detach_    ;

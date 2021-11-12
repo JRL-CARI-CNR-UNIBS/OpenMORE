@@ -38,12 +38,7 @@ void ReplannerManagerAnytimeDRRT::initReplanner()
 
 bool ReplannerManagerAnytimeDRRT::replan()
 {
-  std::vector<NodePtr> nodes;
-  std::vector<double> costs;
-
-  bool replanned = replanner_->replan();
-
-  return replanned;
+  return replanner_->replan();
 }
 
 }

@@ -911,9 +911,6 @@ std::vector<ConnectionPtr> ReplannerManagerBase::connectCurrentConfToTree()
 
   ROS_INFO_STREAM("NEW ROOT IN CONNECT TO TREE: "<< *(replanner_->getReplannedPath()->getTree()->getRoot())<<"\n"<<replanner_->getReplannedPath()->getTree()->getRoot());
 
-  //  added_branch_.clear();  //removed before replanning
-  //  if(!new_branch.empty())
-  //    added_branch_ = new_branch;
 
   return new_branch;
 }
@@ -952,6 +949,7 @@ bool ReplannerManagerBase::detachAddedBranch(std::vector<NodePtr>& nodes,
           if(conn_old_root_old_start.at(i)->getChild() == root)
           {
             ROS_ERROR("DETACH ADDED BRANCH: root");
+            ROS_INFO_STREAM(*root);
             return false;
           }
 

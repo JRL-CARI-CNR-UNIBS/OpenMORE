@@ -123,12 +123,14 @@ bool AnytimeDynamicRRT::replan()
 {
   ros::WallTime tic = ros::WallTime::now();
 
+  double cost_from_conf = current_path_->getCostFromConf(current_configuration_);
+
   ConnectionPtr conn = current_path_->findConnection(current_configuration_);
   NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
 
   ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
-  if(current_path_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
+  if(cost_from_conf == std::numeric_limits<double>::infinity())
   {
     if(regrowRRT(node_replan))
     {
