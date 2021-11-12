@@ -170,24 +170,6 @@ bool DynamicRRTStar::replan()
     ROS_INFO_STREAM("NUOVA ROOT IN REPLAN: "<< *(replanned_path_->getTree()->getRoot())<<"\n"<<replanned_path_->getTree()->getRoot());
 
     return tree_modified; // tree can be changed also if success_ == false
-
-//    if(!success_)
-//    {
-//      if(!current_path_->getTree()->isInTree(root))
-//        assert(0);
-
-//      current_path_->getTree()->changeRoot(root);
-
-//      ROS_INFO_STREAM("before removing added node");
-//      for(const Eigen::VectorXd& wp:current_path_->getWaypoints())
-//        ROS_INFO_STREAM("path node: "<<wp.transpose());
-
-//      current_path_->removeNodeAddedInConn(node_replan);
-
-//      ROS_INFO_STREAM("after removing added node");
-//      for(const Eigen::VectorXd& wp:current_path_->getWaypoints())
-//        ROS_INFO_STREAM("path node: "<<wp.transpose());
-//    }
   }
   else //replan not needed
   {

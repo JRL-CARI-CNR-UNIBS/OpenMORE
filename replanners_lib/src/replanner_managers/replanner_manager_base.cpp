@@ -138,8 +138,6 @@ void ReplannerManagerBase::attributeInitialization()
   current_path_shared_->setChecker(checker_cc_);
   solver_->setChecker(checker_replanning_);
 
-  root_for_detach_ = current_path_replanning_->getTree()->getRoot();
-
   trajectory_                              = std::make_shared<pathplan::Trajectory>(current_path_shared_,nh_,planning_scn_replanning_,group_name_);
   robot_trajectory::RobotTrajectoryPtr trj = trajectory_->fromPath2Trj()                                                                   ;
 
@@ -228,14 +226,12 @@ void ReplannerManagerBase::replanningThread()
   bool success = false;
   bool path_changed = false;
   bool path_obstructed = true;
-  //  bool old_path_obstructed = path_obstructed_;
   double replanning_duration = 0;
   int n_conn_replan = 0;
   Eigen::VectorXd past_configuration_replan = configuration_replan_;
   Eigen::VectorXd goal = replanner_->getCurrentPath()->getConnections().back()->getChild()->getConfiguration();
 
-  //  double abscissa;
-  //  double past_abscissa;
+
   PathPtr path2project_on;
   Eigen::VectorXd projection;
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
@@ -250,7 +246,6 @@ void ReplannerManagerBase::replanningThread()
     ros::WallTime tic=ros::WallTime::now();
 
     trj_mtx_.lock();
-    //t_replan_ = t_+replan_offset_; updated in trj_thread
 
     interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_);
     for(unsigned int i=0; i<pnt_replan_.positions.size();i++) point2project[i] = pnt_replan_.positions.at(i);
@@ -755,6 +750,9 @@ void ReplannerManagerBase::displayThread()
 
     lp.sleep();
   }
+
+  ros::Duration(1.0).sleep();
+  disp->displayTree(replanner_->getReplannedPath()->getTree());
 }
 
 void ReplannerManagerBase::spawnObjects()
@@ -896,7 +894,7 @@ void ReplannerManagerBase::spawnObjects()
   scene_mtx_.unlock();
 }
 
-void ReplannerManagerBase::connectCurrentConfToTree()
+std::vector<ConnectionPtr> ReplannerManagerBase::connectCurrentConfToTree()
 {
   paths_mtx_.lock();
   PathPtr current_path_copy = current_path_shared_->clone();
@@ -907,111 +905,106 @@ void ReplannerManagerBase::connectCurrentConfToTree()
   root_for_detach_ = replanner_->getReplannedPath()->getTree()->getRoot();
 
   std::vector<ConnectionPtr> new_branch;
-  new_branch = replanner_->startReplannedTreeFromNewCurrentConf(current_configuration_,current_path_copy);
+  new_branch = replanner_->startReplannedTreeFromNewCurrentConf(current_configuration_,current_path_copy); //set the new root at the current config
+
+  path_start_ = replanner_->getReplannedPath()->getTree()->getRoot();
 
   ROS_INFO_STREAM("NEW ROOT IN CONNECT TO TREE: "<< *(replanner_->getReplannedPath()->getTree()->getRoot())<<"\n"<<replanner_->getReplannedPath()->getTree()->getRoot());
 
-  added_branch_.clear();  //removed before replanning
-  if(!new_branch.empty())
-    added_branch_ = new_branch;
+  //  added_branch_.clear();  //removed before replanning
+  //  if(!new_branch.empty())
+  //    added_branch_ = new_branch;
+
+  return new_branch;
 }
 
 bool ReplannerManagerBase::detachAddedBranch(std::vector<NodePtr>& nodes,
                                              std::vector<double>& costs)
 {
-  if(added_branch_.empty())
-    return true;
+  TreePtr tree = replanner_->getReplannedPath()->getTree();
+  std::vector<ConnectionPtr> conn_old_root_old_start;
 
-  ROS_WARN("INIZIO DETACH");
-
-  //Saving the branch
-  nodes.clear();
-  nodes.push_back(added_branch_.at(0)->getParent());
-  ROS_INFO_STREAM("node: "<<added_branch_.at(0)->getParent()->getConfiguration().transpose());
-  for(const ConnectionPtr& conn:added_branch_)
+  if(root_for_detach_)
   {
-    ROS_INFO_STREAM("node: "<<conn->getChild()->getConfiguration().transpose());
-    nodes.push_back(conn->getChild());
-    costs.push_back(conn->getCost());
+    ROS_WARN("INIZIO DETACH");
+
+    if(tree->isInTree(root_for_detach_))
+    {
+      NodePtr root = tree->getRoot();
+      if(tree->changeRoot(root_for_detach_))
+      {
+        conn_old_root_old_start = tree->getConnectionToNode(path_start_);
+
+        for(const ConnectionPtr& conn:replanner_->getReplannedPath()->getConnections()) //if the branch does not belong to the new solution..
+        {
+          for(const ConnectionPtr& branch_conn:conn_old_root_old_start)
+          {
+            if(branch_conn == conn)
+            {
+              ROS_ERROR("DETACH ADDED BRANCH: branch part of the solution");
+              return false;
+            }
+          }
+        }
+
+        for(unsigned int i=0;i<conn_old_root_old_start.size();i++)  //if no subtrees start from this branch..
+        {
+          if(conn_old_root_old_start.at(i)->getChild() == root)
+          {
+            ROS_ERROR("DETACH ADDED BRANCH: root");
+            return false;
+          }
+
+          if(conn_old_root_old_start.at(i)->getChild()->getChildren().size()>1)
+          {
+            ROS_ERROR("DETACH ADDED BRANCH: subtree from the branch");
+            ROS_INFO_STREAM(*conn_old_root_old_start.at(i)->getChild());
+            return false;
+          }
+        }
+
+        //Saving the branch
+        nodes.clear();
+        nodes.push_back(conn_old_root_old_start.at(0)->getParent());
+        for(const ConnectionPtr& conn:conn_old_root_old_start)
+        {
+          nodes.push_back(conn->getChild());
+          costs.push_back(conn->getCost());
+        }
+
+        //Removing the branch
+        std::vector<NodePtr> white_list;
+        unsigned int removed_nodes;
+        NodePtr purge_from_this_node = conn_old_root_old_start.at(0)->getChild();
+        tree->purgeFromHere(purge_from_this_node,white_list,removed_nodes);
+
+        ROS_INFO("DETACHED");
+
+        if(tree->changeRoot(root))
+        {
+          ROS_WARN("FINE DETACH");
+          return true;
+        }
+        else
+        {
+          ROS_ERROR("DETACH ADDED BRANCH: root can not be restored");
+          return false;
+        }
+      }
+      else
+      {
+        ROS_ERROR("DETACH ADDED BRANCH: root can not be changed");
+        return false;
+      }
+    }
+    else
+    {
+      ROS_ERROR("DETACH ADDED BRANCH: old root not in tree");
+      return false;
+    }
   }
-
-  //Test da eliminare
-  PathPtr path = current_path_replanning_->clone();
-  path->setConnections(added_branch_);
-  if(path->findConnection(configuration_replan_))
-  {
-    assert(0);
-  }
-
-  //Removing the branch
-  std::vector<NodePtr> white_list;
-  unsigned int removed_nodes;
-  NodePtr node_purge_from = added_branch_.back()->getParent(); //added_banch goes from current conf to replanned node
-
-  //  NodePtr new_root = added_branch_.back()->getChild();
-  NodePtr new_root = root_for_detach_;
-  root_for_attach_ = replanner_->getReplannedPath()->getTree()->getRoot();
-  ROS_INFO_STREAM("new root: "<<*new_root);
-
-  ROS_INFO_STREAM("ROOT IN DETACH: "<< *(replanner_->getReplannedPath()->getTree()->getRoot())<<"\n"<<replanner_->getReplannedPath()->getTree()->getRoot());
-  bool changed = replanner_->getReplannedPath()->getTree()->changeRoot(new_root); //the node through which the branch is attached to the tree
-  ROS_INFO_STREAM("CHANGED "<<changed<< "\nNUOVA ROOT IN DETACH: "<< *(replanner_->getReplannedPath()->getTree()->getRoot())<<"\n"<<replanner_->getReplannedPath()->getTree()->getRoot());
-
-  bool purged = replanner_->getReplannedPath()->getTree()->purgeFromHere(node_purge_from,white_list,removed_nodes);
-
-  ROS_WARN("FINE DETACH");
-
-  return purged;
-
-  //  return replanner_->getReplannedPath()->getTree()->purgeFromHere(node_purge_from,white_list,removed_nodes);
-}
-
-bool ReplannerManagerBase::attachAddedBranch(const std::vector<NodePtr>& nodes,
-                                             const std::vector<double>& costs)
-{
-  if(added_branch_.empty())
-    return true;
-
-  ROS_WARN("INIZIO ATTACH");
-  ROS_INFO_STREAM("ROOT IN ATTACH: "<< *(replanner_->getReplannedPath()->getTree()->getRoot())<<"\n"<<replanner_->getReplannedPath()->getTree()->getRoot());
-
-  //Re-build the branch
-  added_branch_.clear();
-  for(unsigned int i=0;i<costs.size();i++)
-  {
-    ConnectionPtr conn = std::make_shared<Connection>(nodes.at(i+1),nodes.at(i));
-    conn->setCost(costs.at(i));
-    conn->add();
-
-    added_branch_.push_back(conn);
-  }
-  std::reverse(added_branch_.begin(),added_branch_.end());
-
-  //Attach the branch
-  bool attached = replanner_->getReplannedPath()->getTree()->addBranch(added_branch_);
-
-  replanner_->getReplannedPath()->getTree()->changeRoot(root_for_attach_);
-  std::reverse(added_branch_.begin(),added_branch_.end());
-
-  NodePtr goal = replanner_->getReplannedPath()->getNodes().back();
-  std::vector<ConnectionPtr> connections = replanner_->getReplannedPath()->getTree()->getConnectionToNode(goal);
-  replanner_->getReplannedPath()->setConnections(connections);
-
-  ROS_INFO_STREAM("NUOVA ROOT IN ATTACH: "<< *(replanner_->getReplannedPath()->getTree()->getRoot())<<"\n"<<replanner_->getReplannedPath()->getTree()->getRoot());
-
-  ROS_INFO_STREAM("current path replanning size: "<<replanner_->getReplannedPath()->getConnections().size()<<" current path shared size: "<<current_path_shared_->getConnections().size());
-
-  for(const ConnectionPtr conn:replanner_->getReplannedPath()->getConnections())
-  {
-    ROS_INFO_STREAM("r parent: "<<conn->getParent()->getConfiguration().transpose());
-    ROS_INFO_STREAM("r child : "<<conn->getChild()->getConfiguration().transpose());
-  }
-
-  ROS_WARN("FINE ATTACH");
-
-  return attached;
-
-  //  return replanner_->getReplannedPath()->getTree()->addBranch(added_branch_);
+  else
+    return false;
 }
 
 }

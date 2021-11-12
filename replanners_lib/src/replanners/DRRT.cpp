@@ -128,30 +128,11 @@ bool DynamicRRT::replan()
     ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
     regrowRRT(node_replan);
-
-    if(!success_)
-    {
-      if(!current_path_->getTree()->isInTree(root))
-        assert(0);
-
-      current_path_->getTree()->changeRoot(root);
-
-      ROS_INFO_STREAM("before removing added node");
-      for(const Eigen::VectorXd& wp:current_path_->getWaypoints())
-        ROS_INFO_STREAM("path node: "<<wp.transpose());
-
-      current_path_->removeNodeAddedInConn(node_replan);
-
-      ROS_INFO_STREAM("after removing added node");
-      for(const Eigen::VectorXd& wp:current_path_->getWaypoints())
-        ROS_INFO_STREAM("path node: "<<wp.transpose());
-    }
-
   }
   else //replan not needed
   {
     bool valid = current_path_->isValidFromConf(current_configuration_);
-    ROS_INFO("path validity %f",valid);
+    ROS_INFO_STREAM("path validity "<<valid);
 
     success_ = false;
     replanned_path_ = current_path_;

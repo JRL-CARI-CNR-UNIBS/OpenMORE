@@ -18,7 +18,7 @@
 
 namespace pathplan
 {
-#define K_OFFSET 1.2
+#define K_OFFSET 1.5
 class ReplannerManagerBase;
 typedef std::shared_ptr<ReplannerManagerBase> ReplannerManagerBasePtr;
 
@@ -71,7 +71,9 @@ protected:
   CollisionCheckerPtr                       checker_replanning_      ;
   TrajectoryPtr                             trajectory_              ;
   std::vector<ConnectionPtr>                added_branch_            ;
-  NodePtr                                   root_for_attach_         ;
+  NodePtr                                   path_start_              ;
+  NodePtr                                   old_path_start_          ;
+  NodePtr                                   root_for_next_detach_    ;
   NodePtr                                   root_for_detach_         ;
   planning_scene::PlanningScenePtr          planning_scn_cc_         ;
   planning_scene::PlanningScenePtr          planning_scn_replanning_ ;
@@ -119,10 +121,8 @@ protected:
   void spawnObjects()              ;
   void trajectoryExecutionThread() ;
   double readScalingTopics()       ;
-  void connectCurrentConfToTree()  ;
+  std::vector<ConnectionPtr> connectCurrentConfToTree()  ;
   bool detachAddedBranch(std::vector<NodePtr>& nodes, std::vector<double>& costs);
-  bool attachAddedBranch(const std::vector<NodePtr> &nodes, const std::vector<double> &costs);
-
 
   virtual bool replan()=0                ;
   virtual void initReplanner()=0         ;
