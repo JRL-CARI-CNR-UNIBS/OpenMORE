@@ -173,7 +173,7 @@ PathPtr ReplannerToGoal::concatWithNewPathToGoal(const std::vector<ConnectionPtr
   std::vector<ConnectionPtr> subpath2;
   if(!subpath2.empty())
   {
-    if(!subpath2.empty()) ROS_ERROR("Subpath2 not empty!");
+     ROS_ERROR("Subpath2 not empty!");
     assert(0);
   }
 

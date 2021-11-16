@@ -169,6 +169,7 @@ public:
   bool cancel()                                                                                   ;
   bool stop()                                                                                     ;
   void setChainProperties(std::string &group_name, std::string &base_link, std::string &last_link);
+
 };
 
 }

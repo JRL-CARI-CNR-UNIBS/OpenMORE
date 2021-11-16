@@ -156,10 +156,6 @@ bool DynamicRRTStar::replan()
   {
     NodePtr root = current_path_->getTree()->getRoot();
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-
-    NodePtr parent = conn->getParent();
-    NodePtr child = conn->getChild();
-
     NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
 
     ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);

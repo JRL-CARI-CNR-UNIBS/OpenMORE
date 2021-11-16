@@ -8,55 +8,27 @@ AnytimeDynamicRRT::AnytimeDynamicRRT(Eigen::VectorXd& current_configuration,
                                      const double& max_time,
                                      const TreeSolverPtr &solver): DynamicRRT(current_configuration,current_path,max_time,solver)
 {
-
   goal_conf_ = current_path->getConnections().back()->getChild()->getConfiguration();
-
-  ROS_INFO("QUA1");
 
   const std::type_info& ti1 = typeid(AnytimeRRT);
   const std::type_info& ti2 = typeid(*solver);
 
-  ROS_INFO("QUA2");
-
   AnytimeRRTPtr tmp_solver;
   if(std::type_index(ti1) != std::type_index(ti2))
   {
-    ROS_INFO("QUA3");
-
     tmp_solver = std::make_shared<pathplan::AnytimeRRT>(solver->getMetrics(), solver->getChecker(), solver->getSampler());
     tmp_solver->importFromSolver(solver); //copy the required fields
-
-    ROS_INFO("QUA4");
-
   }
   else
-  {
-
-    ROS_INFO("QUA5");
-
     tmp_solver = std::static_pointer_cast<AnytimeRRT>(solver);
-
-    const std::type_info& ti3 = typeid(*tmp_solver);
-    ROS_INFO_STREAM("type tmp solver "<<ti3.name());
-    ROS_INFO_STREAM("type solver "<<ti2.name());
-    ROS_INFO("QUA5.5");
-
-//    ROS_INFO_STREAM("goal conf: "<<tmp_solver->getGoal()->getConfiguration());
-  }
 
   solver_ = tmp_solver;
 
-  ROS_INFO("QUA6");
+  if(!solver_->getStartTree() || !solver_->getSolution())
+    assert(0);
 
   if(!tmp_solver->solved())
     assert(0);
-
-  ROS_INFO("QUA7");
-
-//  if(goal_conf_ != tmp_solver->getGoal()->getConfiguration())
-//    assert(0);
-
-//    ROS_INFO("QUA8");
 }
 void AnytimeDynamicRRT::updatePath(NodePtr& node)
 {
@@ -68,6 +40,7 @@ void AnytimeDynamicRRT::updatePath(NodePtr& node)
   tree->changeRoot(node);
   PathPtr updated_path = std::make_shared<Path>(tree->getConnectionToNode(goal),metrics_,checker_);
   solver_->setSolution(updated_path,true);
+
 }
 bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
 {
@@ -86,7 +59,12 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
 
   AnytimeRRTPtr forced_cast_solver = std::static_pointer_cast<AnytimeRRT>(solver_);
 
+  if(!forced_cast_solver->getStartTree() || !forced_cast_solver->getSolution())
+    assert(0);
+
+  ROS_INFO("prima di get cost");
   double path_cost = solver_->getSolution()->getCostFromConf(node->getConfiguration());
+  ROS_INFO("dopo get cost");
   double imprv = forced_cast_solver->getCostImpr();
 
   int n_fail = 0;
@@ -109,6 +87,15 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
       path_cost = solution->cost();
       success = true;
       n_fail = 0;
+
+      solver_->setStartTree(solution->getTree());
+      solver_->setSolution(solution,true);
+
+      NodePtr initial_goal = replanned_path_->getNodes().back();
+      ROS_INFO_STREAM("goal after improve: "<<initial_goal<<*initial_goal);
+
+      if(!replanned_path_->getTree())
+        assert(0);
     }
     else
       n_fail +=1;
@@ -125,8 +112,15 @@ bool AnytimeDynamicRRT::replan()
 
   double cost_from_conf = current_path_->getCostFromConf(current_configuration_);
 
-  ConnectionPtr conn = current_path_->findConnection(current_configuration_);
+  int idx;
+  ConnectionPtr conn = current_path_->findConnection(current_configuration_,idx);
+
+  ROS_INFO_STREAM("idx new conf: "<<idx);
+
   NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
+
+  if(!current_path_->findConnection(node_replan->getConfiguration(),idx))
+    ROS_ERROR("replan conf not found!!!!!!!!!!!");
 
   ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
@@ -134,25 +128,51 @@ bool AnytimeDynamicRRT::replan()
   {
     if(regrowRRT(node_replan))
     {
-      //      updatePath(node_replan);
+      ROS_WARN("REGROW");
+      //updatePath(node_replan);
+      success_ = true;
+
+      solver_->setStartTree(replanned_path_->getTree());
+      solver_->setSolution(replanned_path_,true);
 
       double max_time_impr = 0.98*max_time_-(ros::WallTime::now()-tic).toSec();
-      improvePath(node_replan,max_time_impr); //if not improved, success_ = true anyway beacuse a new path has been found with regrowRRT()
+      if(improvePath(node_replan,max_time_impr)) //if not improved, success_ = true anyway beacuse a new path has been found with regrowRRT()
+      {
+        solver_->setStartTree(replanned_path_->getTree());
+        solver_->setSolution(replanned_path_,true);       //should be after setStartTree
+
+        for(const Eigen::VectorXd& wp:replanned_path_->getWaypoints())
+          ROS_INFO_STREAM("wp improved: "<<wp.transpose());
+      }
+      ROS_INFO_STREAM("root after improve: "<<*replanned_path_->getTree()->getRoot());
     }
+    else
+      success_ = false;
+
   }
   else //replan not needed
   {
     //    updatePath(node_replan);
 
+    solver_->setStartTree(current_path_->getTree());
+    solver_->setSolution(current_path_,true);       //should be after setStartTree
+
     double max_time_impr = 0.98*max_time_-(ros::WallTime::now()-tic).toSec();
     if(improvePath(node_replan,max_time_impr))
+    {
+      ROS_WARN("IMPROVED");
+
+      solver_->setStartTree(replanned_path_->getTree());
+      solver_->setSolution(replanned_path_,true);       //should be after setStartTree
+
       success_ = true;
+    }
     else
       success_ = false;
-  }
 
-  if(!success_)
-    current_path_->removeNodeAddedInConn(node_replan);
+    if(!success_)
+      current_path_->removeNodeAddedInConn(node_replan);
+  }
 
   return success_;
 }

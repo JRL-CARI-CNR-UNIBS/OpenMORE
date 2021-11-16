@@ -288,6 +288,21 @@ int main(int argc, char **argv)
     replanner->setCurrentPath(current_path);
   }
 
+  replanner->setCurrentConf(current_path->getWaypoints().front());
+  success =  replanner->replan();
+  if(success)
+  {
+    std::vector<double> marker_color;
+    marker_color = {1.0,1.0,0.0,1.0};
+
+    std::vector<double> marker_scale(3,0.01);
+    disp->changeConnectionSize(marker_scale);
+    disp->displayPath(replanner->getReplannedPath(),6000,"pathplan",marker_color);
+
+    bool valid =replanner->getReplannedPath()->isValid();
+    ROS_INFO_STREAM("replanned path valid: "<<valid);
+  }
+
   return 0;
 }
 

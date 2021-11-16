@@ -363,7 +363,7 @@ void ReplannerManagerBase::replanningThread()
         trj_mtx_.lock();
 
         connectToReplannedPath();
-        replanner_->getReplannedPath()->setTree(current_path_replanning_->getTree());
+        //replanner_->getReplannedPath()->setTree(current_path_replanning_->getTree());
         current_path_replanning_ = replanner_->getReplannedPath();
         replanner_->setCurrentPath(current_path_replanning_);
 
@@ -750,9 +750,6 @@ void ReplannerManagerBase::displayThread()
 
     lp.sleep();
   }
-
-  ros::Duration(1.0).sleep();
-  disp->displayTree(replanner_->getReplannedPath()->getTree());
 }
 
 void ReplannerManagerBase::spawnObjects()

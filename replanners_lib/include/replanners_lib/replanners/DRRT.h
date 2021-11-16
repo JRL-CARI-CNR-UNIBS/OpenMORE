@@ -16,6 +16,7 @@ class DynamicRRT: public ReplannerBase
 {
 protected:
   TreePtr trimmed_tree_;
+  bool tree_incomplete_;
 
   bool trimInvalidTree(NodePtr& node);
   bool regrowRRT(NodePtr& node);
