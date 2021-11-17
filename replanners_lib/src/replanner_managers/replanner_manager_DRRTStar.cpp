@@ -14,24 +14,19 @@ ReplannerManagerDRRTStar::ReplannerManagerDRRTStar(PathPtr &current_path,
 
 void ReplannerManagerDRRTStar::connectToReplannedPath()
 {
-  NodePtr replan_node = replanner_->getReplannedPath()->getTree()->getRoot();
-
   std::vector<NodePtr> nodes;
   std::vector<double> costs;
   detachAddedBranch(nodes,costs);
 
   connectCurrentConfToTree();
 
-  if(replanner_->getReplannedPath()->getTree()->getRoot() == replan_node)
-    assert(0);
-
-  if((replan_node->getParents().size() == 1) && (replan_node->getChildren().size() == 1))
-  {
-    bool removed = replanner_->getReplannedPath()->removeNodeAddedInConn(replan_node);
-    ROS_INFO_STREAM("removed node: "<<removed);
-  }
+  if(replanner_->getReplannedPath()->removeNodes())
+    ROS_INFO_STREAM("removed node");
   else
-    ROS_INFO_STREAM("node can not be removed: "<<*replan_node);
+    ROS_INFO_STREAM("node can not be removed");
+
+  //NON POSSO SEMPLICEMENTE AGGIUNGERE UNA CONFIGURAZIONE NEL TREE E FARMI DARE IL PATH PERCHE IL REWIRE POTREBBE SPOSTARE
+  //LA CONNESSIONE A CUI LA CONFIGURAZIONE APPARTENEVA, DUNQUE LA CONFIGURAZIONE NON POTREBBE VENIRE INSERITA NEL TREE
 }
 
 bool ReplannerManagerDRRTStar::haveToReplan(const bool path_obstructed)

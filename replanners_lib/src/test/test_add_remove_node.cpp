@@ -101,64 +101,94 @@ int main(int argc, char **argv)
   Eigen::VectorXd parent = current_path->getConnections().at(1)->getParent()->getConfiguration();
   Eigen::VectorXd child = current_path->getConnections().at(1)->getChild()->getConfiguration();
 
-  Eigen::VectorXd current_configuration = parent + (child-parent)*0.5;
+  Eigen::VectorXd current_configuration1 = parent + (child-parent)*0.5;
+  Eigen::VectorXd current_configuration2 = parent + (child-parent)*0.2;
+  Eigen::VectorXd current_configuration3 = parent + (child-parent)*0.9;
+
+  parent = current_path->getConnections().at(2)->getParent()->getConfiguration();
+  child = current_path->getConnections().at(2)->getChild()->getConfiguration();
+
+  Eigen::VectorXd current_configuration4 = parent + (child-parent)*0.5;
+  Eigen::VectorXd current_configuration5 = parent + (child-parent)*0.2;
 
   //    /////////////////////////////////////////// VISUALIZATION OF CURRENT NODE ////////////////////////
-  disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),5000,"pathplan",{1.0,0.0,1.0,1.0});
-
-  pathplan::NodePtr node2add = current_path->addNodeAtCurrentConfig(current_configuration,current_path->getConnections().at(1),true);
 
   disp->nextButton();
+  pathplan::NodePtr node2add = current_path->addNodeAtCurrentConfig(current_configuration1,true);
+  node2add = current_path->addNodeAtCurrentConfig(current_configuration2,true);
+  node2add = current_path->addNodeAtCurrentConfig(current_configuration3,true);
+
+  node2add = current_path->addNodeAtCurrentConfig(current_configuration4,true);
+  node2add = current_path->addNodeAtCurrentConfig(current_configuration5,true);
+
   disp->clearMarkers();
-  ros::Duration(1).sleep();
-
-  disp->displayPathAndWaypoints(current_path, id,id_wp,"pathplan",{0.5,0.5,0.0,1.0});
-
-  current_path->removeNodeAddedInConn(node2add);
-
+  disp->displayPathAndWaypoints(current_path);
   disp->nextButton();
+
+  std::vector<pathplan::NodePtr> white_list;
+  white_list.push_back(node2add);
+  if(!current_path->removeNodes(white_list))
+    ROS_ERROR("NOT REMOVOVED");
+
   disp->clearMarkers();
   ros::Duration(1).sleep();
+  disp->displayPathAndWaypoints(current_path);
 
-  disp->displayPathAndWaypoints(current_path, id,id_wp,"pathplan",{0.5,0.5,0.0,1.0});
+//  disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),5000,"pathplan",{1.0,0.0,1.0,1.0});
 
-  node2add = current_path->addNodeAtCurrentConfig(child,current_path->getConnections().at(1),true);
+//  pathplan::NodePtr node2add = current_path->addNodeAtCurrentConfig(current_configuration,current_path->getConnections().at(1),true);
 
-  disp->nextButton();
-  disp->clearMarkers();
-  ros::Duration(1).sleep();
+//  disp->nextButton();
+//  disp->clearMarkers();
+//  ros::Duration(1).sleep();
 
-  disp->displayPathAndWaypoints(current_path, id,id_wp,"pathplan",{0.5,0.5,0.0,1.0});
+//  disp->displayPathAndWaypoints(current_path, id,id_wp,"pathplan",{0.5,0.5,0.0,1.0});
 
-  current_path->removeNodeAddedInConn(node2add);
+//  current_path->removeNodeAddedInConn(node2add);
 
-  disp->nextButton();
-  disp->clearMarkers();
-  ros::Duration(1).sleep();
+//  disp->nextButton();
+//  disp->clearMarkers();
+//  ros::Duration(1).sleep();
 
-  disp->displayPathAndWaypoints(current_path,id,id_wp,"pathplan",{0.5,0.5,0.0,1.0});
+//  disp->displayPathAndWaypoints(current_path, id,id_wp,"pathplan",{0.5,0.5,0.0,1.0});
 
-  int idx_con;
-  current_configuration = parent+0.99999*(child-parent);
-  pathplan::ConnectionPtr conn2add = current_path->findConnection(current_configuration,idx_con);
+//  node2add = current_path->addNodeAtCurrentConfig(child,current_path->getConnections().at(1),true);
 
-  ROS_INFO_STREAM("Conn: "<<idx_con);
+//  disp->nextButton();
+//  disp->clearMarkers();
+//  ros::Duration(1).sleep();
 
-  node2add = current_path->addNodeAtCurrentConfig(current_configuration,conn2add,true);
+//  disp->displayPathAndWaypoints(current_path, id,id_wp,"pathplan",{0.5,0.5,0.0,1.0});
 
-  disp->nextButton();
-  disp->clearMarkers();
-  ros::Duration(1).sleep();
+//  current_path->removeNodeAddedInConn(node2add);
 
-  disp->displayPathAndWaypoints(current_path, id,id_wp,"pathplan",{0.5,0.5,0.0,1.0});
+//  disp->nextButton();
+//  disp->clearMarkers();
+//  ros::Duration(1).sleep();
 
-  current_path->removeNodeAddedInConn(node2add);
+//  disp->displayPathAndWaypoints(current_path,id,id_wp,"pathplan",{0.5,0.5,0.0,1.0});
 
-  disp->nextButton();
-  disp->clearMarkers();
-  ros::Duration(1).sleep();
+//  int idx_con;
+//  current_configuration = parent+0.99999*(child-parent);
+//  pathplan::ConnectionPtr conn2add = current_path->findConnection(current_configuration,idx_con);
 
-  disp->displayPathAndWaypoints(current_path,id,id_wp,"pathplan",{0.5,0.5,0.0,1.0});
+//  ROS_INFO_STREAM("Conn: "<<idx_con);
+
+//  node2add = current_path->addNodeAtCurrentConfig(current_configuration,conn2add,true);
+
+//  disp->nextButton();
+//  disp->clearMarkers();
+//  ros::Duration(1).sleep();
+
+//  disp->displayPathAndWaypoints(current_path, id,id_wp,"pathplan",{0.5,0.5,0.0,1.0});
+
+//  current_path->removeNodeAddedInConn(node2add);
+
+//  disp->nextButton();
+//  disp->clearMarkers();
+//  ros::Duration(1).sleep();
+
+//  disp->displayPathAndWaypoints(current_path,id,id_wp,"pathplan",{0.5,0.5,0.0,1.0});
 
 
   return 0;

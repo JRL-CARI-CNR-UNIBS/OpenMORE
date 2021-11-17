@@ -171,7 +171,7 @@ bool AnytimeDynamicRRT::replan()
       success_ = false;
 
     if(!success_)
-      current_path_->removeNodeAddedInConn(node_replan);
+      current_path_->removeNodes();
   }
 
   return success_;

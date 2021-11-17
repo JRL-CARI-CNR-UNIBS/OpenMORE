@@ -33,17 +33,12 @@ protected:
   PathPtr              current_path_replanning_           ;
   PathPtr              current_path_shared_               ;
   std::string          group_name_                        ;
-  std::string          base_link_                         ;
-  std::string          last_link_                         ;
   TreeSolverPtr        solver_                            ;
   ros::NodeHandle      nh_                                ;
 
   // Global variables
   bool stop_                      ;
-  bool path_obstructed_           ;
-  bool computing_avoiding_path_   ;
   bool spawn_objs_                ;
-  bool replanning_                ;
   bool display_timing_warning_    ;
   bool display_replanning_success_;
   bool read_safe_scaling_         ;
@@ -59,11 +54,11 @@ protected:
   double replanning_thread_frequency_;
   double scaling_from_param_         ;
   double checker_resol_              ;
-  double goal_toll_                  ;
+  double goal_tol_                   ;
   double scaling_                    ;
 
-  Eigen::VectorXd lb_;
-  Eigen::VectorXd ub_;
+  Eigen::VectorXd                           lb_;
+  Eigen::VectorXd                           ub_;
   ReplannerBasePtr                          replanner_               ;
   Eigen::VectorXd                           current_configuration_   ;
   Eigen::VectorXd                           configuration_replan_    ;
@@ -168,7 +163,6 @@ public:
   bool startWithoutReplanning()                                                                   ;
   bool cancel()                                                                                   ;
   bool stop()                                                                                     ;
-  void setChainProperties(std::string &group_name, std::string &base_link, std::string &last_link);
 
 };
 

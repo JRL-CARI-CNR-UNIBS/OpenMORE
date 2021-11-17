@@ -159,7 +159,6 @@ bool DynamicRRTStar::replan()
     NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
 
     ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
-    ROS_INFO_STREAM("node replan in tree: "<<current_path_->getTree()->isInTree(node_replan));
 
     bool tree_modified =  connectBehindObs(node_replan);
 
@@ -174,14 +173,18 @@ bool DynamicRRTStar::replan()
       if(replanned_path_->getTree()->getRoot() == node_replan)
         assert(0);
 
-      if((node_replan->getParents().size() == 1) && (node_replan->getChildren().size() == 1))
-      {
-        bool removed = replanned_path_->removeNodeAddedInConn(node_replan);
-        ROS_INFO_STREAM("removed node: "<<removed);
-      }
+      if(replanned_path_->removeNodes())
+        ROS_INFO("removed node");
       else
-        ROS_INFO_STREAM("node can not be removed: "<<*node_replan);
+        ROS_INFO("node can not be removed");
     }
+
+    if(tree_modified && disp_)
+    {
+      disp_->clearMarkers();
+      disp_->displayTree(current_path_->getTree());
+    }
+
 
     ROS_INFO_STREAM("NUOVA ROOT IN REPLAN: "<< *(replanned_path_->getTree()->getRoot())<<"\n"<<replanned_path_->getTree()->getRoot());
 
