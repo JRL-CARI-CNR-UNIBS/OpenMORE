@@ -75,12 +75,12 @@ void ReplannerManagerBase::attributeInitialization()
   scaling_                         = 1.0  ;
   real_time_                       = 0.0  ;
   t_                               = 0.0  ;
-  dt_                              = 1/trj_exec_thread_frequency_;
-  replan_offset_                   = (dt_replan_-dt_)*K_OFFSET   ;
-  t_replan_                        = t_+replan_offset_           ;
-  //  replanning_thread_frequency_     = 1/dt_replan_            ;
-  replanning_thread_frequency_     = 100                         ;
-  global_override_                 = 1.0                         ;
+  dt_                              = 1.0/trj_exec_thread_frequency_;
+  replan_offset_                   = (dt_replan_-dt_)*K_OFFSET     ;
+  t_replan_                        = t_+replan_offset_             ;
+  //  replanning_thread_frequency_     = 1/dt_replan_              ;
+  replanning_thread_frequency_     = 100                           ;
+  global_override_                 = 1.0                           ;
 
   if(group_name_.empty()) throw std::invalid_argument("group name not set");
 
@@ -111,9 +111,6 @@ void ReplannerManagerBase::attributeInitialization()
       ub(idx) = bounds.max_position_;
     }
   }
-
-  lb_ = lb;
-  ub_ = ub;
 
   current_path_shared_ = current_path_replanning_->clone();
 
@@ -300,7 +297,7 @@ void ReplannerManagerBase::replanningThread()
       replanner_->setCurrentConf(configuration_replan_);
       replanner_->setCurrentPath(current_path_replanning_);
 
-      path_obstructed = (current_path_replanning_->cost() == std::numeric_limits<double>::infinity());
+      path_obstructed = (current_path_replanning_->getCostFromConf(configuration_replan_) == std::numeric_limits<double>::infinity());
 
       replanner_mtx_.unlock();
       checker_mtx_.unlock();
@@ -308,11 +305,10 @@ void ReplannerManagerBase::replanningThread()
       success = false;
       path_changed = false;
       replanning_duration = 0;
+
       if(haveToReplan(path_obstructed))
       {
         ROS_WARN("DEVE RIPIANIFICARE");
-
-        planning_mtx_.lock();
 
         ROS_INFO_STREAM("curr conf "<<current_configuration_.transpose());
         ROS_INFO_STREAM("repl conf "<<configuration_replan_.transpose());
@@ -322,8 +318,6 @@ void ReplannerManagerBase::replanningThread()
         toc_rep=ros::WallTime::now();
 
         success = replanner_->getSuccess();
-
-        planning_mtx_.unlock();
 
         replanning_duration = (toc_rep-tic_rep).toSec();
       }
@@ -647,7 +641,7 @@ void ReplannerManagerBase::displayThread()
 
   disp->clearMarkers();
 
-  replanner_->setDisp(disp);  //ELIMINAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  //replanner_->setDisp(disp);  //ELIMINA
 
   double display_thread_frequency = 0.75*trj_exec_thread_frequency_;
   ros::Rate lp(display_thread_frequency);
@@ -700,7 +694,7 @@ void ReplannerManagerBase::displayThread()
 
     for(unsigned int i=0; i<pnt_replan.positions.size();i++) point2project[i] = pnt_replan.positions.at(i);
     node_id +=1;
-    marker_color = {0.5,0.5,0.5,0.2};
+    marker_color = {0.5,0.5,0.5,1.0};
     disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
 
     disp->defaultNodeSize();
@@ -866,6 +860,7 @@ std::vector<ConnectionPtr> ReplannerManagerBase::connectCurrentConfToTree()
 
   std::vector<ConnectionPtr> new_branch;
   new_branch = replanner_->startReplannedTreeFromNewCurrentConf(current_configuration_,current_path_copy); //set the new root at the current config
+
   path_start_ = replanner_->getReplannedPath()->getTree()->getRoot();
 
   ROS_INFO_STREAM("NEW ROOT IN CONNECT TO TREE: "<< *(replanner_->getReplannedPath()->getTree()->getRoot())<<"\n"<<replanner_->getReplannedPath()->getTree()->getRoot());

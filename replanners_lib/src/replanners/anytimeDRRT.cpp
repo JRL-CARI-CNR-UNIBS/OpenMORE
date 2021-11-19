@@ -30,18 +30,7 @@ AnytimeDynamicRRT::AnytimeDynamicRRT(Eigen::VectorXd& current_configuration,
   if(!tmp_solver->solved())
     assert(0);
 }
-void AnytimeDynamicRRT::updatePath(NodePtr& node)
-{
-  TreePtr tree = solver_->getStartTree();
-  NodePtr goal = solver_->getSolution()->getConnections().back()->getChild();
-  if(tree->getRoot() != node)
-    assert(0);
 
-  tree->changeRoot(node);
-  PathPtr updated_path = std::make_shared<Path>(tree->getConnectionToNode(goal),metrics_,checker_);
-  solver_->setSolution(updated_path,true);
-
-}
 bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
 {
   ros::WallTime tic = ros::WallTime::now();
@@ -62,9 +51,7 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
   if(!forced_cast_solver->getStartTree() || !forced_cast_solver->getSolution())
     assert(0);
 
-  ROS_INFO("prima di get cost");
   double path_cost = solver_->getSolution()->getCostFromConf(node->getConfiguration());
-  ROS_INFO("dopo get cost");
   double imprv = forced_cast_solver->getCostImpr();
 
   int n_fail = 0;
@@ -111,25 +98,26 @@ bool AnytimeDynamicRRT::replan()
   ros::WallTime tic = ros::WallTime::now();
 
   double cost_from_conf = current_path_->getCostFromConf(current_configuration_);
+  ROS_INFO("COST FROM CONF: %f",cost_from_conf);
 
-  int idx;
-  ConnectionPtr conn = current_path_->findConnection(current_configuration_,idx);
-
-  ROS_INFO_STREAM("idx new conf: "<<idx);
-
-  NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
-
-  if(!current_path_->findConnection(node_replan->getConfiguration(),idx))
-    ROS_ERROR("replan conf not found!!!!!!!!!!!");
-
-  ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
-
-  if(cost_from_conf == std::numeric_limits<double>::infinity())
+  if(cost_from_conf == std::numeric_limits<double>::infinity() || tree_is_trimmed_)
   {
+    NodePtr node_replan;
+
+    if(!tree_is_trimmed_)
+    {
+      ConnectionPtr conn = current_path_->findConnection(current_configuration_);
+      node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
+    }
+    else
+    {
+      node_replan = std::make_shared<Node>(current_configuration_);
+    }
+    ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
+
     if(regrowRRT(node_replan))
     {
       ROS_WARN("REGROW");
-      //updatePath(node_replan);
       success_ = true;
 
       solver_->setStartTree(replanned_path_->getTree());
@@ -147,12 +135,21 @@ bool AnytimeDynamicRRT::replan()
       ROS_INFO_STREAM("root after improve: "<<*replanned_path_->getTree()->getRoot());
     }
     else
+    {
       success_ = false;
+      ROS_ERROR("Tree can not be regrown using regrowRRT");
 
+      if(!tree_is_trimmed_)
+        assert(0);
+    }
   }
   else //replan not needed
   {
-    //    updatePath(node_replan);
+    if(tree_is_trimmed_)
+      assert(0);
+
+    ConnectionPtr conn = current_path_->findConnection(current_configuration_);
+    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,false);
 
     solver_->setStartTree(current_path_->getTree());
     solver_->setSolution(current_path_,true);       //should be after setStartTree

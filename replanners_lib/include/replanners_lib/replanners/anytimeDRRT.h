@@ -19,7 +19,6 @@ protected:
   Eigen::VectorXd goal_conf_;
 
   bool improvePath(NodePtr &node, const double& max_time);
-  void updatePath(NodePtr& node);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

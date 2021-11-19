@@ -57,8 +57,6 @@ protected:
   double goal_tol_                   ;
   double scaling_                    ;
 
-  Eigen::VectorXd                           lb_;
-  Eigen::VectorXd                           ub_;
   ReplannerBasePtr                          replanner_               ;
   Eigen::VectorXd                           current_configuration_   ;
   Eigen::VectorXd                           configuration_replan_    ;
@@ -66,8 +64,6 @@ protected:
   CollisionCheckerPtr                       checker_replanning_      ;
   TrajectoryPtr                             trajectory_              ;
   NodePtr                                   path_start_              ;
-  NodePtr                                   old_path_start_          ;
-  NodePtr                                   root_for_next_detach_    ;
   NodePtr                                   root_for_detach_         ;
   planning_scene::PlanningScenePtr          planning_scn_cc_         ;
   planning_scene::PlanningScenePtr          planning_scn_replanning_ ;
@@ -84,7 +80,6 @@ protected:
   std::thread col_check_thread_ ;
   std::thread trj_exec_thread_  ;
 
-  std::mutex planning_mtx_ ;
   std::mutex checker_mtx_  ;
   std::mutex trj_mtx_      ;
   std::mutex paths_mtx_    ;

@@ -31,20 +31,6 @@ int main(int argc, char **argv)
     return 0;
   }
 
-  std::string base_link;
-  if (!nh.getParam("base_link",base_link))
-  {
-    ROS_ERROR("base_link not set, exit");
-    return 0;
-  }
-
-  std::string last_link;
-  if (!nh.getParam("last_link",last_link))
-  {
-    ROS_ERROR("last_link not set, exit");
-    return 0;
-  }
-
   std::vector<double> start_configuration;
   if (!nh.getParam("start_configuration",start_configuration))
   {

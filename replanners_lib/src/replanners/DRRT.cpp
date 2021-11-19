@@ -25,7 +25,7 @@ DynamicRRT::DynamicRRT(Eigen::VectorXd& current_configuration,
 
   solver_ = tmp_solver;
 
-  tree_incomplete_ = false;
+  tree_is_trimmed_ = false;
 }
 
 bool DynamicRRT::trimInvalidTree(NodePtr& node)
@@ -66,22 +66,21 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
   success_ = false;
 
   //First thing to do: set the goal as the root
-  ROS_INFO_STREAM("root before change: "<<*current_path_->getTree()->getRoot());
   NodePtr initial_goal = current_path_->getConnections().back()->getChild();
-  ROS_INFO_STREAM("goal: "<<initial_goal<<*initial_goal);
   if(!current_path_->getTree()->changeRoot(initial_goal)) //revert the tree so the goal is the root
     assert(0);
 
-  ROS_INFO_STREAM("root before trim: "<<*current_path_->getTree()->getRoot());
-
-  //Trim the tree
-  if(!trimInvalidTree(node))
-  {    
-    ROS_INFO("Tree not trimmed");
-    return false;
+  if(!tree_is_trimmed_)
+  {
+    //Trim the tree
+    if(!trimInvalidTree(node))
+    {
+      ROS_INFO("Tree not trimmed");
+      return false;
+    }
+    else
+      tree_is_trimmed_ = true;
   }
-  else
-    tree_incomplete_ = true;
 
   //Regrow the tree
   double max_distance = trimmed_tree_->getMaximumDistance();
@@ -111,7 +110,7 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
           solver_->setStartTree(trimmed_tree_);
           solver_->setSolution(replanned_path_,true);
 
-          tree_incomplete_ = false;
+          tree_is_trimmed_ = false;
 
           success_ = true;
           break;
@@ -127,31 +126,30 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
 bool DynamicRRT::replan()
 {
   double cost_from_conf = current_path_->getCostFromConf(current_configuration_);
-
   ROS_INFO("COST FROM CONF: %f",cost_from_conf);
 
   if(cost_from_conf == std::numeric_limits<double>::infinity())
   {
     NodePtr node_replan;
 
-    if(!tree_incomplete_)
+    if(!tree_is_trimmed_)
     {
       ConnectionPtr conn = current_path_->findConnection(current_configuration_);
       node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
-
-      ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
     }
     else
     {
       node_replan = std::make_shared<Node>(current_configuration_);
     }
 
-    regrowRRT(node_replan);  //se fallisce dopo il trim come faccio?
+    ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
+
+    regrowRRT(node_replan);
   }
   else //replan not needed
   {
-    bool valid = current_path_->isValidFromConf(current_configuration_);
-    ROS_INFO_STREAM("path validity "<<valid);
+    if(!current_path_->isValidFromConf(current_configuration_))
+      assert(0);
 
     success_ = false;
     replanned_path_ = current_path_;

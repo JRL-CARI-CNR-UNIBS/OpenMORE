@@ -16,7 +16,7 @@ class DynamicRRT: public ReplannerBase
 {
 protected:
   TreePtr trimmed_tree_;
-  bool tree_incomplete_;
+  bool tree_is_trimmed_;
 
   bool trimInvalidTree(NodePtr& node);
   bool regrowRRT(NodePtr& node);
@@ -29,6 +29,10 @@ public:
              const double& max_time,
              const TreeSolverPtr &solver);
 
+  bool getTreeIsTrimmed()
+  {
+    return tree_is_trimmed_;
+  }
   virtual bool replan() override;
 };
 }
