@@ -48,6 +48,20 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
 
   AnytimeRRTPtr forced_cast_solver = std::static_pointer_cast<AnytimeRRT>(solver_);
 
+  if(replanned_path_)
+  {
+    if(current_path_->getTree() != replanned_path_->getTree())
+    {
+      ROS_INFO_STREAM("current path tree, replanned path tree: "<<current_path_->getTree()<<" "<<replanned_path_->getTree());
+      assert(0);
+    }
+  }
+  if(current_path_->getTree() != solver_->getStartTree())
+  {
+    ROS_INFO_STREAM("current path tree, solver tree: "<<current_path_->getTree()<<" "<<solver_->getStartTree());
+    assert(0);
+  }
+
   if(!forced_cast_solver->getStartTree() || !forced_cast_solver->getSolution())
     assert(0);
 

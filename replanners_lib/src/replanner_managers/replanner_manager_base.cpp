@@ -320,6 +320,8 @@ void ReplannerManagerBase::replanningThread()
         success = replanner_->getSuccess();
 
         replanning_duration = (toc_rep-tic_rep).toSec();
+
+        ROS_INFO_STREAM("TREE MODIFIED: "<<path_changed);
       }
 
       if(replanning_duration>=dt_replan_/0.9 && display_timing_warning_) ROS_WARN("Replanning duration: %f",replanning_duration);
@@ -336,6 +338,15 @@ void ReplannerManagerBase::replanningThread()
 
         connectToReplannedPath();
         //replanner_->getReplannedPath()->setTree(current_path_replanning_->getTree());
+        if(replanner_->getReplannedPath()->getTree())
+        {
+          if(replanner_->getReplannedPath()->getTree() != replanner_->getCurrentPath()->getTree())
+          {
+            ROS_INFO_STREAM("current path tree, replanned path tree: "<<replanner_->getCurrentPath()->getTree()<<" "<<replanner_->getReplannedPath()->getTree());
+            assert(0);
+          }
+        }
+
         current_path_replanning_ = replanner_->getReplannedPath();
         replanner_->setCurrentPath(current_path_replanning_);
 
@@ -850,22 +861,50 @@ void ReplannerManagerBase::spawnObjects()
 
 std::vector<ConnectionPtr> ReplannerManagerBase::connectCurrentConfToTree()
 {
-  paths_mtx_.lock();
-  PathPtr current_path_copy = current_path_shared_->clone();
-  paths_mtx_.unlock();
+    paths_mtx_.lock();
+    PathPtr current_path_copy = current_path_shared_->clone();
+    paths_mtx_.unlock();
 
-  ROS_INFO_STREAM("ROOT IN CONNECT TO TREE: "<< *(replanner_->getReplannedPath()->getTree()->getRoot())<<"\n"<<replanner_->getReplannedPath()->getTree()->getRoot());
+    ROS_INFO_STREAM("ROOT IN CONNECT TO TREE: "<< *(replanner_->getReplannedPath()->getTree()->getRoot())<<"\n"<<replanner_->getReplannedPath()->getTree()->getRoot());
 
-  root_for_detach_ = replanner_->getReplannedPath()->getTree()->getRoot();
+    root_for_detach_ = replanner_->getReplannedPath()->getTree()->getRoot();
 
-  std::vector<ConnectionPtr> new_branch;
-  new_branch = replanner_->startReplannedTreeFromNewCurrentConf(current_configuration_,current_path_copy); //set the new root at the current config
+    std::vector<ConnectionPtr> new_branch;
+    new_branch = replanner_->startReplannedTreeFromNewCurrentConf(current_configuration_,current_path_copy); //set the new root at the current config
 
-  path_start_ = replanner_->getReplannedPath()->getTree()->getRoot();
+    path_start_ = replanner_->getReplannedPath()->getTree()->getRoot();
 
-  ROS_INFO_STREAM("NEW ROOT IN CONNECT TO TREE: "<< *(replanner_->getReplannedPath()->getTree()->getRoot())<<"\n"<<replanner_->getReplannedPath()->getTree()->getRoot());
+    ROS_INFO_STREAM("NEW ROOT IN CONNECT TO TREE: "<< *(replanner_->getReplannedPath()->getTree()->getRoot())<<"\n"<<replanner_->getReplannedPath()->getTree()->getRoot());
 
-  return new_branch;
+    return new_branch;
+
+//  ros::WallTime tic = ros::WallTime::now();
+
+//  std::vector<ConnectionPtr> conns;
+
+//  TreePtr tree = replanner_->getReplannedPath()->getTree();
+//  NodePtr goal = replanner_->getReplannedPath()->getNodes().back();
+
+//  if(!tree->isInTree(replanner_->getReplannedPath()->getNodes().front()))
+//    assert(0);
+
+//  NodePtr new_node; ConnectionPtr new_conn;
+//  if(!replanner_->getReplannedPath()->getTree()->extend(current_configuration_,new_node,new_conn))
+//    assert(0);
+
+//  conns.push_back(new_conn);
+//  tree->changeRoot(new_node);
+
+//  replanner_->getReplannedPath()->setConnections(tree->getConnectionToNode(goal));
+
+//  if(replanner_->getReplannedPath()->removeNodes())
+//    ROS_INFO_STREAM("removed node");
+//  else
+//    ROS_INFO_STREAM("node can not be removed");
+
+//  ROS_INFO_STREAM("Duration of connecting current conf: "<<(ros::WallTime::now()-tic).toSec());
+
+//  return conns;
 }
 
 bool ReplannerManagerBase::detachAddedBranch(std::vector<NodePtr>& nodes,

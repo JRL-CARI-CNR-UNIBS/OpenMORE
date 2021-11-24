@@ -48,7 +48,7 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
 {
   ros::WallTime tic = ros::WallTime::now();
 
-  bool tree_modified = true;
+  bool tree_modified = false;
   success_ = false;
   TreePtr tree = current_path_->getTree();
 
@@ -59,9 +59,10 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
   }
 
   NodePtr replan_goal;
-  if(!nodeBehindObs(replan_goal)) return false;
+  if(!nodeBehindObs(replan_goal))
+    return false;
 
-  double radius = 1*((replan_goal->getConfiguration()-node->getConfiguration()).norm());
+  double radius = 1.5*((replan_goal->getConfiguration()-node->getConfiguration()).norm());
   LocalInformedSampler sampler (node->getConfiguration(),replan_goal->getConfiguration(),lb_,ub_,std::numeric_limits<double>::infinity());
   sampler.addBall(node->getConfiguration(),radius);
 
@@ -69,7 +70,7 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
   tree->changeRoot(node);
 
   std::vector<ConnectionPtr> checked_connections;
-  tree->rewireOnlyWithPathCheck(node,checked_connections,radius,2);
+  tree_modified = tree->rewireOnlyWithPathCheck(node,checked_connections,radius,2);
 
   //*  STEP 2: ADDING NEW NODES AND SEARCHING WITH RRT*  *//
   double max_distance = tree->getMaximumDistance();
@@ -184,7 +185,6 @@ bool DynamicRRTStar::replan()
       disp_->clearMarkers();
       disp_->displayTree(current_path_->getTree());
     }
-
 
     ROS_INFO_STREAM("NUOVA ROOT IN REPLAN: "<< *(replanned_path_->getTree()->getRoot())<<"\n"<<replanned_path_->getTree()->getRoot());
 
