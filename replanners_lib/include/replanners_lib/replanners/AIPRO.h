@@ -7,6 +7,44 @@
 namespace pathplan
 {
 
+struct complete_subtree
+{
+  NodePtr goal_node;
+  NodePtr reference_goal_node;
+  PathPtr goal_path;
+  SubtreePtr subtree;
+
+  void remove()
+  {
+    goal_node.reset();
+    reference_goal_node.reset();
+    goal_path.reset();
+    subtree.reset();
+  }
+};
+
+struct subtrees_from_node
+{
+  NodePtr start_node;
+  std::multimap<double,complete_subtree> subtrees;  //double is the cost of connecting path + subpath2
+
+  void removeSubtree(const double& cost, const complete_subtree& subtree_struct)
+  {
+    typedef std::multimap<double, complete_subtree>::iterator subtree_iterator;
+    std::pair<subtree_iterator, subtree_iterator> iter_range = subtrees.equal_range(cost);
+
+    for (subtree_iterator it = iter_range.first; it != iter_range.second; ++it)
+    {
+      if (it->second == subtree_struct)
+      {
+        it->second.remove();
+        subtrees.erase(it);
+        break;
+      }
+    }
+  }
+};
+
 class AIPRO;
 typedef std::shared_ptr<AIPRO> AIPROPtr;
 
@@ -14,10 +52,12 @@ class AIPRO: public ReplannerBase
 {
 protected:
 
+  TreePtr tree_;
   std::vector<PathPtr> replanned_paths_vector_;
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> admissible_other_paths_;
   std::vector<NodePtr> examined_nodes_;
+  std::vector<subtrees_from_node> subtrees_list_;
 
   double time_first_sol_;
   double time_replanning_;
@@ -52,14 +92,20 @@ protected:
   //It computes the time constraint for PathSwitch & Connect2Goal.
   double maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle);
 
-//  //FAI           It concatenates the connecting path with the subpath2. It is used in PathSwitch & Connect2Goal.
-//  PathPtr concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn, const std::vector<ConnectionPtr>& subpath2, const NodePtr& path1_node, const NodePtr& path2_node);
+  //  //FAI           It concatenates the connecting path with the subpath2. It is used in PathSwitch & Connect2Goal.
+  PathPtr concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn, const std::vector<ConnectionPtr>& subpath2);
 
-//  //FAI           It compute the connecting path from path1_node to path2_node. It is used in PathSwitch and Connect2Goal.
-//  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, const double &diff_subpath_cost, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &directly_connected);
+  //  //FAI           It compute the connecting path from path1_node to path2_node. It is used in PathSwitch and Connect2Goal.
+  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, const double &diff_subpath_cost, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &direct_connection);
 
   //Optimize connecting path. used in PathSwitch and Connect2Goal.
   void optimizePath(PathPtr &connecting_path, const double &max_time);
+
+  bool mergePathToTree(PathPtr& path);
+
+  PathPtr existingSolutions(const NodePtr& node, double &candidate_solution_cost, complete_subtree& subtree);
+
+  bool removeFromSubtreesList(const pathplan::AIPRO::subtrees_from_node &subtrees);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -71,9 +117,9 @@ public:
 
   AIPRO(const Eigen::VectorXd& current_configuration,
         const PathPtr& current_path,
-        const std::vector<PathPtr>& other_paths,
         const double& max_time,
-        const TreeSolverPtr &solver);
+        const TreeSolverPtr &solver,
+        std::vector<PathPtr> &other_paths);
 
 
   std::vector<PathPtr> getReplannedPathVector()
@@ -108,18 +154,30 @@ public:
 
   void setCurrentPath(const PathPtr& path) override
   {
+    ROS_INFO("Current path set");
     current_path_ = path;
+    tree_ = current_path_->getTree();
     admissible_other_paths_ = other_paths_;
     examined_nodes_.clear();
     success_ = false;
+    ROS_INFO("Current path set");
   }
 
-  void setOtherPaths(const std::vector<PathPtr> &other_paths)
+  void setOtherPaths(std::vector<PathPtr> &other_paths)
   {
-    other_paths_ = other_paths;
+    other_paths_.clear();
+
+    for(PathPtr& path:other_paths)
+    {
+      if(!mergePathToTree(path))
+        assert(0);
+
+      other_paths_.push_back(path);
+    }
+
     admissible_other_paths_ = other_paths_;
     examined_nodes_.clear();
-    success_ = 0;
+    success_ = false;
   }
 
   void setCurrentConf(const Eigen::VectorXd& q) override
@@ -129,8 +187,11 @@ public:
     success_ = false;
   }
 
-  void addOtherPath(const PathPtr& path)
+  void addOtherPath(PathPtr& path)
   {
+    if(!mergePathToTree(path))
+      assert(0);
+
     other_paths_.push_back(path);
   }
 
@@ -146,14 +207,14 @@ public:
 
   bool simplifyReplannedPath(const double& distance);
 
-//  //FAI     It directly connect the node to the goal
-//  bool connect2goal(const PathPtr &current_path, const NodePtr& node, PathPtr &new_path);
+  //  //FAI     It directly connect the node to the goal
+  //  bool connect2goal(const PathPtr &current_path, const NodePtr& node, PathPtr &new_path);
 
-//  //FAI     Starting from node of current_path_ it tries to find a connection to all the available paths of admissible_other_paths_
-//  bool pathSwitch(const PathPtr& current_path, const NodePtr& node, PathPtr &new_path, PathPtr &subpath_from_path2, int &connected2path_number);
+  //Starting from node of current_path_ it tries to find a connection to all the available paths of admissible_other_paths_
+  bool pathSwitch(const PathPtr& current_path, const NodePtr& node, PathPtr &new_path, PathPtr &subpath_from_path2, int &connected2path_number);
 
-//  //FAI     It menages the replanning calling more times pathSwitch from different nodes and giving the correct set of available paths
-//  bool informedOnlineReplanning(const double &max_time  = std::numeric_limits<double>::infinity());
+  //  //FAI     It menages the replanning calling more times pathSwitch from different nodes and giving the correct set of available paths
+  //  bool informedOnlineReplanning(const double &max_time  = std::numeric_limits<double>::infinity());
 
   bool replan() override;
 };
