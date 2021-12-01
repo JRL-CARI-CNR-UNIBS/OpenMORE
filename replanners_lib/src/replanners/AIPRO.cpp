@@ -32,87 +32,87 @@ AIPRO::AIPRO(const Eigen::VectorXd& current_configuration,
   setOtherPaths(other_paths);
 }
 
-bool AIPRO::removeFromSubtreesList(const subtrees_from_node& subtrees)
-{
-  assert(subtrees);
+//bool AIPRO::removeFromSubtreesList(const subtrees_from_node& subtrees)
+//{
+//  assert(subtrees);
 
-  if(subtrees.subtrees.size()>0)
-    return false;
-  else
-  {
-    std::vector<subtrees_from_node>::iterator it = std::find(subtrees_list_.begin(), subtrees_list_.end(), subtrees);
-    subtrees_list_.erase(it);
+//  if(subtrees.subtrees.size()>0)
+//    return false;
+//  else
+//  {
+//    std::vector<subtrees_from_node>::iterator it = std::find(subtrees_list_.begin(), subtrees_list_.end(), subtrees);
+//    subtrees_list_.erase(it);
 
-    return true;
-  }
-}
+//    return true;
+//  }
+//}
 
-PathPtr AIPRO::existingSolutions(const NodePtr& node, double &candidate_solution_cost, complete_subtree& subtree)
-{
-  subtrees_from_node subtrees_from_this_node;
+//PathPtr AIPRO::existingSolutions(const NodePtr& node, double &candidate_solution_cost, complete_subtree& subtree)
+//{
+//  subtrees_from_node subtrees_from_this_node;
 
-  for(const subtrees_from_node& subtrees: subtrees_list_)
-  {
-    if(subtrees.start_node == node)
-    {
-      subtrees_from_this_node = subtrees;
-      break;
-    }
-  }
+//  for(const subtrees_from_node& subtrees: subtrees_list_)
+//  {
+//    if(subtrees.start_node == node)
+//    {
+//      subtrees_from_this_node = subtrees;
+//      break;
+//    }
+//  }
 
-  bool solution_is_free = true;
-  SubtreePtr subtree;
-  std::vector<std::pair<double,complete_subtree>> subtrees2remove;
-  std::vector<ConnectionPtr> candidate_solution_connections, this_solution_connections;
-  for(std::pair<double,complete_subtree>& cost_and_subtree : subtrees_from_this_node.subtrees)
-  {
-    if(cost_and_subtree.first<candidate_solution_cost)
-    {
-      solution_is_free = true;
-      subtree = cost_and_subtree.second.subtree;
-      this_solution_connections = subtree->getConnectionToNode(cost_and_subtree.second.goal_node);
+//  bool solution_is_free = true;
+//  SubtreePtr subtree;
+//  std::vector<std::pair<double,complete_subtree>> subtrees2remove;
+//  std::vector<ConnectionPtr> candidate_solution_connections, this_solution_connections;
+//  for(std::pair<double,complete_subtree>& cost_and_subtree : subtrees_from_this_node.subtrees)
+//  {
+//    if(cost_and_subtree.first<candidate_solution_cost)
+//    {
+//      solution_is_free = true;
+//      subtree = cost_and_subtree.second.subtree;
+//      this_solution_connections = subtree->getConnectionToNode(cost_and_subtree.second.goal_node);
 
-      for(const ConnectionPtr& conn:this_solution_connections)
-      {
-        if(!checker_->checkConnection(conn))
-        {
-          conn->setCost(std::numeric_limits<double>::infinity());
-          solution_is_free = false;
+//      for(const ConnectionPtr& conn:this_solution_connections)
+//      {
+//        if(!checker_->checkConnection(conn))
+//        {
+//          conn->setCost(std::numeric_limits<double>::infinity());
+//          solution_is_free = false;
 
-          std::vector<NodePtr>& white_list;
-          unsigned int removed_nodes;
-          subtree->purgeFromHere(conn->getChild(),white_list,removed_nodes);
+//          std::vector<NodePtr>& white_list;
+//          unsigned int removed_nodes;
+//          subtree->purgeFromHere(conn->getChild(),white_list,removed_nodes);
 
-          subtrees2remove.push_back(cost_and_subtree);
+//          subtrees2remove.push_back(cost_and_subtree);
 
-          break;
-        }
-      }
+//          break;
+//        }
+//      }
 
-      if(solution_is_free)
-      {
-        candidate_solution_cost = cost_and_subtree.first;
-        candidate_solution_connections = candidate_solution_connections;
-      }
-    }
-  }
+//      if(solution_is_free)
+//      {
+//        candidate_solution_cost = cost_and_subtree.first;
+//        candidate_solution_connections = candidate_solution_connections;
+//      }
+//    }
+//  }
 
-  for(std::pair<double,complete_subtree>& cost_and_subtree:subtrees2remove)
-    subtrees_from_this_node.removeSubtree(cost_and_subtree.first,cost_and_subtree.second);
+//  for(std::pair<double,complete_subtree>& cost_and_subtree:subtrees2remove)
+//    subtrees_from_this_node.removeSubtree(cost_and_subtree.first,cost_and_subtree.second);
 
-  removeFromSubtreesList(subtrees_from_this_node);
+//  removeFromSubtreesList(subtrees_from_this_node);
 
 
-  if(!candidate_solution_connections.empty())
-  {
-    PathPtr connecting_path = std::make_shared<Path>(this_solution_connections,metrics_,checker_);
-    connecting_path->setTree(tree_);
+//  if(!candidate_solution_connections.empty())
+//  {
+//    PathPtr connecting_path = std::make_shared<Path>(this_solution_connections,metrics_,checker_);
+//    connecting_path->setTree(tree_);
 
-    return connecting_path;
-  }
-  else
-    return nullptr;
-}
+//    return connecting_path;
+//  }
+//  else
+//    return nullptr;
+//}
 
 bool AIPRO::mergePathToTree(PathPtr &path)
 {

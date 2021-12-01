@@ -30,18 +30,18 @@ struct subtrees_from_node
 
   void removeSubtree(const double& cost, const complete_subtree& subtree_struct)
   {
-    typedef std::multimap<double, complete_subtree>::iterator subtree_iterator;
-    std::pair<subtree_iterator, subtree_iterator> iter_range = subtrees.equal_range(cost);
+//    typedef std::multimap<double, complete_subtree>::iterator subtree_iterator;
+//    std::pair<subtree_iterator, subtree_iterator> iter_range = subtrees.equal_range(cost);
 
-    for (subtree_iterator it = iter_range.first; it != iter_range.second; ++it)
-    {
-      if (it->second == subtree_struct)
-      {
-        it->second.remove();
-        subtrees.erase(it);
-        break;
-      }
-    }
+//    for (subtree_iterator it = iter_range.first; it != iter_range.second; ++it)
+//    {
+//      if (it->second == subtree_struct)
+//      {
+//        it->second.remove();
+//        subtrees.erase(it);
+//        break;
+//      }
+//    }
   }
 };
 
@@ -103,9 +103,9 @@ protected:
 
   bool mergePathToTree(PathPtr& path);
 
-  PathPtr existingSolutions(const NodePtr& node, double &candidate_solution_cost, complete_subtree& subtree);
+ // PathPtr existingSolutions(const NodePtr& node, double &candidate_solution_cost, complete_subtree& subtree);
 
-  bool removeFromSubtreesList(const pathplan::AIPRO::subtrees_from_node &subtrees);
+  //bool removeFromSubtreesList(const pathplan::AIPRO::subtrees_from_node &subtrees);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
