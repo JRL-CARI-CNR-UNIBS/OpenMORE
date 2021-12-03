@@ -1,49 +1,13 @@
 #ifndef AIPRO_H__
 #define AIPRO_H__
 #include <replanners_lib/replanners/replanner_base.h>
+#include <graph_core/graph/net_connection.h>
+#include <graph_core/graph/net.h>
 
 #define TIME_PERCENTAGE_VARIABILITY 0.7
 
 namespace pathplan
 {
-
-struct complete_subtree
-{
-  NodePtr goal_node;
-  NodePtr reference_goal_node;
-  PathPtr goal_path;
-  SubtreePtr subtree;
-
-  void remove()
-  {
-    goal_node.reset();
-    reference_goal_node.reset();
-    goal_path.reset();
-    subtree.reset();
-  }
-};
-
-struct subtrees_from_node
-{
-  NodePtr start_node;
-  std::multimap<double,complete_subtree> subtrees;  //double is the cost of connecting path + subpath2
-
-  void removeSubtree(const double& cost, const complete_subtree& subtree_struct)
-  {
-//    typedef std::multimap<double, complete_subtree>::iterator subtree_iterator;
-//    std::pair<subtree_iterator, subtree_iterator> iter_range = subtrees.equal_range(cost);
-
-//    for (subtree_iterator it = iter_range.first; it != iter_range.second; ++it)
-//    {
-//      if (it->second == subtree_struct)
-//      {
-//        it->second.remove();
-//        subtrees.erase(it);
-//        break;
-//      }
-//    }
-  }
-};
 
 class AIPRO;
 typedef std::shared_ptr<AIPRO> AIPROPtr;
@@ -53,11 +17,11 @@ class AIPRO: public ReplannerBase
 protected:
 
   TreePtr tree_;
+  NetPtr net_;
   std::vector<PathPtr> replanned_paths_vector_;
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> admissible_other_paths_;
   std::vector<NodePtr> examined_nodes_;
-  std::vector<subtrees_from_node> subtrees_list_;
 
   double time_first_sol_;
   double time_replanning_;
@@ -96,16 +60,14 @@ protected:
   PathPtr concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn, const std::vector<ConnectionPtr>& subpath2);
 
   //  //FAI           It compute the connecting path from path1_node to path2_node. It is used in PathSwitch and Connect2Goal.
-  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, const double &diff_subpath_cost, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &direct_connection);
+  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node, const double &diff_subpath_cost, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &direct_connection);
 
   //Optimize connecting path. used in PathSwitch and Connect2Goal.
   void optimizePath(PathPtr &connecting_path, const double &max_time);
 
   bool mergePathToTree(PathPtr& path);
 
- // PathPtr existingSolutions(const NodePtr& node, double &candidate_solution_cost, complete_subtree& subtree);
-
-  //bool removeFromSubtreesList(const pathplan::AIPRO::subtrees_from_node &subtrees);
+  std::multimap<double,PathPtr> existingSolutions(const std::vector<NodePtr>& start_node_vector);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -154,12 +116,13 @@ public:
 
   void setCurrentPath(const PathPtr& path) override
   {
-    ROS_INFO("Current path set");
     current_path_ = path;
     tree_ = current_path_->getTree();
+    net_->setTree(tree_);
     admissible_other_paths_ = other_paths_;
     examined_nodes_.clear();
     success_ = false;
+
     ROS_INFO("Current path set");
   }
 

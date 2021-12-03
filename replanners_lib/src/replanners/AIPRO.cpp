@@ -9,6 +9,7 @@ AIPRO::AIPRO(const Eigen::VectorXd& current_configuration,
              const TreeSolverPtr &solver): ReplannerBase(current_configuration,current_path,max_time,solver)
 {
   tree_ = current_path_->getTree();
+  net_ = std::make_shared<Net>(tree_);
 
   available_time_ =  std::numeric_limits<double>::infinity();
   pathSwitch_cycle_time_mean_ = std::numeric_limits<double>::infinity();
@@ -32,87 +33,6 @@ AIPRO::AIPRO(const Eigen::VectorXd& current_configuration,
   setOtherPaths(other_paths);
 }
 
-//bool AIPRO::removeFromSubtreesList(const subtrees_from_node& subtrees)
-//{
-//  assert(subtrees);
-
-//  if(subtrees.subtrees.size()>0)
-//    return false;
-//  else
-//  {
-//    std::vector<subtrees_from_node>::iterator it = std::find(subtrees_list_.begin(), subtrees_list_.end(), subtrees);
-//    subtrees_list_.erase(it);
-
-//    return true;
-//  }
-//}
-
-//PathPtr AIPRO::existingSolutions(const NodePtr& node, double &candidate_solution_cost, complete_subtree& subtree)
-//{
-//  subtrees_from_node subtrees_from_this_node;
-
-//  for(const subtrees_from_node& subtrees: subtrees_list_)
-//  {
-//    if(subtrees.start_node == node)
-//    {
-//      subtrees_from_this_node = subtrees;
-//      break;
-//    }
-//  }
-
-//  bool solution_is_free = true;
-//  SubtreePtr subtree;
-//  std::vector<std::pair<double,complete_subtree>> subtrees2remove;
-//  std::vector<ConnectionPtr> candidate_solution_connections, this_solution_connections;
-//  for(std::pair<double,complete_subtree>& cost_and_subtree : subtrees_from_this_node.subtrees)
-//  {
-//    if(cost_and_subtree.first<candidate_solution_cost)
-//    {
-//      solution_is_free = true;
-//      subtree = cost_and_subtree.second.subtree;
-//      this_solution_connections = subtree->getConnectionToNode(cost_and_subtree.second.goal_node);
-
-//      for(const ConnectionPtr& conn:this_solution_connections)
-//      {
-//        if(!checker_->checkConnection(conn))
-//        {
-//          conn->setCost(std::numeric_limits<double>::infinity());
-//          solution_is_free = false;
-
-//          std::vector<NodePtr>& white_list;
-//          unsigned int removed_nodes;
-//          subtree->purgeFromHere(conn->getChild(),white_list,removed_nodes);
-
-//          subtrees2remove.push_back(cost_and_subtree);
-
-//          break;
-//        }
-//      }
-
-//      if(solution_is_free)
-//      {
-//        candidate_solution_cost = cost_and_subtree.first;
-//        candidate_solution_connections = candidate_solution_connections;
-//      }
-//    }
-//  }
-
-//  for(std::pair<double,complete_subtree>& cost_and_subtree:subtrees2remove)
-//    subtrees_from_this_node.removeSubtree(cost_and_subtree.first,cost_and_subtree.second);
-
-//  removeFromSubtreesList(subtrees_from_this_node);
-
-
-//  if(!candidate_solution_connections.empty())
-//  {
-//    PathPtr connecting_path = std::make_shared<Path>(this_solution_connections,metrics_,checker_);
-//    connecting_path->setTree(tree_);
-
-//    return connecting_path;
-//  }
-//  else
-//    return nullptr;
-//}
 
 bool AIPRO::mergePathToTree(PathPtr &path)
 {
@@ -165,6 +85,7 @@ bool AIPRO::mergePathToTree(PathPtr &path)
     {
       ROS_ERROR("Path has a starting node different from the tree root (!tree_)");
       tree_.reset();
+      net_->getTree().reset();
 
       return false;
     }
@@ -227,6 +148,8 @@ bool AIPRO::mergePathToTree(PathPtr &path)
       return false;
     }
   }
+
+  net_->setTree(tree_);
 
   return true;
 }
@@ -353,6 +276,25 @@ std::vector<NodePtr> AIPRO::startingNodesForPathSwitch(const std::vector<Connect
   return path1_node_vector;
 }
 
+std::multimap<double,PathPtr> AIPRO::existingSolutions(const std::vector<NodePtr>& start_node_vector)
+{
+  std::multimap<double,PathPtr> solutions_map, tmp_map;
+  std::vector<NodePtr> goal_node_vector, path_nodes;
+  PathPtr subpath;
+
+  for(const PathPtr& path:admissible_other_paths_)
+  {
+    path_nodes = path->getNodes();
+
+    if(path->cost() == std::numeric_limits<double>::infinity())
+    {
+    }
+  }
+
+  //FINISCI
+}
+
+
 void AIPRO::simplifyAdmissibleOtherPaths(const bool& no_available_paths, const PathPtr& confirmed_subpath_from_path2, const int& confirmed_connected2path_number, const NodePtr& starting_node_of_pathSwitch, const std::vector<PathPtr>& reset_other_paths)
 {
   if(confirmed_subpath_from_path2 && !no_available_paths)
@@ -449,11 +391,11 @@ bool AIPRO::simplifyReplannedPath(const double& distance)
   return simplified;
 }
 
-bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2_node_fake, const double& diff_subpath_cost, const ros::WallTime& tic, const ros::WallTime& tic_cycle, PathPtr& connecting_path, bool& direct_connection)
+bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2_node, const double& diff_subpath_cost, const ros::WallTime& tic, const ros::WallTime& tic_cycle, PathPtr& connecting_path, bool& direct_connection)
 {
-  SamplerPtr sampler = std::make_shared<InformedSampler>(path1_node->getConfiguration(), path2_node_fake->getConfiguration(), lb_, ub_,diff_subpath_cost); //the ellipsoide determined by diff_subpath_cost is used. Outside from this elipsoid, the nodes create a connecting_path not convenient
-
-  SubtreePtr subtree = pathplan::Subtree::createSubtree(tree_,path1_node,path1_node->getConfiguration(),path2_node_fake->getConfiguration(),diff_subpath_cost);
+  NodePtr path2_node_fake = std::make_shared<Node>(path2_node->getConfiguration());
+  SamplerPtr sampler = std::make_shared<InformedSampler>(path1_node->getConfiguration(), path2_node->getConfiguration(), lb_, ub_,diff_subpath_cost); //the ellipsoide determined by diff_subpath_cost is used. Outside from this elipsoid, the nodes create a connecting_path not convenient
+  SubtreePtr subtree = pathplan::Subtree::createSubtree(tree_,path1_node,path1_node->getConfiguration(),path2_node->getConfiguration(),diff_subpath_cost);
 
   solver_->setSampler(sampler);
   solver_->resetProblem();
@@ -510,6 +452,24 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
       else
         ROS_INFO_STREAM("not solved, time: "<<(toc_solver-tic_solver).toSec());
     }
+  }
+
+  if(solver_has_solved) //change the connection to the path2_node_fake with  net connection to path2_node
+  {
+    std::vector<ConnectionPtr> connections = connecting_path->getConnections();
+    ConnectionPtr last_conn = connections.back();
+
+    NetConnectionPtr net_conn = std::make_shared<NetConnection>(last_conn->getParent(),path2_node);
+    net_conn->setCost(last_conn->getCost());
+    net_conn->add();
+
+//    connections.at(connections.size()-1) = net_conn;
+    *connections.back() = net_conn;
+    connecting_path->setConnections(connections);
+
+    std::vector<NodePtr>::iterator it = std::find(subtree->getNodes().begin(), subtree->getNodes().end(), path2_node_fake);
+    subtree->removeNode(it);
+    last_conn->remove();
   }
 
   return solver_has_solved;
@@ -623,12 +583,8 @@ bool AIPRO::pathSwitch(const PathPtr &current_path,
       if(diff_subpath_cost > 0 && distance_path_node < diff_subpath_cost) //if the Euclidean distance between the two nodes is bigger than the maximum cost for the connecting_path to be convenient, it is useless to calculate a connecting_path because it surely will not be convenient
       {
         PathPtr connecting_path;
-
-        //        NodePtr path1_node_fake = std::make_shared<Node>(path1_node->getConfiguration());
-        NodePtr path2_node_fake = std::make_shared<Node>(path2_node->getConfiguration());
-
         bool direct_connection = false;
-        bool solver_has_solved = computeConnectingPath(path1_node, path2_node_fake, diff_subpath_cost, tic, tic_cycle, connecting_path, direct_connection);
+        bool solver_has_solved = computeConnectingPath(path1_node, path2_node, diff_subpath_cost, tic, tic_cycle, connecting_path, direct_connection);
 
         if(solver_has_solved)
         {
