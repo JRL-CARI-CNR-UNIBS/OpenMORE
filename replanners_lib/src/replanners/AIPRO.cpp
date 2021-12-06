@@ -291,7 +291,7 @@ std::multimap<double,PathPtr> AIPRO::existingSolutions(const std::vector<NodePtr
     }
   }
 
-  //FINISCI
+  //FINISCI -> fatti dare le connessioni (getNetConnectionBetweenNodes) tra il nodo1 e il nodo2 e tra i risultati non considerare quelli che hanno come prima connessione quella successiva al nodo1
 }
 
 
