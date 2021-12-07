@@ -276,22 +276,102 @@ std::vector<NodePtr> AIPRO::startingNodesForPathSwitch(const std::vector<Connect
   return path1_node_vector;
 }
 
-std::multimap<double,PathPtr> AIPRO::existingSolutions(const std::vector<NodePtr>& start_node_vector)
+PathPtr AIPRO::existingSolutions(const NodePtr& start_node)
 {
-  std::multimap<double,PathPtr> solutions_map, tmp_map;
-  std::vector<NodePtr> goal_node_vector, path_nodes;
-  PathPtr subpath;
+  struct connecting_path_and_subpath
+  {
+    std::vector<ConnectionPtr> connecting_conns;
+    PathPtr subpath;
+  };
+
+  std::multimap<double,std::vector<ConnectionPtr>> tmp_map;
+  std::multimap<double,connecting_path_and_subpath> solutions;
+  std::vector<NodePtr> path_nodes;
+  PathPtr subpath, solution;
+  std::vector<ConnectionPtr> solution_conns;
+  double best_cost;
+
+  NodePtr goal = current_path_->getNodes().back();
+
+  solution = current_path_->getSubpathFromNode(start_node);
+  best_cost = solution->cost();
 
   for(const PathPtr& path:admissible_other_paths_)
   {
     path_nodes = path->getNodes();
 
-    if(path->cost() == std::numeric_limits<double>::infinity())
+    for(const NodePtr& path_node:path_nodes)
     {
+      double subpath_cost = 0;
+      if(path_node != goal)
+      {
+        subpath = path->getSubpathFromNode(path_node);
+        subpath_cost = subpath->cost();
+      }
+
+      tmp_map = net_->getNetConnectionBetweenNodes(start_node,path_node);
+
+      if(!tmp_map.empty())
+      {
+        for(const std::pair<double,std::vector<ConnectionPtr>> tmp_pair:tmp_map)
+        {
+          if(tmp_pair.second.at(0) != solution->getConnections().at(0))
+          {
+            std::pair<double,connecting_path_and_subpath> solution_pair;
+            solution_pair.first = tmp_pair.first + subpath_cost;
+            solution_pair.second.connecting_conns = tmp_pair.second;
+            solution_pair.second.subpath = subpath;
+
+            solutions.insert(solution_pair);
+          }
+        }
+      }
     }
   }
 
-  //FINISCI -> fatti dare le connessioni (getNetConnectionBetweenNodes) tra il nodo1 e il nodo2 e tra i risultati non considerare quelli che hanno come prima connessione quella successiva al nodo1
+  for(const std::pair<double,connecting_path_and_subpath>& solution_pair:solutions)
+  {
+    if(solution_pair.first<best_cost)
+    {
+      bool free = true;
+      for(unsigned int i=0; i<solution_pair.second.connecting_conns.size();i++)
+      {
+        ConnectionPtr conn = solution_pair.second.connecting_conns.at(i);
+        if(i<solution_pair.second.connecting_conns.size()-1)
+        {
+          if(!checker_->checkConnection(conn))
+          {
+            SubtreePtr subtree = std::make_shared<Subtree>(tree_,start_node);
+            NodePtr child = conn->getChild();
+            subtree->purgeFromHere(child);
+
+            free = false;
+          }
+        }
+        else
+        {
+          if(!checker_->checkConnection(conn))
+          {
+            conn->remove();
+
+            free = false;
+          }
+        }
+      }
+
+      if(free)
+      {
+        solution_conns = solution_pair.second.connecting_conns;
+        if(solution_pair.second.subpath != nullptr)
+          solution_conns.insert(solution_conns.end(),solution_pair.second.subpath->getConnectionsConst().begin(), solution_pair.second.subpath->getConnectionsConst().end());
+      }
+    }
+  }
+
+  if(!solution_conns.empty())
+    solution = std::make_shared<Path>(solution_conns,metrics_,checker_);
+
+  return solution;
 }
 
 
@@ -463,7 +543,7 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
     net_conn->setCost(last_conn->getCost());
     net_conn->add();
 
-//    connections.at(connections.size()-1) = net_conn;
+    //    connections.at(connections.size()-1) = net_conn;
     *connections.back() = net_conn;
     connecting_path->setConnections(connections);
 

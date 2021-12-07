@@ -8,6 +8,26 @@
 
 namespace pathplan
 {
+struct unconnected_nodes
+{
+  NodePtr start_node;
+  std::vector<NodePtr> goal_nodes;
+
+  void removeGoal(const NodePtr& goal)
+  {
+    std::vector<NodePtr>::iterator it = std::find(goal_nodes.begin(), goal_nodes.end(), goal);
+
+    if(it != goal_nodes.end())
+      goal_nodes.erase(it);
+    else
+    {
+      ROS_INFO("This goal is not member of the unconnected goal nodes vector");
+      ROS_INFO_STREAM("Goal node: "<<*goal<<"\nStart node: "<<*start_node);
+      for(const NodePtr& n:goal_nodes)
+        ROS_INFO_STREAM("g: "<<n->getConfiguration().transpose());
+    }
+  }
+};
 
 class AIPRO;
 typedef std::shared_ptr<AIPRO> AIPROPtr;
@@ -22,6 +42,7 @@ protected:
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> admissible_other_paths_;
   std::vector<NodePtr> examined_nodes_;
+  std::vector<unconnected_nodes> unconnected_nodes_;
 
   double time_first_sol_;
   double time_replanning_;
@@ -67,7 +88,7 @@ protected:
 
   bool mergePathToTree(PathPtr& path);
 
-  std::multimap<double,PathPtr> existingSolutions(const std::vector<NodePtr>& start_node_vector);
+  PathPtr existingSolutions(const NodePtr &start_node);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
