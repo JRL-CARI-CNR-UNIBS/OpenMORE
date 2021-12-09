@@ -8,25 +8,16 @@
 
 namespace pathplan
 {
+struct node_and_path
+{
+  NodePtr node;
+  PathPtr path;
+};
+
 struct unconnected_nodes
 {
   NodePtr start_node;
-  std::vector<NodePtr> goal_nodes;
-
-  void removeGoal(const NodePtr& goal)
-  {
-    std::vector<NodePtr>::iterator it = std::find(goal_nodes.begin(), goal_nodes.end(), goal);
-
-    if(it != goal_nodes.end())
-      goal_nodes.erase(it);
-    else
-    {
-      ROS_INFO("This goal is not member of the unconnected goal nodes vector");
-      ROS_INFO_STREAM("Goal node: "<<*goal<<"\nStart node: "<<*start_node);
-      for(const NodePtr& n:goal_nodes)
-        ROS_INFO_STREAM("g: "<<n->getConfiguration().transpose());
-    }
-  }
+  std::vector<node_and_path> goals_and_paths;
 };
 
 class AIPRO;
@@ -62,8 +53,8 @@ protected:
   //It finds the portion of current_path_ between the obstacle and the goal and add it as first element of a vector containing the other available paths. It is used in InformedOnlineReplanning
   std::vector<PathPtr> addAdmissibleCurrentPath(const int &idx_current_conn, PathPtr& admissible_current_path);
 
-  // It sorts the admissible other paths depending on the distance of the closest node from node. Use in PathSwitch
-  std::vector<PathPtr> sortPathsOnDistance(const NodePtr& node);
+  // It sorts the unconnected nodes depending on the distance. Used in PathSwitch
+  std::vector<node_and_path> sortNodesOnDistance(const NodePtr& node);
 
   //It finds the set of nodes of path to try to connect to starting from node. The goal is excluded. Used in PathSwitch.
   std::vector<NodePtr> nodes2connect2(const PathPtr& path, const NodePtr &this_node);
@@ -195,7 +186,7 @@ public:
   //  bool connect2goal(const PathPtr &current_path, const NodePtr& node, PathPtr &new_path);
 
   //Starting from node of current_path_ it tries to find a connection to all the available paths of admissible_other_paths_
-  bool pathSwitch(const PathPtr& current_path, const NodePtr& node, PathPtr &new_path, PathPtr &subpath_from_path2, int &connected2path_number);
+  bool pathSwitch(const PathPtr& current_path, const NodePtr& path1_node, PathPtr &new_path, PathPtr &subpath_from_path2, int &connected2path_number);
 
   //  //FAI     It menages the replanning calling more times pathSwitch from different nodes and giving the correct set of available paths
   //  bool informedOnlineReplanning(const double &max_time  = std::numeric_limits<double>::infinity());
