@@ -32,7 +32,6 @@ protected:
   std::vector<PathPtr> replanned_paths_vector_;
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> admissible_other_paths_;
-  std::vector<NodePtr> examined_nodes_;
   std::vector<unconnected_nodes> unconnected_nodes_;
 
   double time_first_sol_;
@@ -52,13 +51,13 @@ protected:
 
   std::vector<PathPtr> addAdmissibleCurrentPath(const int &idx_current_conn, PathPtr& admissible_current_path);
   std::vector<node_and_path> sortNodesOnDistance(const NodePtr& node);
-  std::vector<NodePtr> startingNodesForPathSwitch(const std::vector<ConnectionPtr>& subpath1_conn, const NodePtr& current_node, const double& current2child_conn_cost, const int& idx,  bool& available_nodes);
+  std::vector<NodePtr> startNodesForExistingSolutions(const std::vector<ConnectionPtr>& subpath1_conn);
   PathPtr concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn, const std::vector<ConnectionPtr>& path2_subpath_conn);
-  PathPtr existingSolutions(const NodePtr &start_node);
+  PathPtr bestExistingSolution(const PathPtr& subpath1, const std::vector<PathPtr> &reset_other_paths);
   double maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle);
   void optimizePath(PathPtr &connecting_path, const double &max_time);
   bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node, const double &diff_subpath_cost, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &quickly_solved);
-  void simplifyAdmissibleOtherPaths(const bool& no_available_paths, const PathPtr& confirmed_subpath_from_path2, const int& confirmed_connected2path_number, const NodePtr &starting_node_of_pathSwitch, const std::vector<PathPtr>& reset_other_paths);
+  void simplifyAdmissibleOtherPaths(const PathPtr& current_solution_path, const NodePtr &start_node, const std::vector<PathPtr>& reset_other_paths);
   bool mergePathToTree(PathPtr& path);
 
 
@@ -113,7 +112,6 @@ public:
     tree_ = current_path_->getTree();
     net_->setTree(tree_);
     admissible_other_paths_ = other_paths_;
-    examined_nodes_.clear();
     success_ = false;
   }
 
@@ -130,14 +128,12 @@ public:
     }
 
     admissible_other_paths_ = other_paths_;
-    examined_nodes_.clear();
     success_ = false;
   }
 
   void setCurrentConf(const Eigen::VectorXd& q) override
   {
     current_configuration_ = q;
-    examined_nodes_.clear();
     success_ = false;
   }
 
@@ -152,11 +148,6 @@ public:
   ReplannerBasePtr pointer()
   {
     return shared_from_this();
-  }
-
-  void setAvailableTime(const double &time)
-  {
-    available_time_ = time;
   }
 
   bool simplifyReplannedPath(const double& distance);

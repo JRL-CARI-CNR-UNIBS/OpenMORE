@@ -230,170 +230,205 @@ std::vector<node_and_path> AIPRO::sortNodesOnDistance(const NodePtr& start_node)
   return ordered_unconnected_goals;
 }
 
-std::vector<NodePtr> AIPRO::startingNodesForPathSwitch(const std::vector<ConnectionPtr>& subpath1_conn, const NodePtr& current_node, const double& current2child_conn_cost, const int& idx,  bool& available_nodes)
+std::vector<NodePtr> AIPRO::startNodesForExistingSolutions(const std::vector<ConnectionPtr>& subpath1_conn)
 {
-  std::vector<NodePtr> path1_node_vector;
+  std::vector<NodePtr> start_node_vector;
 
-  if(current2child_conn_cost == std::numeric_limits<double>::infinity() || idx == current_path_->getConnections().size()-1) //if the obstacle is obstructing the current connection, the replanning must start from the current configuration
+  if((subpath1_conn.front()->getCost() == std::numeric_limits<double>::infinity()) || (subpath1_conn.size() == 1))
   {
-    available_nodes = 0;
-    path1_node_vector.push_back(current_node);
+    /*if the current conf is obstructed or the the
+     *subpath1 is composed by only one connection,
+     *the replanning will start from the current node*/
+
+    start_node_vector.push_back(current_node);
   }
-  else      //if the current connection is free, all the nodes between the current child to the parent of the connection obstructed are considered as starting points for the replanning
+  else
   {
-    int subpath1_size =  subpath1_conn.size();
-    for(unsigned int i=0; i<subpath1_size; i++)
+    /*if the current connection is free, all the nodes between the current child to the parent
+     *of the connection obstructed are considered as starting points for the replanning*/
+
+    for(const ConnectionPtr& conn:subpath1_conn)
     {
-      if(i==subpath1_size-1)
+      if(conn == subpath1_conn.front()) //the current node is not considered as starting node
+        continue;
+
+      else if(conn == subpath1_conn.back())
       {
-        if(subpath1_conn.at(i)->getCost() ==  std::numeric_limits<double>::infinity())      // if the path is free, you can consider all the nodes but it is useless to consider the last one before the goal (it is already connected to the goal with a straight line)
-          path1_node_vector.push_back(subpath1_conn.at(i)->getParent());
+        /*if the path is free, you can consider all the nodes but it is useless to consider
+         *the last one before the goal (it is already connected to the goal with a straight line) */
+
+        if(conn->getCost() ==  std::numeric_limits<double>::infinity())
+          start_node_vector.push_back(conn->getParent());
       }
       else
       {
-        path1_node_vector.push_back(subpath1_conn.at(i)->getParent());
+        start_node_vector.push_back(conn->getParent());
 
-        if(subpath1_conn.at(i)->getCost() ==  std::numeric_limits<double>::infinity())
+        if(conn->getCost() ==  std::numeric_limits<double>::infinity())
           break;
       }
     }
-    available_nodes = 1;
   }
 
-  return path1_node_vector;
+  return start_node_vector;
 }
 
-PathPtr AIPRO::existingSolutions(const NodePtr& start_node)
+PathPtr AIPRO::bestExistingSolution(const PathPtr& subpath1, const std::vector<PathPtr>& reset_other_paths)
 {
-  struct connecting_path_struct
+  struct solution_struct
   {
+    std::vector<ConnectionPtr> subpath1_to_start_node;
     std::vector<ConnectionPtr> connecting_conns;
     node_and_path goal_and_path;
   };
 
-  std::multimap<double,connecting_path_struct> existing_solutions;
+  std::multimap<double,solution_struct> existing_solutions;
   std::multimap<double,std::vector<ConnectionPtr>> tmp_map;
-  std::vector<node_and_path> unconnected_goals_and_paths;
-  std::vector<NodePtr> path_nodes;
-  double best_cost, subpath_cost;
-  PathPtr subpath, solution;
+  std::vector<NodePtr> path2_nodes;
+  double best_cost, subpath2_cost, subpath1_to_start_node_cost;
+  PathPtr subpath2, subpath1_to_start_node, solution;
   bool custom_sol_exists;
 
-  NodePtr goal = current_path_->getConnections().back()->getChild();
+  NodePtr goal = subpath1->getConnections().back()->getChild();
+  NodePtr current_node = subpath1->getConnections().front()->getCParent();
+  best_cost = subpath1->cost();
 
-  solution = current_path_->getSubpathFromNode(start_node);
-  best_cost = solution->cost();
+  std::vector<NodePtr> start_node_vector = startNodesForExistingSolutions(subpath1);
 
-  unconnected_nodes nodes_unconnected_to_start;
-  nodes_unconnected_to_start.start_node = start_node;
-
-  for(const PathPtr& path:admissible_other_paths_)
+  unconnected_nodes_.clear();
+  for(const NodePtr& start_node:start_node_vector)
   {
-    path_nodes = path->getNodes();
+    simplifyAdmissibleOtherPaths(subpath1,start_node,reset_other_paths);
 
-    for(const NodePtr& path_node:path_nodes)
+    std::vector<node_and_path> unconnected_goals_and_paths;
+    unconnected_nodes nodes_unconnected_to_start;
+    nodes_unconnected_to_start.start_node = start_node;
+
+    subpath1_to_start_node = nullptr;
+    subpath1_to_start_node_cost = 0.0;
+    if(start_node != current_node)
     {
-      subpath_cost = 0;
-      subpath = nullptr;
+      subpath1_to_start_node = subpath1->getSubpathToNode(start_node);
+      subpath1_to_start_node_cost = subpath1_to_start_node->cost();
+    }
 
-      if(path_node != goal)
+    for(const PathPtr& path2:admissible_other_paths_)
+    {
+      path2_nodes = path2->getNodes();
+
+      for(const NodePtr& path2_node:path2_nodes)
       {
-        subpath = path->getSubpathFromNode(path_node);
-        subpath_cost = subpath->cost();
-      }
-
-      tmp_map = net_->getNetConnectionBetweenNodes(start_node,path_node);
-
-      custom_sol_exists = false;
-      if(!tmp_map.empty())
-      {
-        for(const std::pair<double,std::vector<ConnectionPtr>>& tmp_pair:tmp_map)
+        subpath2 = nullptr;
+        subpath2_cost = 0.0;
+        if(path2_node != goal)
         {
-          if(tmp_pair.second.front() != solution->getConnections().front())
+          subpath2 = path2->getSubpathFromNode(path2_node);
+          subpath2_cost = subpath2->cost();
+        }
+
+        tmp_map = net_->getNetConnectionBetweenNodes(start_node,path2_node);
+
+        custom_sol_exists = false;
+        if(!tmp_map.empty())
+        {
+          for(const std::pair<double,std::vector<ConnectionPtr>>& tmp_pair:tmp_map)
+          {
+            if(tmp_pair.second.front() != solution->getConnections().front())
+            {
+              node_and_path tmp_goal_and_path;
+              tmp_goal_and_path.node = path2_node;
+              tmp_goal_and_path.path = path2;
+
+              std::pair<double,solution_struct> solution_pair;
+              solution_pair.first = subpath1_to_start_node_cost + tmp_pair.first + subpath2_cost;
+              solution_pair.second.subpath1_to_start_node = subpath1_to_start_node;
+              solution_pair.second.connecting_conns = tmp_pair.second;
+              solution_pair.second.goal_and_path = tmp_goal_and_path;
+
+              existing_solutions.insert(solution_pair);
+
+              custom_sol_exists = true;
+            }
+          }
+
+          if(!custom_sol_exists)
           {
             node_and_path tmp_goal_and_path;
-            tmp_goal_and_path.node = path_node;
-            tmp_goal_and_path.path = path;
+            tmp_goal_and_path.node = path2_node;
+            tmp_goal_and_path.path = path2;
 
-            std::pair<double,connecting_path_struct> solution_pair;
-            solution_pair.first = tmp_pair.first + subpath_cost;
-            solution_pair.second.connecting_conns = tmp_pair.second;
-            solution_pair.second.goal_and_path = tmp_goal_and_path;
-
-            existing_solutions.insert(solution_pair);
-
-            custom_sol_exists = true;
-          }
-        }
-
-        if(!custom_sol_exists)
-        {
-          node_and_path tmp_goal_and_path;
-          tmp_goal_and_path.node = path_node;
-          tmp_goal_and_path.path = path;
-
-          unconnected_goals_and_paths.push_back(tmp_goal_and_path);
-        }
-      }
-      else
-      {
-        node_and_path tmp_goal_and_path;
-        tmp_goal_and_path.node = path_node;
-        tmp_goal_and_path.path = path;
-
-        unconnected_goals_and_paths.push_back(tmp_goal_and_path);
-      }
-    }
-  }
-
-  std::vector<ConnectionPtr> solution_conns;
-  SubtreePtr subtree;
-  ConnectionPtr conn;
-  NodePtr child;
-  bool free;
-
-  for(const std::pair<double,connecting_path_struct>& solution_pair:existing_solutions)
-  {
-    if(solution_pair.first<best_cost)
-    {
-      free = true;
-      for(unsigned int i=0; i<solution_pair.second.connecting_conns.size();i++)
-      {
-        conn = solution_pair.second.connecting_conns.at(i);
-        if(i<solution_pair.second.connecting_conns.size()-1)
-        {
-          if(!checker_->checkConnection(conn))
-          {
-            unconnected_goals_and_paths.push_back(solution_pair.second.goal_and_path);
-
-            subtree = std::make_shared<Subtree>(tree_,start_node);
-            child = conn->getChild();
-            subtree->purgeFromHere(child);  //destroy the subtree starting from the obstructed conn
-            free = false;
-
-            break;
+            unconnected_goals_and_paths.push_back(tmp_goal_and_path);
           }
         }
         else
         {
-          if(!checker_->checkConnection(conn))
-          {
-            unconnected_goals_and_paths.push_back(solution_pair.second.goal_and_path);
+          node_and_path tmp_goal_and_path;
+          tmp_goal_and_path.node = path2_node;
+          tmp_goal_and_path.path = path2;
 
+          unconnected_goals_and_paths.push_back(tmp_goal_and_path);
+        }
+      }
+    }
+
+    nodes_unconnected_to_start.goals_and_paths = unconnected_goals_and_paths;
+    unconnected_nodes_.push_back(nodes_unconnected_to_start);
+  }
+
+  std::vector<ConnectionPtr> solution_conns;
+  SubtreePtr subtree;
+  NodePtr start_node_of_this_sol, child;
+  bool free;
+
+  for(const std::pair<double,solution_struct>& solution_pair:existing_solutions)
+  {
+    if(solution_pair.first<best_cost)
+    {
+      start_node_of_this_sol = solution_pair.second.connecting_conns.front()->getParent();
+
+      free = true;
+      for(const ConnectionPtr& conn: solution_pair.second.connecting_conns)
+      {
+        if(!checker_->checkConnection(conn))
+        {
+          for(const unconnected_nodes& un:unconnected_nodes_)
+          {
+            if(un.start_node == start_node_of_this_sol)
+            {
+              un.goals_and_paths.push_back(solution_pair.second.goal_and_path);
+              break;
+            }
+          }
+
+          if(conn == solution_pair.second.connecting_conns.back())
+          {
             conn->remove();
             free = false;
           }
+          else
+          {
+            subtree = std::make_shared<Subtree>(tree_,start_node_of_this_sol);
+            child = conn->getChild();
+            subtree->purgeFromHere(child);  //destroy the subtree starting from the obstructed conn
+            free = false;
+          }
+
+          break;
         }
       }
 
       if(free)
       {
-        solution_conns = solution_pair.second.connecting_conns;
+        solution_conns.clear();
+        if(solution_pair.second.subpath1_to_start_node != nullptr)
+          solution_conns = solution_conns->getConnections();
+
+        solution_conns.insert(solution_conns.end(),solution_pair.second.connecting_conns.begin(),solution_pair.second.connecting_conns.end());
 
         if(solution_pair.second.goal_and_path.node != goal)
         {
-          subpath = solution_pair.second.goal_and_path.path->getSubpathFromNode(solution_pair.second.goal_and_path.node);
-          solution_conns.insert(solution_conns.end(),subpath->getConnectionsConst().begin(), subpath->getConnectionsConst().end());
+          subpath2 = solution_pair.second.goal_and_path.path->getSubpathFromNode(solution_pair.second.goal_and_path.node);
+          solution_conns.insert(solution_conns.end(),subpath2->getConnectionsConst().begin(), subpath2->getConnectionsConst().end());
         }
 
         break;  //the solutions are ordered by cost, so if the solution is free it is the less costly one
@@ -401,26 +436,84 @@ PathPtr AIPRO::existingSolutions(const NodePtr& start_node)
     }
   }
 
-  nodes_unconnected_to_start.goals_and_paths = unconnected_goals_and_paths;
-  unconnected_nodes_.push_back(nodes_unconnected_to_start);
-
   if(!solution_conns.empty())
     solution = std::make_shared<Path>(solution_conns,metrics_,checker_);
+  else
+    solution = subpath1;
 
   return solution;
 }
 
-void AIPRO::simplifyAdmissibleOtherPaths(const bool& no_available_paths, const PathPtr& confirmed_subpath_from_path2, const int& confirmed_connected2path_number, const NodePtr& starting_node_of_pathSwitch, const std::vector<PathPtr>& reset_other_paths)
+void AIPRO::simplifyAdmissibleOtherPaths(const PathPtr& current_solution_path, const NodePtr& start_node, const std::vector<PathPtr>& reset_other_paths)
 {
-  if(confirmed_subpath_from_path2 && !no_available_paths)
+  ConnectionPtr last_conn;
+  PathPtr path_connected_to = nullptr;
+  int number_path_connected_to = -1;
+  bool no_available_paths = true;
+
+  for(unsigned int i=0;i<admissible_other_paths_.size();i++)
   {
-    std::vector<NodePtr> node_vector = confirmed_subpath_from_path2->getNodes();
+    last_conn = admissible_other_paths_.at(i)->getConnections().back();
+    if(last_conn->getCost() != std::numeric_limits<double>::infinity())
+      no_available_paths = false;
+
+    if(last_conn == current_solution_path->getConnections().back())
+    {
+      path_connected_to = admissible_other_paths_.at(i);
+      number_path_connected_to = i;
+    }
+
+    if(no_available_paths == false && path_connected_to)
+      break;
+  }
+
+  for(const PathPtr& path:reset_other_paths)
+  {
+    last_conn = path->getConnections().back();
+    if(last_conn->getCost() != std::numeric_limits<double>::infinity())
+      no_available_paths = false;
+
+    if(last_conn == current_solution_path->getConnections().back())
+      path_connected_to = path;
+
+    if(no_available_paths == false && path_connected_to)
+      break;
+  }
+
+  PathPtr subpath_from_path2;
+  if(path_connected_to)
+  {
+    std::vector<ConnectionPtr> path2_conn = path_connected_to->getConnections();
+    std::vector<ConnectionPtr> current_solution_conn = path_connected_to->getConnections();
+
+    unsigned int n_path2 = path2_conn.size()-1;
+    unsigned int n_current_sol = current_solution_conn.size()-1;
+
+    bool found = false;
+    while(!found)
+    {
+      if(path2_conn.at(n_path2) != current_solution_conn.at(n_current_sol))
+      {
+        found = true;
+        subpath_from_path2 = path_connected_to->getSubpathFromNode(path2_conn.at(n_path2)->getChild());
+      }
+      else
+      {
+        n_path2 -= 1;
+        n_current_sol -= 1;
+      }
+    }
+  }
+
+  if(path_connected_to && !no_available_paths)
+  {
+    std::vector<NodePtr> node_vector = subpath_from_path2->getNodes();
     node_vector.pop_back();  // removing the goal from the vector
 
     int pos = -1;
     for (unsigned int k=0; k<node_vector.size(); k++)
     {
-      if(starting_node_of_pathSwitch == node_vector.at(k))
+      if(start_node == node_vector.at(k))
       {
         pos = k;
         break;
@@ -429,20 +522,23 @@ void AIPRO::simplifyAdmissibleOtherPaths(const bool& no_available_paths, const P
 
     if(pos>=0)
     {
-      if(confirmed_connected2path_number<admissible_other_paths_.size()-1)
+      if(number_path_connected_to == -1)
+        assert(0);
+
+      if(number_path_connected_to<admissible_other_paths_.size()-1)
       {
         admissible_other_paths_.clear();
 
-        admissible_other_paths_.insert(admissible_other_paths_.begin(),reset_other_paths.begin(),reset_other_paths.begin()+confirmed_connected2path_number);
-        admissible_other_paths_.push_back(confirmed_subpath_from_path2->getSubpathFromNode(node_vector.at(pos)));
-        admissible_other_paths_.insert(admissible_other_paths_.end(),reset_other_paths.begin()+confirmed_connected2path_number+1,reset_other_paths.end());
+        admissible_other_paths_.insert(admissible_other_paths_.begin(),reset_other_paths.begin(),reset_other_paths.begin()+number_path_connected_to);
+        admissible_other_paths_.push_back(subpath_from_path2->getSubpathFromNode(node_vector.at(pos)));
+        admissible_other_paths_.insert(admissible_other_paths_.end(),reset_other_paths.begin()+number_path_connected_to+1,reset_other_paths.end());
       }
       else
       {
         admissible_other_paths_.clear();
 
-        admissible_other_paths_.insert(admissible_other_paths_.begin(),reset_other_paths.begin(),reset_other_paths.begin()+confirmed_connected2path_number);
-        admissible_other_paths_.push_back(confirmed_subpath_from_path2->getSubpathFromNode(node_vector.at(pos)));
+        admissible_other_paths_.insert(admissible_other_paths_.begin(),reset_other_paths.begin(),reset_other_paths.begin()+number_path_connected_to);
+        admissible_other_paths_.push_back(subpath_from_path2->getSubpathFromNode(node_vector.at(pos)));
       }
     }
     else
@@ -885,61 +981,467 @@ bool AIPRO::pathSwitch(const PathPtr &current_path,
   return success;
 }
 
+//bool AIPRO::informedOnlineReplanning(const double &max_time)
+//{
+//  ros::WallTime tic=ros::WallTime::now();
+//  ros::WallTime toc, tic_cycle, toc_cycle;
+
+//  double MAX_TIME;
+//  if(informedOnlineReplanning_disp_)
+//    MAX_TIME = std::numeric_limits<double>::infinity();
+//  else
+//    MAX_TIME = max_time;
+
+//  available_time_ = MAX_TIME;
+//  const double TIME_LIMIT = 0.85*MAX_TIME; //seconds
+//  const int CONT_LIMIT = 5;
+
+//  if(!informedOnlineReplanning_disp_ && available_time_<=0.0)
+//    return false;
+
+//  /*//////////////For display//////////////////*/
+//  std::vector<double> marker_scale_sphere(3,0.03);
+//  std::vector<double> marker_color_sphere = {0.0,0.0,0.0,1.0};
+//  std::vector<double> marker_color_sphere_analizing = {1.0,0.5,0.0,1.0};
+//  std::vector<double> marker_color = {1.0,1.0,0.0,1.0};
+//  std::vector<double> marker_scale(3,0.01);
+//  int replanned_path_id;
+//  int node_id;
+//  /*/////////////////////////////////////////*/
+
+//  PathPtr new_path;
+//  PathPtr replanned_path;
+//  PathPtr subpath_from_path2;
+//  PathPtr confirmed_subpath_from_path2 = nullptr;
+//  PathPtr admissible_current_path = nullptr;
+//  PathPtr subpath1;
+//  std::vector<PathPtr> replanned_path_vector;
+//  std::vector<PathPtr> reset_other_paths;
+//  std::vector<NodePtr> path1_node_vector;
+//  std::vector<ConnectionPtr> subpath1_conn;
+//  bool exit = false;
+//  bool success = false;
+//  bool solved = false;
+//  bool first_sol = true;
+//  bool available_nodes;
+//  bool no_available_paths = true;
+//  int confirmed_connected2path_number;
+//  int connected2path_number;
+//  unsigned int cont = 0;  //to count the number of replanning without significant improvement in the final solution
+//  double replanned_path_cost = std::numeric_limits<double>::infinity();
+//  double previous_cost = current_path_->getCostFromConf(current_configuration_);
+
+//  examined_nodes_.clear();
+//  success_ = false;
+//  an_obstacle_ = false;
+
+//  int current_conn_idx;
+//  ConnectionPtr current_conn = current_path_->findConnection(current_configuration_,current_conn_idx);
+
+//  admissible_other_paths_.clear();
+//  reset_other_paths = addAdmissibleCurrentPath(current_conn_idx, admissible_current_path);
+//  admissible_other_paths_ = reset_other_paths;
+
+//  for(const PathPtr& path: admissible_other_paths_)
+//  {
+//    if(path->getConnections().back()->getCost() != std::numeric_limits<double>::infinity())
+//      no_available_paths = false;
+//  }
+
+//  NodePtr parent = current_conn->getParent();
+//  NodePtr current_node = std::make_shared<Node>(current_configuration_);
+//  NodePtr child = current_conn->getChild();
+
+//  ConnectionPtr current2child_conn = nullptr;
+//  double current2child_conn_cost = 0;
+
+//  std::vector<ConnectionPtr> replanned_path_conn;
+
+//  if(current_conn_idx<current_path_->getConnections().size()-1)
+//  {
+//    subpath1 = current_path_->getSubpathFromNode(child);
+//    subpath1_conn =  subpath1->getConnections();
+//    if(subpath1->cost() == std::numeric_limits<double>::infinity())
+//      an_obstacle_ = true;
+//  }
+
+//  if(current_configuration_ != child->getConfiguration() && current_configuration_ != parent->getConfiguration())
+//  {
+//    current2child_conn = std::make_shared<Connection>(current_node,child);
+
+//    if(current_conn->getCost() == std::numeric_limits<double>::infinity())
+//    {
+//      if(!checker_->checkConnection(current2child_conn))
+//      {
+//        current2child_conn_cost = std::numeric_limits<double>::infinity();
+//        an_obstacle_ = true;
+//      }
+//      else
+//        current2child_conn_cost = metrics_->cost(current_node,child);
+//    }
+//    else
+//      current2child_conn_cost = metrics_->cost(current_node,child);
+
+//    current2child_conn->setCost(current2child_conn_cost);
+//    //current2child_conn->add(); not add the connection!
+//    replanned_path_conn.push_back(current2child_conn);
+
+//    if(!subpath1_conn.empty())
+//      replanned_path_conn.insert(replanned_path_conn.end(),subpath1_conn.begin(),subpath1_conn.end());
+//  }
+//  else if(current_configuration_ == parent->getConfiguration())
+//  {
+//    current2child_conn = current_conn;
+//    replanned_path_conn.push_back(current2child_conn);
+
+//    if(!subpath1_conn.empty())
+//      replanned_path_conn.insert(replanned_path_conn.end(),subpath1_conn.begin(),subpath1_conn.end());
+//  }
+//  else
+//  {
+//    if(!subpath1_conn.empty())
+//      replanned_path_conn = subpath1_conn;
+//    else
+//    {
+//      success_ = false;
+//      return success_;
+//    }
+//  }
+
+//  replanned_path = std::make_shared<Path>(replanned_path_conn,metrics_,checker_); //at the start, the replanned path is initialized with the subpath of the current path from the current config to GOAL
+//  replanned_path_cost = replanned_path->cost();
+
+//  path1_node_vector = startingNodesForPathSwitch(subpath1_conn,current_node,current2child_conn_cost,current_conn_idx,available_nodes);
+//  int j = path1_node_vector.size()-1;
+
+//  while(j>=0)
+//  {
+//    if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+//      ROS_INFO_STREAM("j: "<<j);
+
+//    if(informedOnlineReplanning_disp_)
+//    {
+//      /*////////////////////////Visualization of analyzed nodes //////////////////////////////////////*/
+//      disp_->changeNodeSize(marker_scale_sphere);
+//      node_id = disp_->displayNode(path1_node_vector.at(j),"pathplan",marker_color_sphere_analizing);
+//      disp_->defaultNodeSize();
+//      /*/////////////////////////////////////////////////////////////////////////////////////////////*/
+//    }
+
+//    tic_cycle = ros::WallTime::now();
+
+//    simplifyAdmissibleOtherPaths(no_available_paths,confirmed_subpath_from_path2,confirmed_connected2path_number,path1_node_vector.at(j),reset_other_paths);
+
+//    if(pathSwitch_cycle_time_mean_ >= 0.8*max_time)
+//      pathSwitch_cycle_time_mean_ = std::numeric_limits<double>::infinity();  //reset
+
+//    toc = ros::WallTime::now();
+//    available_time_ = MAX_TIME - (toc-tic).toSec();
+
+//    double min_time_pathSwitch;
+//    if(informedOnlineReplanning_disp_)
+//      min_time_pathSwitch = std::numeric_limits<double>::infinity();
+//    else if(an_obstacle_ || pathSwitch_cycle_time_mean_ == std::numeric_limits<double>::infinity())
+//      min_time_pathSwitch = 0.0;
+//    else
+//      min_time_pathSwitch = time_percentage_variability_*pathSwitch_cycle_time_mean_;
+
+//    if(informedOnlineReplanning_verbose_)
+//      ROS_INFO_STREAM("available time: "<<available_time_<<", min required time to call PathSwitch: "<<min_time_pathSwitch);
+
+//    if(available_time_>=min_time_pathSwitch)
+//    {
+//      if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+//        ROS_INFO_STREAM("Launching PathSwitch...");
+
+//      solved = pathSwitch(replanned_path, path1_node_vector.at(j), new_path, subpath_from_path2, connected2path_number);
+//    }
+//    else
+//    {
+//      solved = false;
+//      exit = true;
+
+//      if(informedOnlineReplanning_verbose_)
+//        ROS_INFO_STREAM("Not eanough time to call PathSwitch or Connect2Goal, available time: "<<available_time_<<" min time to call ps: "<<min_time_pathSwitch);
+//    }
+
+//    path1_node_vector.at(j)->setAnalyzed(true);  //to set as ANALYZED the node just analyzed. In this way, it will not be analyzed again in this replanning procedure
+//    examined_nodes_.push_back(path1_node_vector.at(j));  //to save the analyzed nodes
+
+//    if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+//      ROS_INFO_STREAM("Solved: "<<solved);
+
+//    if(informedOnlineReplanning_disp_)
+//    {
+//      /*////////////////////////Visualization of analyzed nodes //////////////////////////////////////*/
+//      disp_->clearMarker(node_id);
+//      disp_->changeNodeSize(marker_scale_sphere);
+//      node_id = disp_->displayNode(examined_nodes_.back(),"pathplan",marker_color_sphere);
+//      disp_->defaultNodeSize();
+//      /*/////////////////////////////////////////////////////////////////////////////////////////////*/
+//    }
+
+//    if(solved)
+//    {
+//      PathPtr path;
+//      PathPtr subpath;
+//      std::vector<ConnectionPtr> path_conn;
+
+//      if(available_nodes) //calculating the cost of the replanned path found
+//      {
+//        if(path1_node_vector.at(j)->getConfiguration() != child->getConfiguration() && path1_node_vector.at(j)->getConfiguration() != parent->getConfiguration())
+//        {
+//          if(current2child_conn != nullptr)
+//            path_conn.push_back(current2child_conn);  //connection between the current config and the child of the current conn
+
+//          try
+//          {
+//            subpath =  subpath1->getSubpathToNode(path1_node_vector.at(j));  //path between the current connection child and the node analyzed now
+//          }
+//          catch(std::invalid_argument)
+//          {
+//            ROS_INFO_STREAM("current configuration: "<<current_configuration_.transpose()<<" child: "<<child->getConfiguration().transpose()<<" parent: "<<parent->getConfiguration().transpose());
+//          }
+
+//          path_conn.insert(path_conn.end(),subpath->getConnectionsConst().begin(),subpath->getConnectionsConst().end());
+//          path_conn.insert(path_conn.end(),new_path->getConnectionsConst().begin(),new_path->getConnectionsConst().end());
+
+//          path = std::make_shared<Path>(path_conn,metrics_,checker_);
+//        }
+//        else if(path1_node_vector.at(j)->getConfiguration() == parent->getConfiguration())
+//        {
+//          path = new_path;
+
+//          if(current_configuration_ != parent->getConfiguration())
+//          {
+//            throw std::invalid_argument("curr conf dovrebbe essere = al parent");
+//          }
+//        }
+//        else    //the node analyzed is the child of the current connection
+//        {
+//          if(current2child_conn != nullptr)
+//            path_conn.push_back(current2child_conn);
+
+//          path_conn.insert(path_conn.end(),new_path->getConnectionsConst().begin(),new_path->getConnectionsConst().end());
+
+//          path = std::make_shared<Path>(path_conn,metrics_,checker_);
+//        }
+//      }
+//      else
+//        path = new_path;
+
+//      if(path->cost()<replanned_path_cost)
+//      {
+//        if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+//          ROS_INFO_STREAM("new path found, cost: " << path->cost() <<" previous cost: " << replanned_path_cost);
+
+//        if(first_sol)
+//        {
+//          toc = ros::WallTime::now();
+//          time_first_sol_ = (toc - tic).toSec();
+//          time_replanning_ = time_first_sol_;
+//          first_sol = false;  //false when the time of the first solution found has been already saved
+//        }
+
+//        previous_cost = replanned_path_cost;
+//        replanned_path = path;
+//        replanned_path_cost = path->cost();
+
+//        if(!no_available_paths)
+//        {
+//          confirmed_connected2path_number = connected2path_number;  //to remember the vector index of the path to which the algoithm has created a connection
+//          confirmed_subpath_from_path2 = subpath_from_path2;        //to save the subpath of the path to which the algoritm has created a connection
+//        }
+
+//        success = true;
+//        an_obstacle_ = false;
+
+//        if(replanned_path->cost() == std::numeric_limits<double>::infinity())
+//          throw std::invalid_argument("the cost of the path found should be finite");
+
+//        if(replanned_path_vector.size()<10) //the algorithm gives as output the vector of the best 10 solutions found
+//          replanned_path_vector.push_back(replanned_path);
+//        else
+//        {
+//          std::vector<PathPtr> support_vector;
+//          support_vector.insert(support_vector.begin(),replanned_path_vector.begin()+1,replanned_path_vector.end());
+//          support_vector.push_back(replanned_path);
+
+//          replanned_path_vector = support_vector;
+//        }
+
+//        if(available_nodes == false && replanned_path->getConnections().size()>1) // when actual conn is obstructed and a path has been found -> PathSwitch will be called from the nodes of the new path found
+//        {
+//          current2child_conn = replanned_path->getConnections().at(0);
+//          child = current2child_conn->getChild();
+//          available_nodes = true;
+//        }
+
+//        if(informedOnlineReplanning_disp_)
+//        {
+//          /*//////////////////////////Visualization////////////////////////////////////*/
+//          disp_->clearMarker(replanned_path_id);
+//          disp_->changeConnectionSize(marker_scale);
+//          replanned_path_id = disp_->displayPath(replanned_path,"pathplan",marker_color);
+//          disp_->defaultConnectionSize();
+//          /*/////////////////////////////////////////////////////////////////////////*/
+//        }
+
+//        toc = ros::WallTime::now();
+//        if((toc-tic).toSec()>TIME_LIMIT && cont >= CONT_LIMIT)
+//        {
+//          j = -1;
+//          break;
+//        }
+//        else
+//        {
+//          if((previous_cost-replanned_path_cost)<0.05*previous_cost)
+//            cont = cont+1;
+//          else
+//            cont = 0;
+//        }
+//      }
+//      else
+//      {
+//        if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+//          ROS_INFO_STREAM("NO better path found, cost: " << path->cost() <<" previous cost: " << replanned_path_cost);
+//      }
+
+//      toc_cycle = ros::WallTime::now();
+//      if(informedOnlineReplanning_verbose_)
+//        ROS_INFO_STREAM("Solution with cost "<<replanned_path_cost<<" found!->Informed cycle duration: "<<(toc_cycle-tic_cycle).toSec());
+//    }
+
+//    if(success && j == 0)
+//    {
+//      if(child->getConfiguration() != current_path_->getWaypoints().back())
+//      {
+//        subpath1 = replanned_path->getSubpathFromNode(child);
+//        path1_node_vector.clear();
+//        for(unsigned int r=0; r<subpath1->getConnections().size()-1; r++)
+//        {
+//          if(subpath1->getConnections().at(r)->getParent()->getAnalyzed() == 0 && subpath1->getConnections().at(r)->getParent()->getNonOptimal() == 0) //Analyzed to check if they have been already analyzed (if 0 not not analyzed), nonOptimal to check if they are useful to improve the replanning solution (if 0, maybe they can improve the solution)
+//          {
+//            // the nodes of the new solution found are added to the set of the nodes to be analyzed
+//            path1_node_vector.push_back(subpath1->getConnections().at(r)->getParent());
+//          }
+//        }
+//        j = path1_node_vector.size();  //then, j=j-1
+
+//        if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+//          ROS_INFO_STREAM("NEW J: "<<j-1);
+//      }
+//    }
+
+//    toc = ros::WallTime::now();
+//    available_time_ = MAX_TIME-(toc-tic).toSec();
+
+//    if(exit || j==0)
+//    {
+//      if(informedOnlineReplanning_verbose_)
+//        ROS_INFO_STREAM("TIME OUT! available time: "<<available_time_<<", time needed for a new cycle: "<<min_time_pathSwitch);
+
+//      if(informedOnlineReplanning_disp_)
+//      {
+//        ROS_INFO("Optimizing...");
+//        disp_->nextButton();
+//      }
+
+//      double cost_pre_opt = replanned_path->cost();
+//      ros::WallTime tic_warp = ros::WallTime::now();
+//      if(success) optimizePath(replanned_path,available_time_*0.95);
+//      ros::WallTime toc_warp = ros::WallTime::now();
+//      double cost_opt = replanned_path->cost();
+
+//      if(informedOnlineReplanning_verbose_)
+//        ROS_INFO_STREAM("Path optimization, max time: "<<available_time_<<" time used: "<<(toc_warp-tic_warp).toSec()<<" previous cost: "<<cost_pre_opt<<" new cost: "<<cost_opt);
+
+//      j = -1;
+//      break;
+//    }
+
+//    j -= 1;
+
+//    if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+//      ROS_INFO("------------------------------------------");
+//    if(informedOnlineReplanning_disp_)
+//      disp_->nextButton("Press \"next\" to execute the next InformedOnlineReplanning step");
+//  }
+
+//  for(unsigned int x=0; x<examined_nodes_.size();x++)
+//    examined_nodes_.at(x)->setAnalyzed(false);
+
+//  if(success)
+//  {
+//    replanned_path_ = replanned_path;
+//    std::reverse(replanned_path_vector.begin(),replanned_path_vector.end());  //ordered with growing cost
+//    replanned_paths_vector_ = replanned_path_vector;
+//    success_ = true;
+
+//    toc = ros::WallTime::now();
+//    time_replanning_ = (toc - tic).toSec();
+
+//    if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+//      ROS_INFO_STREAM("InformedOnlineReplanning has found a solution with cost: " <<replanned_path_->cost() << " in "<< time_replanning_ << "seconds. Number of sol: " << replanned_path_vector.size());
+//  }
+//  else
+//  {
+//    success_ = false;
+//    if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+//      ROS_INFO_STREAM("InformedOnlineReplanning has NOT found a solution");
+//  }
+
+//  toc = ros::WallTime::now();
+//  available_time_ = MAX_TIME-(toc-tic).toSec();
+
+//  return success;
+//}
+
 bool AIPRO::informedOnlineReplanning(const double &max_time)
 {
   ros::WallTime tic=ros::WallTime::now();
   ros::WallTime toc, tic_cycle, toc_cycle;
-  double MAX_TIME;
 
+  double MAX_TIME;
   if(informedOnlineReplanning_disp_)
     MAX_TIME = std::numeric_limits<double>::infinity();
   else
     MAX_TIME = max_time;
 
   available_time_ = MAX_TIME;
-  std::vector<double> time_vector;
   const double TIME_LIMIT = 0.85*MAX_TIME; //seconds
   const int CONT_LIMIT = 5;
 
   if(!informedOnlineReplanning_disp_ && available_time_<=0.0)
     return false;
 
+  /*//////////////For display//////////////////*/
   std::vector<double> marker_scale_sphere(3,0.03);
-  std::vector<double> marker_color_sphere = {0.0,0.0,0.0,1.0};
   std::vector<double> marker_color_sphere_analizing = {1.0,0.5,0.0,1.0};
-
   std::vector<double> marker_color = {1.0,1.0,0.0,1.0};
   std::vector<double> marker_scale(3,0.01);
   int replanned_path_id;
   int node_id;
+  /*/////////////////////////////////////////*/
 
-  PathPtr new_path;
-  PathPtr replanned_path;
-  PathPtr subpath_from_path2;
-  PathPtr confirmed_subpath_from_path2 = nullptr;
+  std::vector<PathPtr> replanned_paths_vector, reset_other_paths;
+  std::vector<ConnectionPtr> subpath_from_child_conn;
+  PathPtr new_path, replanned_path, subpath_from_path2,subpath_from_child;
   PathPtr admissible_current_path = nullptr;
-  PathPtr subpath1;
-  std::vector<PathPtr> replanned_path_vector;
-  std::vector<PathPtr> reset_other_paths;
-  std::vector<NodePtr> path1_node_vector;
-  std::vector<ConnectionPtr> subpath1_conn;
   bool exit = false;
   bool success = false;
   bool solved = false;
   bool first_sol = true;
-  bool available_nodes;
   bool no_available_paths = true;
-  int confirmed_connected2path_number;
   int connected2path_number;
-  unsigned int cont = 0;  //to count the number of replanning without significant improvement in the final solution
+  unsigned int cont = 0;                                        //to count the number of replanning without significant improvement in the final solution
   double replanned_path_cost = std::numeric_limits<double>::infinity();
   double previous_cost = current_path_->getCostFromConf(current_configuration_);
 
-  examined_nodes_.clear();
   success_ = false;
   an_obstacle_ = false;
 
-  int current_conn_idx; //to save the index of the connection on which the current configuration is
+  int current_conn_idx;
   ConnectionPtr current_conn = current_path_->findConnection(current_configuration_,current_conn_idx);
 
   admissible_other_paths_.clear();
@@ -949,27 +1451,36 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
   for(const PathPtr& path: admissible_other_paths_)
   {
     if(path->getConnections().back()->getCost() != std::numeric_limits<double>::infinity())
+    {
       no_available_paths = false;
+      break;
+    }
   }
 
   NodePtr parent = current_conn->getParent();
-  NodePtr current_node = std::make_shared<Node>(current_configuration_);
   NodePtr child = current_conn->getChild();
 
-  ConnectionPtr current2child_conn = nullptr;
-  double current2child_conn_cost = 0;
-
-  std::vector<ConnectionPtr> replanned_path_conn;
+  NodePtr current_node;
+  if(current_configuration_ == parent->getConfiguration())
+    current_node = parent;
+  else if(current_configuration_ == child->getConfiguration())
+    current_node = child;
+  else
+    current_node = std::make_shared<Node>(current_configuration_);
 
   if(current_conn_idx<current_path_->getConnections().size()-1)
   {
-    subpath1 = current_path_->getSubpathFromNode(child);
-    subpath1_conn =  subpath1->getConnections();
-    if(subpath1->cost() == std::numeric_limits<double>::infinity())
+    subpath_from_child = current_path_->getSubpathFromNode(child);
+    subpath_from_child_conn =  subpath_from_child->getConnections();
+    if(subpath_from_child->cost() == std::numeric_limits<double>::infinity())
       an_obstacle_ = true;
   }
 
-  if(current_configuration_ != child->getConfiguration() && current_configuration_ != parent->getConfiguration())
+  std::vector<ConnectionPtr> subpath1_conn;
+  ConnectionPtr current2child_conn = nullptr;
+  double current2child_conn_cost = 0;
+
+  if(current_node != child && current_node != parent)
   {
     current2child_conn = std::make_shared<Connection>(current_node,child);
 
@@ -987,24 +1498,24 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
       current2child_conn_cost = metrics_->cost(current_node,child);
 
     current2child_conn->setCost(current2child_conn_cost);
-    //current2child_conn->add(); not add the connection!
-    replanned_path_conn.push_back(current2child_conn);
+    //current2child_conn->add();                          not add the connection!
+    subpath1_conn.push_back(current2child_conn);
 
-    if(!subpath1_conn.empty())
-      replanned_path_conn.insert(replanned_path_conn.end(),subpath1_conn.begin(),subpath1_conn.end());
+    if(!subpath_from_child_conn.empty())
+      subpath1_conn.insert(subpath1_conn.end(),subpath_from_child_conn.begin(),subpath_from_child_conn.end());
   }
-  else if(current_configuration_ == parent->getConfiguration())
+  else if(current_node == parent)
   {
     current2child_conn = current_conn;
-    replanned_path_conn.push_back(current2child_conn);
+    subpath1_conn.push_back(current2child_conn);
 
-    if(!subpath1_conn.empty())
-      replanned_path_conn.insert(replanned_path_conn.end(),subpath1_conn.begin(),subpath1_conn.end());
+    if(!subpath_from_child_conn.empty())
+      subpath1_conn.insert(subpath1_conn.end(),subpath_from_child_conn.begin(),subpath_from_child_conn.end());
   }
   else
   {
-    if(!subpath1_conn.empty())
-      replanned_path_conn = subpath1_conn;
+    if(!subpath_from_child_conn.empty())
+      subpath1_conn = subpath_from_child_conn;
     else
     {
       success_ = false;
@@ -1012,14 +1523,20 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
     }
   }
 
-  replanned_path = std::make_shared<Path>(replanned_path_conn,metrics_,checker_); //at the start, the replanned path is initialized with the subpath of the current path from the current config to GOAL
+  PathPtr subpath1 = std::make_shared<Path>(subpath1_conn,metrics_,checker_); //at the start, the replanned path is initialized with the subpath of the current path from the current config to GOAL
+
+  //Searching for an already existing solution
+  replanned_path = bestExistingSolution(subpath1,reset_other_paths);
   replanned_path_cost = replanned_path->cost();
 
-  path1_node_vector = startingNodesForPathSwitch(subpath1_conn,current_node,current2child_conn_cost,current_conn_idx,available_nodes);
-  int j = path1_node_vector.size()-1;
+  int j = unconnected_nodes_.size()-1;
 
   while(j>=0)
   {
+    tic_cycle = ros::WallTime::now();
+
+    NodePtr start_node_for_pathSwitch = unconnected_nodes_.at(j).start_node;
+
     if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
       ROS_INFO_STREAM("j: "<<j);
 
@@ -1027,32 +1544,34 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
     {
       /*////////////////////////Visualization of analyzed nodes //////////////////////////////////////*/
       disp_->changeNodeSize(marker_scale_sphere);
-      node_id = disp_->displayNode(path1_node_vector.at(j),"pathplan",marker_color_sphere_analizing);
+      node_id = disp_->displayNode(start_node_for_pathSwitch,"pathplan",marker_color_sphere_analizing);
       disp_->defaultNodeSize();
       /*/////////////////////////////////////////////////////////////////////////////////////////////*/
     }
 
-    tic_cycle = ros::WallTime::now();
-
-    simplifyAdmissibleOtherPaths(no_available_paths,confirmed_subpath_from_path2,confirmed_connected2path_number,path1_node_vector.at(j),reset_other_paths);
-
-    if(pathSwitch_cycle_time_mean_ >= 0.8*max_time) pathSwitch_cycle_time_mean_ = std::numeric_limits<double>::infinity();  //reset
+    if(pathSwitch_cycle_time_mean_ >= 0.8*max_time)
+      pathSwitch_cycle_time_mean_ = std::numeric_limits<double>::infinity();  //reset
 
     toc = ros::WallTime::now();
     available_time_ = MAX_TIME - (toc-tic).toSec();
-    double min_time_pathSwitch;
-    if(informedOnlineReplanning_disp_) min_time_pathSwitch = std::numeric_limits<double>::infinity();
-    else if(an_obstacle_ || pathSwitch_cycle_time_mean_ == std::numeric_limits<double>::infinity()) min_time_pathSwitch = 0.0;
-    else min_time_pathSwitch = time_percentage_variability_*pathSwitch_cycle_time_mean_;
 
-    if(informedOnlineReplanning_verbose_) ROS_INFO_STREAM("available time: "<<available_time_<<", min required time to call PathSwitch: "<<min_time_pathSwitch);
+    double min_time_to_launch_pathSwitch;
+    if(informedOnlineReplanning_disp_)
+      min_time_to_launch_pathSwitch = std::numeric_limits<double>::infinity();
+    else if(an_obstacle_ || pathSwitch_cycle_time_mean_ == std::numeric_limits<double>::infinity())
+      min_time_to_launch_pathSwitch = 0.0;
+    else
+      min_time_to_launch_pathSwitch = time_percentage_variability_*pathSwitch_cycle_time_mean_;
 
-    if(available_time_>=min_time_pathSwitch)
+    if(informedOnlineReplanning_verbose_)
+      ROS_INFO_STREAM("available time: "<<available_time_<<", min required time to call PathSwitch: "<<min_time_to_launch_pathSwitch);
+
+    if(available_time_>=min_time_to_launch_pathSwitch)
     {
       if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
         ROS_INFO_STREAM("Launching PathSwitch...");
 
-      solved = pathSwitch(replanned_path, path1_node_vector.at(j), new_path, subpath_from_path2, connected2path_number);
+      solved = pathSwitch(replanned_path, start_node_for_pathSwitch, new_path, subpath_from_path2, connected2path_number);
     }
     else
     {
@@ -1060,78 +1579,62 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
       exit = true;
 
       if(informedOnlineReplanning_verbose_)
-        ROS_INFO_STREAM("Not eanough time to call PathSwitch or Connect2Goal, available time: "<<available_time_<<" min time to call ps: "<<min_time_pathSwitch);
+        ROS_INFO_STREAM("Not eanough time to call PathSwitch or Connect2Goal, available time: "<<available_time_<<" min time to call ps: "<<min_time_to_launch_pathSwitch);
     }
-
-    path1_node_vector.at(j)->setAnalyzed(true);  //to set as ANALYZED the node just analyzed. In this way, it will not be analyzed again in this replanning procedure
-    examined_nodes_.push_back(path1_node_vector.at(j));  //to save the analyzed nodes
 
     if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
       ROS_INFO_STREAM("Solved: "<<solved);
 
-    if(informedOnlineReplanning_disp_)
-    {
-      /*////////////////////////Visualization of analyzed nodes //////////////////////////////////////*/
-      disp_->clearMarker(node_id);
-      disp_->changeNodeSize(marker_scale_sphere);
-      node_id = disp_->displayNode(examined_nodes_.back(),"pathplan",marker_color_sphere);
-      disp_->defaultNodeSize();
-      /*/////////////////////////////////////////////////////////////////////////////////////////////*/
-    }
-
     if(solved)
     {
-      PathPtr path;
-      PathPtr subpath;
-      std::vector<ConnectionPtr> path_conn;
+      PathPtr candinate_solution;
+      PathPtr candidate_subpath_to_start_node;
+      std::vector<ConnectionPtr> candidate_solution_conn;
 
-      if(available_nodes) //calculating the cost of the replanned path found
+      if(start_node_for_pathSwitch != current_node) //calculating the cost of the replanned path found
       {
-        if(path1_node_vector.at(j)->getConfiguration() != child->getConfiguration() && path1_node_vector.at(j)->getConfiguration() != parent->getConfiguration())
+        if(start_node_for_pathSwitch != child && start_node_for_pathSwitch != parent)
         {
-          if(current2child_conn != nullptr)
-            path_conn.push_back(current2child_conn);  //connection between the current config and the child of the current conn
+          if(current2child_conn != nullptr) //it should be != nullptr
+            candidate_solution_conn.push_back(current2child_conn);  //connection between the current config and the child of the current conn
 
           try
           {
-            subpath =  subpath1->getSubpathToNode(path1_node_vector.at(j));  //path between the current connection child and the node analyzed now
+            candidate_subpath_to_start_node =  subpath_from_child->getSubpathToNode(start_node_for_pathSwitch);  //path between the current connection child and the node analyzed now
           }
           catch(std::invalid_argument)
           {
-            ROS_INFO_STREAM("curr conf: "<<current_configuration_.transpose()<<" child: "<<child->getConfiguration().transpose()<<" parent: "<<parent->getConfiguration().transpose());
+            ROS_INFO_STREAM("current configuration: "<<current_configuration_.transpose()<<" child: "<<child->getConfiguration().transpose()<<" parent: "<<parent->getConfiguration().transpose());
           }
 
-          path_conn.insert(path_conn.end(),subpath->getConnectionsConst().begin(),subpath->getConnectionsConst().end());
-          path_conn.insert(path_conn.end(),new_path->getConnectionsConst().begin(),new_path->getConnectionsConst().end());
+          candidate_solution_conn.insert(candidate_solution_conn.end(),candidate_subpath_to_start_node->getConnectionsConst().begin(),candidate_subpath_to_start_node->getConnectionsConst().end());
+          candidate_solution_conn.insert(candidate_solution_conn.end(),new_path->getConnectionsConst().begin(),new_path->getConnectionsConst().end());
 
-          path = std::make_shared<Path>(path_conn,metrics_,checker_);
+          candinate_solution = std::make_shared<Path>(candidate_solution_conn,metrics_,checker_);
         }
-        else if(path1_node_vector.at(j)->getConfiguration() == parent->getConfiguration())
+        else if(start_node_for_pathSwitch == parent)
         {
-          path = new_path;
+          candinate_solution = new_path;
 
-          if(current_configuration_ != parent->getConfiguration())
-          {
+          if(current_node != parent)
             throw std::invalid_argument("curr conf dovrebbe essere = al parent");
-          }
         }
         else    //the node analyzed is the child of the current connection
         {
           if(current2child_conn != nullptr)
-            path_conn.push_back(current2child_conn);
+            candidate_solution_conn.push_back(current2child_conn);
 
-          path_conn.insert(path_conn.end(),new_path->getConnectionsConst().begin(),new_path->getConnectionsConst().end());
-
-          path = std::make_shared<Path>(path_conn,metrics_,checker_);
+          candidate_solution_conn.insert(candidate_solution_conn.end(),new_path->getConnectionsConst().begin(),new_path->getConnectionsConst().end());
+          candinate_solution = std::make_shared<Path>(candidate_solution_conn,metrics_,checker_);
         }
       }
       else
-        path = new_path;
+        candinate_solution = new_path;
 
-      if(path->cost()<replanned_path_cost)
-
+      if(candinate_solution->cost()<replanned_path_cost)
+      {
         if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
-          ROS_INFO_STREAM("new path found, cost: " << path->cost() <<" previous cost: " << replanned_path_cost);
+          ROS_INFO_STREAM("new path found, cost: " << candinate_solution->cost() <<" previous cost: " << replanned_path_cost);
 
         if(first_sol)
         {
@@ -1142,14 +1645,8 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
         }
 
         previous_cost = replanned_path_cost;
-        replanned_path = path;
-        replanned_path_cost = path->cost();
-
-        if(!no_available_paths)
-        {
-          confirmed_connected2path_number = connected2path_number;  //to remember the vector index of the path to which the algoithm has created a connection
-          confirmed_subpath_from_path2 = subpath_from_path2;        //to save the subpath of the path to which the algoritm has created a connection
-        }
+        replanned_path = candinate_solution;
+        replanned_path_cost = candinate_solution->cost();
 
         success = true;
         an_obstacle_ = false;
@@ -1157,23 +1654,12 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
         if(replanned_path->cost() == std::numeric_limits<double>::infinity())
           throw std::invalid_argument("the cost of the path found should be finite");
 
-        if(replanned_path_vector.size()<10) //the algorithm gives as output the vector of the best 10 solutions found
-          replanned_path_vector.push_back(replanned_path);
+        replanned_paths_vector.push_back(replanned_path);
 
-        else
-        {
-          std::vector<PathPtr> support_vector;
-          support_vector.insert(support_vector.begin(),replanned_path_vector.begin()+1,replanned_path_vector.end());
-          support_vector.push_back(replanned_path);
-
-          replanned_path_vector = support_vector;
-        }
-
-        if(available_nodes == 0 && replanned_path->getConnections().size()>1) // when actual conn is obstructed and a path has been found -> PathSwitch will be called from the nodes of the new path found
+        if((start_node_for_pathSwitch == current_node) && replanned_path->getConnections().size()>1) // when actual conn is obstructed and a path has been found -> PathSwitch will be called from the nodes of the new path found
         {
           current2child_conn = replanned_path->getConnections().at(0);
           child = current2child_conn->getChild();
-          available_nodes = 1;
         }
 
         if(informedOnlineReplanning_disp_)
@@ -1194,52 +1680,46 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
         }
         else
         {
-          if((previous_cost-replanned_path_cost)<0.05*previous_cost) cont = cont+1;
-          else cont = 0;
+          if((previous_cost-replanned_path_cost)<0.05*previous_cost)
+            cont = cont+1;
+          else
+            cont = 0;
         }
       }
       else
       {
         if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
-          ROS_INFO_STREAM("NO better path found, cost: " << path->cost() <<" previous cost: " << replanned_path_cost);
+          ROS_INFO_STREAM("NO better path found, cost: " << candinate_solution->cost() <<" previous cost: " << replanned_path_cost);
       }
 
       toc_cycle = ros::WallTime::now();
-      //time_vector.push_back((toc_cycle-tic_cycle).toSec());
-      //informedOnlineReplanning_cycle_time_mean_ = std::accumulate(time_vector.begin(), time_vector.end(),0.0)/((double) time_vector.size());
-      if(informedOnlineReplanning_verbose_) ROS_INFO_STREAM("Solution with cost "<<replanned_path_cost<<" found!->Informed cycle duration: "<<(toc_cycle-tic_cycle).toSec());
+      if(informedOnlineReplanning_verbose_)
+        ROS_INFO_STREAM("Solution with cost "<<replanned_path_cost<<" found!->Informed cycle duration: "<<(toc_cycle-tic_cycle).toSec());
     }
 
     if(success && j == 0)
     {
-      if(child->getConfiguration() != current_path_->getWaypoints().back())
+      if(child != replanned_path->getConnections().back()->getChild())
       {
-        subpath1 = replanned_path->getSubpathFromNode(child);
-        path1_node_vector.clear();
-        for(unsigned int r=0; r<subpath1->getConnections().size()-1; r++)
-        {
-          if(subpath1->getConnections().at(r)->getParent()->getAnalyzed() == 0 && subpath1->getConnections().at(r)->getParent()->getNonOptimal() == 0) //Analyzed to check if they have been already analyzed (if 0 not not analyzed), nonOptimal to check if they are useful to improve the replanning solution (if 0, maybe they can improve the solution)
-          {
-            // the nodes of the new solution found are added to the set of the nodes to be analyzed
-            path1_node_vector.push_back(subpath1->getConnections().at(r)->getParent());
-          }
-        }
-        j = path1_node_vector.size();  //then, j=j-1
+        subpath1 = replanned_path;
+        replanned_path = bestExistingSolution(subpath1,reset_other_paths);
+        replanned_path_cost = replanned_path->cost();
 
-        if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_) ROS_INFO_STREAM("NEW J: "<<j-1);
+        j = unconnected_nodes_.size(); //then j=j-1
+
+        if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+          ROS_INFO_STREAM("NEW J: "<<j-1);
       }
     }
-
-    //if(informedOnlineReplanning_verbose_) ROS_INFO_STREAM("informed cycle time mean: "<< informedOnlineReplanning_cycle_time_mean_);
 
     toc = ros::WallTime::now();
     available_time_ = MAX_TIME-(toc-tic).toSec();
 
-    //if((!an_obstacle_ && available_time_<time_percentage_variability_*informedOnlineReplanning_cycle_time_mean_ && informedOnlineReplanning_cycle_time_mean_ != std::numeric_limits<double>::infinity()) || available_time_<=0.0)
     if(exit || j==0)
     {
-      if(informedOnlineReplanning_verbose_) ROS_INFO_STREAM("TIME OUT! available time: "<<available_time_<<", time needed for a new cycle: "<<min_time_pathSwitch);
-      //if(informedOnlineReplanning_verbose_) ROS_INFO_STREAM("TIME OUT! available time: "<<available_time_<<", time needed for a new cycle: "<<time_percentage_variability_*informedOnlineReplanning_cycle_time_mean_);
+      if(informedOnlineReplanning_verbose_)
+        ROS_INFO_STREAM("TIME OUT! available time: "<<available_time_<<", time needed for a new cycle: "<<min_time_to_launch_pathSwitch);
+
       if(informedOnlineReplanning_disp_)
       {
         ROS_INFO("Optimizing...");
@@ -1248,11 +1728,13 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
 
       double cost_pre_opt = replanned_path->cost();
       ros::WallTime tic_warp = ros::WallTime::now();
-      if(success) optimizePath(replanned_path,available_time_*0.95);
+      if(success)
+        optimizePath(replanned_path,available_time_*0.95);
       ros::WallTime toc_warp = ros::WallTime::now();
       double cost_opt = replanned_path->cost();
 
-      if(informedOnlineReplanning_verbose_) ROS_INFO_STREAM("Path optimization, max time: "<<available_time_<<" time used: "<<(toc_warp-tic_warp).toSec()<<" previous cost: "<<cost_pre_opt<<" new cost: "<<cost_opt);
+      if(informedOnlineReplanning_verbose_)
+        ROS_INFO_STREAM("Path optimization, max time: "<<available_time_<<" time used: "<<(toc_warp-tic_warp).toSec()<<" previous cost: "<<cost_pre_opt<<" new cost: "<<cost_opt);
 
       j = -1;
       break;
@@ -1260,35 +1742,34 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
 
     j -= 1;
 
-    if(emergency_stop_)
-    {
-      ROS_WARN("EMERGENCY STOP HANDLED");   //ELIMINA
-      emergency_stop_ = false;
-      break;
-    }
-
-    if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_) ROS_INFO("------------------------------------------");
-    if(informedOnlineReplanning_disp_) disp_->nextButton("Press \"next\" to execute the next InformedOnlineReplanning step");
+    if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+      ROS_INFO("------------------------------------------");
+    if(informedOnlineReplanning_disp_)
+      disp_->nextButton("Press \"next\" to execute the next InformedOnlineReplanning step");
   }
-
-  for(unsigned int x=0; x<examined_nodes_.size();x++) examined_nodes_.at(x)->setAnalyzed(0);
 
   if(success)
   {
     replanned_path_ = replanned_path;
-    std::reverse(replanned_path_vector.begin(),replanned_path_vector.end());  //ordered with growing cost
-    replanned_paths_vector_ = replanned_path_vector;
+
+    std::vector<PathPtr>::iterator first = replanned_paths_vector.end()-10;
+    std::vector<PathPtr>::iterator last = replanned_paths_vector.end();
+    replanned_paths_vector_ = replanned_paths_vector(first,last);
+    std::reverse(replanned_paths_vector_.begin(),replanned_paths_vector_.end());  //ordered with growing cost
+
     success_ = true;
 
     toc = ros::WallTime::now();
     time_replanning_ = (toc - tic).toSec();
 
-    if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_) ROS_INFO_STREAM("InformedOnlineReplanning has found a solution with cost: " <<replanned_path_->cost() << " in "<< time_replanning_ << "seconds. Number of sol: " << replanned_path_vector.size());
+    if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+      ROS_INFO_STREAM("InformedOnlineReplanning has found a solution with cost: " <<replanned_path_->cost() << " in "<< time_replanning_ << "seconds. Number of sol: " << replanned_paths_vector.size());
   }
   else
   {
     success_ = false;
-    if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_) ROS_INFO_STREAM("InformedOnlineReplanning has NOT found a solution");
+    if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+      ROS_INFO_STREAM("InformedOnlineReplanning has NOT found a solution");
   }
 
   toc = ros::WallTime::now();
