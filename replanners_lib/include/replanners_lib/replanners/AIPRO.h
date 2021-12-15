@@ -51,7 +51,7 @@ protected:
 
   std::vector<PathPtr> addAdmissibleCurrentPath(const int &idx_current_conn, PathPtr& admissible_current_path);
   std::vector<node_and_path> sortNodesOnDistance(const NodePtr& node);
-  std::vector<NodePtr> startNodesForExistingSolutions(const std::vector<ConnectionPtr>& subpath1_conn);
+  std::vector<NodePtr> startNodes(const std::vector<ConnectionPtr>& subpath1_conn);
   PathPtr concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn, const std::vector<ConnectionPtr>& path2_subpath_conn);
   PathPtr bestExistingSolution(const PathPtr& subpath1, const std::vector<PathPtr> &reset_other_paths);
   double maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle);
@@ -86,6 +86,13 @@ public:
     return other_paths_;
   }
 
+  virtual void setVerbosity(const bool& verbose)
+  {
+    verbose_ = verbose;
+    informedOnlineReplanning_verbose_ = verbose;
+    pathSwitch_verbose_ = verbose;
+  }
+
   void setInformedOnlineReplanningVerbose(const bool verbose)
   {
     informedOnlineReplanning_verbose_ = verbose;
@@ -103,7 +110,7 @@ public:
 
   void setPathSwitchDisp(const bool verbose)
   {
-    pathSwitch_disp_ =verbose;
+    pathSwitch_disp_ = verbose;
   }
 
   void setCurrentPath(const PathPtr& path) override
@@ -151,7 +158,7 @@ public:
   }
 
   bool simplifyReplannedPath(const double& distance);
-  bool pathSwitch(const PathPtr& current_path, const NodePtr& path1_node, PathPtr &new_path, PathPtr &subpath_from_path2, int &connected2path_number);
+  bool pathSwitch(const PathPtr& current_path, const NodePtr& path1_node, PathPtr &new_path);
   bool informedOnlineReplanning(const double &max_time  = std::numeric_limits<double>::infinity());
 
   bool replan() override;

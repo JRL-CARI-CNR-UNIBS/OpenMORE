@@ -9,6 +9,7 @@
 #include <replanners_lib/replanners/DRRTStar.h>
 #include <replanners_lib/replanners/DRRT.h>
 #include <replanners_lib/replanners/anytimeDRRT.h>
+#include <replanners_lib/replanners/AIPRO.h>
 
 int main(int argc, char **argv)
 {
@@ -41,20 +42,6 @@ int main(int argc, char **argv)
   if (!nh.getParam("group_name",group_name))
   {
     ROS_ERROR("group_name not set, exit");
-    return 0;
-  }
-
-  std::string base_link;
-  if (!nh.getParam("base_link",base_link))
-  {
-    ROS_ERROR("base_link not set, exit");
-    return 0;
-  }
-
-  std::string last_link;
-  if (!nh.getParam("last_link",last_link))
-  {
-    ROS_ERROR("last_link not set, exit");
     return 0;
   }
 
@@ -122,6 +109,7 @@ int main(int argc, char **argv)
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
   pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
 
+  std::string last_link=planning_scene->getRobotModel()->getJointModelGroup(group_name)->getLinkModelNames().back();
   pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name,last_link);
   disp->clearMarkers();
 
@@ -166,6 +154,43 @@ int main(int argc, char **argv)
   else if(replanner_type == "anytimeDRRT")
   {
     replanner =  std::make_shared<pathplan::AnytimeDynamicRRT>(current_configuration,current_path,max_time,solver);
+  }
+  else if(replanner_type == "AIPRO")
+  {
+    int n_other_paths;
+    if (!nh.getParam("aipro/n_other_paths",n_other_paths))
+    {
+      ROS_ERROR("n_other_paths not set, set 1");
+      n_other_paths = 1;
+    }
+
+    bool verbose,display;
+    if(!nh.getParam("aipro/verbose",verbose))
+      verbose = false;
+    if(!nh.getParam("aipro/display",display))
+      display = false;
+
+    std::vector<pathplan::PathPtr> other_paths;
+    for(unsigned int i=0;i<n_other_paths;i++)
+    {
+      ROS_INFO_STREAM("Computing path number: "<<i+1);
+      pathplan::PathPtr path = trajectory.computePath(start_conf,goal_conf,solver,false);
+
+      if(path)
+      {
+        other_paths.push_back(path);
+        if(!path->getTree())
+          assert(0);
+      }
+    }
+
+   pathplan::AIPROPtr aipro_replanner =  std::make_shared<pathplan::AIPRO>(current_configuration,current_path,max_time,solver);
+   aipro_replanner->setOtherPaths(other_paths);
+   aipro_replanner->setInformedOnlineReplanningDisp(display);
+   aipro_replanner->setPathSwitchDisp(display);
+   aipro_replanner->setVerbosity(verbose);
+
+   replanner = aipro_replanner;
   }
   else
   {

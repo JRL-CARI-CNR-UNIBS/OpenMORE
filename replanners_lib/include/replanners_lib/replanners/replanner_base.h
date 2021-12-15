@@ -78,7 +78,7 @@ public:
     max_time_ = max_time;
   }
 
-  void setVerbosity(const bool& verbose)
+  virtual void setVerbosity(const bool& verbose)
   {
     verbose_ = verbose;
   }
