@@ -104,9 +104,17 @@ public:
     checker_ = checker;
   }
 
-  void setDisp(DisplayPtr &disp)
+  void setDisp(const DisplayPtr &disp)
   {
+    ROS_INFO("QUA");
     disp_ = disp;
+    ROS_INFO("QUA1");
+
+  }
+
+  DisplayPtr getDisp()
+  {
+    return disp_;
   }
 
   bool getSuccess()

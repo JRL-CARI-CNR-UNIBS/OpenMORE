@@ -37,7 +37,10 @@ AIPRO::AIPRO(const Eigen::VectorXd& current_configuration,
 bool AIPRO::mergePathToTree(PathPtr &path)
 {
   TreePtr path_tree = path->getTree();
+  NodePtr path_goal = path->getConnections().back()->getChild();
+  NodePtr goal = current_path_->getConnections().back()->getChild();
 
+  //Merging the root
   if(!tree_)
   {
     if(path_tree)
@@ -92,10 +95,11 @@ bool AIPRO::mergePathToTree(PathPtr &path)
   }
   else
   {
+    NodePtr tree_root = tree_->getRoot();
     NodePtr path_start = path->getConnections().front()->getParent();
-    if(tree_->getRoot()->getConfiguration() == path_start->getConfiguration())
+    if(tree_root->getConfiguration() == path_start->getConfiguration())
     {
-      if(tree_->getRoot() != path_start)
+      if(tree_root != path_start)
       {
         std::vector<ConnectionPtr> connections;
         if(path_tree)
@@ -103,28 +107,33 @@ bool AIPRO::mergePathToTree(PathPtr &path)
           if(path_start != path_tree->getRoot())
             assert(0);
 
-          NodePtr path_goal = path->getConnections().back()->getChild();
+          path_tree->addNode(tree_root);
+          path_tree->changeRoot(path_goal);
 
-          path_tree->addNode(tree_->getRoot());
-
-          ConnectionPtr conn_child, conn;
-          NodePtr tree_root, conn_child_node;
-          for(unsigned int i=0; i<path_start->child_connections_.size(); i++)
+          ConnectionPtr conn;
+          NodePtr child, parent;
+          std::vector<ConnectionPtr> child_connections = path_start->child_connections_;
+          for(const ConnectionPtr& child_conn:child_connections)
           {
-            conn_child = path_start->child_connections_.at(i);
-
-            tree_root = tree_->getRoot();
-            conn_child_node = conn_child->getChild();
-            conn = std::make_shared<Connection>(tree_root,conn_child_node);
-            conn->setCost(conn_child->getCost());
+            child = child_conn->getChild();
+            conn = std::make_shared<Connection>(tree_root,child);
+            conn->setCost(child_conn->getCost());
             conn->add();
-
-            conn_child->remove();
           }
-          path_tree->removeNode(path_start);
 
-          if(!path_tree->isInTree(tree_->getRoot()))
-            assert(0);
+          std::vector<ConnectionPtr> parent_connections = path_start->parent_connections_;
+          for(const ConnectionPtr& parent_conn:parent_connections)
+          {
+            parent = parent_conn->getParent();
+            conn = std::make_shared<Connection>(parent,tree_root);
+            conn->setCost(parent_conn->getCost());
+            conn->add();
+          }
+
+          path_tree->changeRoot(tree_root);
+
+          path_start->disconnect();
+          path_tree->removeNode(path_start);
 
           connections = path_tree->getConnectionToNode(path_goal);
         }
@@ -138,7 +147,7 @@ bool AIPRO::mergePathToTree(PathPtr &path)
           conn_child->remove();
 
           connections = path->getConnections();
-          connections.at(0) == conn;
+          connections.front() == conn;
         }
 
         path->setConnections(connections);
@@ -159,7 +168,27 @@ bool AIPRO::mergePathToTree(PathPtr &path)
     }
   }
 
+  //Merging the goal
+  std::vector<ConnectionPtr> path_conns = path->getConnections();
+  ConnectionPtr conn2delete = path->getConnections().back();
+  NetConnectionPtr new_goal_conn = std::make_shared<NetConnection>(conn2delete->getParent(),goal);
+  new_goal_conn->setCost(conn2delete->getCost());
+  new_goal_conn->add();
+
+  conn2delete->remove();
+
+  path_conns.back() = new_goal_conn;
+  path->setConnections(path_conns);
+
+  tree_->removeNode(path_goal);
   net_->setTree(tree_);
+
+  if(informedOnlineReplanning_disp_)
+  {
+    disp_->displayNet(net_);
+
+    disp_->nextButton("Merged tree displayed..");
+  }
 
   return true;
 }
@@ -451,6 +480,9 @@ PathPtr AIPRO::bestExistingSolution(const PathPtr& subpath1, const std::vector<P
     solution = std::make_shared<Path>(solution_conns,metrics_,checker_);
   else
     solution = subpath1;
+
+  if(informedOnlineReplanning_disp_)
+    disp_->displayPath(solution,"patplan",{1.0,0.5,0.0,1.0});
 
   return solution;
 }

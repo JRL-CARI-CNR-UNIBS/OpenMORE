@@ -16,6 +16,6 @@ to_goal:
   n_threads_replan: 5
 
 aipro:
-  n_other_paths: 2
+  n_other_paths: 3
   verbose: true
   display: true

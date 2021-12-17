@@ -158,23 +158,35 @@ int main(int argc, char **argv)
   else if(replanner_type == "AIPRO")
   {
     int n_other_paths;
-    if (!nh.getParam("aipro/n_other_paths",n_other_paths))
+    if (!nh.getParam("/aipro/n_other_paths",n_other_paths))
     {
       ROS_ERROR("n_other_paths not set, set 1");
       n_other_paths = 1;
     }
 
     bool verbose,display;
-    if(!nh.getParam("aipro/verbose",verbose))
+    if(!nh.getParam("/aipro/verbose",verbose))
+    {
+      return 0;
       verbose = false;
-    if(!nh.getParam("aipro/display",display))
+    }
+    if(!nh.getParam("/aipro/display",display))
+    {
+      return 0;
       display = false;
+    }
 
+    int id_path = 50;
+    int id_wp = 2000;
     std::vector<pathplan::PathPtr> other_paths;
     for(unsigned int i=0;i<n_other_paths;i++)
     {
       ROS_INFO_STREAM("Computing path number: "<<i+1);
       pathplan::PathPtr path = trajectory.computePath(start_conf,goal_conf,solver,false);
+//      disp->displayPathAndWaypoints(path,id_path,id_wp,"pathplan",{0.0,0.0,1.0,1.0});
+
+      id_path += 50;
+      id_wp += 1000;
 
       if(path)
       {
@@ -184,13 +196,16 @@ int main(int argc, char **argv)
       }
     }
 
-   pathplan::AIPROPtr aipro_replanner =  std::make_shared<pathplan::AIPRO>(current_configuration,current_path,max_time,solver);
-   aipro_replanner->setOtherPaths(other_paths);
-   aipro_replanner->setInformedOnlineReplanningDisp(display);
-   aipro_replanner->setPathSwitchDisp(display);
-   aipro_replanner->setVerbosity(verbose);
+    pathplan::AIPROPtr aipro_replanner =  std::make_shared<pathplan::AIPRO>(current_configuration,current_path,max_time,solver);
+    aipro_replanner->setDisp(disp);
 
-   replanner = aipro_replanner;
+    aipro_replanner->setInformedOnlineReplanningDisp(display);
+    aipro_replanner->setPathSwitchDisp(display);
+    aipro_replanner->setVerbosity(verbose);
+
+    aipro_replanner->setOtherPaths(other_paths);
+
+    replanner = aipro_replanner;
   }
   else
   {
@@ -198,7 +213,8 @@ int main(int argc, char **argv)
     return 0;
   }
 
-  replanner->setDisp(disp);
+  if(!replanner->getDisp())
+    replanner->setDisp(disp);
 
   ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::AddObjects>("add_object_to_scene");
   ros::ServiceClient remove_obj=nh.serviceClient<object_loader_msgs::RemoveObjects>("remove_object_from_scene");
