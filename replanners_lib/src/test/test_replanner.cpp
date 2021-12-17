@@ -122,6 +122,7 @@ int main(int argc, char **argv)
   pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler);
   //  pathplan::AnytimeRRTPtr solver = std::make_shared<pathplan::AnytimeRRT>(metrics, checker, sampler);
 
+  solver->setMaxDistance(0.5);
   pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
 
   disp->displayPathAndWaypoints(current_path,1,1000,"pathplan",{0.5,0.5,0.0,1.0});
@@ -237,7 +238,7 @@ int main(int argc, char **argv)
     object_loader_msgs::Object obj;
     obj.object_type="scatola";
 
-    int obj_conn_pos = n_conn;
+    int obj_conn_pos = n_conn+1;
     pathplan::ConnectionPtr obj_conn = current_path->getConnections().at(obj_conn_pos);
     pathplan::NodePtr obj_child = obj_conn->getChild();
     pathplan::NodePtr obj_parent = obj_conn->getParent();

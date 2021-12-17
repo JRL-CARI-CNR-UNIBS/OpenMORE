@@ -106,10 +106,7 @@ public:
 
   void setDisp(const DisplayPtr &disp)
   {
-    ROS_INFO("QUA");
     disp_ = disp;
-    ROS_INFO("QUA1");
-
   }
 
   DisplayPtr getDisp()
