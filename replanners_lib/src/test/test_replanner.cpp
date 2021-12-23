@@ -177,14 +177,14 @@ int main(int argc, char **argv)
       display = false;
     }
 
-    int id_path = 50;
-    int id_wp = 2000;
+    int id_path = 500;
+    int id_wp = 20000;
     std::vector<pathplan::PathPtr> other_paths;
     for(unsigned int i=0;i<n_other_paths;i++)
     {
       ROS_INFO_STREAM("Computing path number: "<<i+1);
       pathplan::PathPtr path = trajectory.computePath(start_conf,goal_conf,solver,false);
-//      disp->displayPathAndWaypoints(path,id_path,id_wp,"pathplan",{0.0,0.0,1.0,1.0});
+      disp->displayPathAndWaypoints(path,id_path,id_wp,"pathplan",{0.0,0.0,1.0,1.0});
 
       id_path += 50;
       id_wp += 1000;
@@ -328,6 +328,8 @@ int main(int argc, char **argv)
 
     replanner->setCurrentConf(current_configuration);
     replanner->setCurrentPath(current_path);
+
+    ROS_WARN("----------------------------------------------------------------");
   }
 
   replanner->setCurrentConf(current_path->getWaypoints().front());

@@ -56,7 +56,7 @@ protected:
   PathPtr bestExistingSolution(const PathPtr& subpath1, const std::vector<PathPtr> &reset_other_paths);
   double maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle);
   void optimizePath(PathPtr &connecting_path, const double &max_time);
-  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node, const double &diff_subpath_cost, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &quickly_solved);
+  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node, const double &diff_subpath_cost, const PathPtr &current_path, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &quickly_solved);
   void simplifyAdmissibleOtherPaths(const PathPtr& current_solution_path, const NodePtr &start_node, const std::vector<PathPtr>& reset_other_paths);
   bool mergePathToTree(PathPtr& path);
 
