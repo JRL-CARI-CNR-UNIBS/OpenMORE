@@ -58,7 +58,7 @@ bool AIPRO::mergePathToTree(PathPtr &path)
           max_dist = conn->norm();
       }
 
-      tree_ = std::make_shared<Tree>(path->getNodes().front(),Direction::Forward,max_dist,checker_,metrics_);
+      tree_ = std::make_shared<Tree>(path->getNodes().front(),max_dist,checker_,metrics_);
       tree_->addBranch(path->getConnections());
     }
 
