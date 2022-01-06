@@ -52,6 +52,7 @@ protected:
   std::vector<PathPtr> addAdmissibleCurrentPath(const int &idx_current_conn, PathPtr& admissible_current_path);
   std::vector<node_and_path> sortNodesOnDistance(const NodePtr& node);
   std::vector<NodePtr> startNodes(const std::vector<ConnectionPtr>& subpath1_conn);
+  PathPtr getSubpath1(const ConnectionPtr& current_conn, NodePtr& current_node);
   PathPtr concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn, const std::vector<ConnectionPtr>& path2_subpath_conn);
   PathPtr bestExistingSolution(const PathPtr& subpath1, const std::vector<PathPtr> &reset_other_paths);
   double maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle);
