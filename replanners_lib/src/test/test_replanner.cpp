@@ -122,10 +122,12 @@ int main(int argc, char **argv)
   pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler);
   //  pathplan::AnytimeRRTPtr solver = std::make_shared<pathplan::AnytimeRRT>(metrics, checker, sampler);
 
-  solver->setMaxDistance(0.5);
   pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
 
   disp->displayPathAndWaypoints(current_path,1,1000,"pathplan",{0.5,0.5,0.0,1.0});
+
+  std::vector<pathplan::PathPtr> all_paths;
+  all_paths.push_back(current_path);
 
   int n_conn = 1;
   Eigen::VectorXd parent = current_path->getConnections().at(n_conn)->getParent()->getConfiguration();
@@ -183,6 +185,7 @@ int main(int argc, char **argv)
     for(unsigned int i=0;i<n_other_paths;i++)
     {
       ROS_INFO_STREAM("Computing path number: "<<i+1);
+      ROS_INFO_STREAM("MAX DIST: "<<solver->getMaxDistance());
       pathplan::PathPtr path = trajectory.computePath(start_conf,goal_conf,solver,false);
       disp->displayPathAndWaypoints(path,id_path,id_wp,"pathplan",{0.0,0.0,1.0,1.0});
 
@@ -196,6 +199,8 @@ int main(int argc, char **argv)
           assert(0);
       }
     }
+
+    all_paths.insert(all_paths.end(),other_paths.begin(),other_paths.end());
 
     pathplan::AIPROPtr aipro_replanner =  std::make_shared<pathplan::AIPRO>(current_configuration,current_path,max_time,solver);
     aipro_replanner->setDisp(disp);
@@ -295,7 +300,24 @@ int main(int argc, char **argv)
 
     if(success)
     {
+      disp->nextButton("----------------------------------------------------------------");
+      disp->clearMarkers();
+
+      int id_path = 500;
+      int id_wp = 2000;
       std::vector<double> marker_color;
+      for(unsigned int ii=0;ii<all_paths.size();ii++)
+      {
+        pathplan::PathPtr p = all_paths.at(ii);
+
+        ii==0? marker_color = {0.5,0.5,0.0,1.0} : marker_color = {1.0,0.0,0.0,1.0};
+
+        disp->displayPathAndWaypoints(p,id_path,id_wp,"pathplan",{0.0,0.0,1.0,1.0});
+
+        id_path += 50;
+        id_wp += 1000;
+      }
+
       marker_color = {1.0,1.0,0.0,1.0};
 
       std::vector<double> marker_scale(3,0.01);
@@ -307,9 +329,6 @@ int main(int argc, char **argv)
     }
     else
       break;
-
-    if(i<((unsigned int)n_iter-1))
-      disp->nextButton();
 
     if(i < (unsigned int)n_iter-1)
     {
@@ -328,24 +347,8 @@ int main(int argc, char **argv)
 
     replanner->setCurrentConf(current_configuration);
     replanner->setCurrentPath(current_path);
-
-    ROS_WARN("----------------------------------------------------------------");
   }
 
-  replanner->setCurrentConf(current_path->getWaypoints().front());
-  success =  replanner->replan();
-  if(success)
-  {
-    std::vector<double> marker_color;
-    marker_color = {1.0,1.0,0.0,1.0};
-
-    std::vector<double> marker_scale(3,0.01);
-    disp->changeConnectionSize(marker_scale);
-    disp->displayPath(replanner->getReplannedPath(),6000,"pathplan",marker_color);
-
-    bool valid =replanner->getReplannedPath()->isValid();
-    ROS_INFO_STREAM("replanned path valid: "<<valid);
-  }
 
   return 0;
 }

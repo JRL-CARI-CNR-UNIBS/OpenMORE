@@ -312,9 +312,6 @@ std::vector<NodePtr> AIPRO::startNodes(const std::vector<ConnectionPtr>& subpath
     }
   }
 
-  if(start_node_vector.size()>1)
-    std::reverse(start_node_vector.begin(),start_node_vector.end()); //to start replanning from the farthest node
-
   return start_node_vector;
 }
 
@@ -342,9 +339,11 @@ PathPtr AIPRO::bestExistingSolution(const PathPtr& subpath1, const std::vector<P
   NodePtr current_node = subpath1->getConnections().front()->getParent();
   double best_cost = subpath1->cost();
 
+  unconnected_nodes_.clear();
+  assert(unconnected_nodes_.empty());
+
   std::vector<NodePtr> start_node_vector = startNodes(subpath1->getConnectionsConst());
 
-  unconnected_nodes_.clear();
   for(const NodePtr& start_node:start_node_vector)
   {
     std::vector<node_and_path> unconnected_goals_and_paths;
@@ -394,6 +393,21 @@ PathPtr AIPRO::bestExistingSolution(const PathPtr& subpath1, const std::vector<P
         {
           for(const std::pair<double,std::vector<ConnectionPtr>>& tmp_pair:tmp_map)
           {
+            if(path2_node == goal) //the goal (only the goal) is connected to the other paths through NetConnections, these solutions should be discarded
+            {
+              bool sol_valid = true;
+              for(const PathPtr& path:admissible_other_paths_)
+              {
+                if(tmp_pair.second.back() == path->getConnections().back())
+                {
+                  sol_valid = false;
+                  break;
+                }
+              }
+              if(!sol_valid)
+                continue;
+            }
+
             if(tmp_pair.second.front() != connection_on_current_path)
             {
               node_and_path tmp_goal_and_path;
@@ -444,6 +458,7 @@ PathPtr AIPRO::bestExistingSolution(const PathPtr& subpath1, const std::vector<P
     disp_->changeNodeSize({0.025,0.025,0.025});
     disp_->changeConnectionSize({0.025,0.025,0.025});
 
+    int n_sol = 0;
     for(const std::pair<double,solution_struct>& solution_pair:existing_solutions)
     {
       std::vector<int> id_to_delete;
@@ -466,9 +481,9 @@ PathPtr AIPRO::bestExistingSolution(const PathPtr& subpath1, const std::vector<P
 
       PathPtr disp_path = std::make_shared<Path>(connection2display,metrics_,checker_);
 
+      n_sol++;
       id_to_delete.push_back(disp_->displayPath(disp_path));
-      disp_->nextButton("Displaying an existing solution with cost " + std::to_string(disp_path->cost()));
-      disp_->defaultConnectionSize();
+      disp_->nextButton("Displaying the "+std::to_string(n_sol)+"° existing solution (cost " + std::to_string(disp_path->cost())+")");
       for(const int& id:id_to_delete)
         disp_->clearMarker(id);
     }
@@ -543,6 +558,22 @@ PathPtr AIPRO::bestExistingSolution(const PathPtr& subpath1, const std::vector<P
     solution = std::make_shared<Path>(solution_conns,metrics_,checker_);
   else
     solution = subpath1;
+
+  // ///////////////ELIMINA///////////////////
+  for(const unconnected_nodes& un:unconnected_nodes_)
+  {
+    bool found = false;
+    for(const NodePtr& n:subpath1->getNodes())
+    {
+      if(un.start_node==n)
+      {
+        found = true;
+        break;
+      }
+    }
+    assert(found);
+  }
+  // //////////////////////////////////////////
 
   return solution;
 }
@@ -1345,6 +1376,7 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
 
         previous_cost = replanned_path_cost;
         replanned_path = candidate_solution;
+        replanned_path->setTree((tree_));
         replanned_path_cost = candidate_solution->cost();
 
         success = true;
@@ -1400,6 +1432,24 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
         replanned_path = bestExistingSolution(subpath1,reset_other_paths);
         replanned_path_cost = replanned_path->cost();
 
+        ROS_INFO_STREAM("cost subpath1: "<<subpath1->cost()<<" cost replanned path: "<<replanned_path_cost);
+
+        // ///////////////ELIMINA///////////////////
+        for(const unconnected_nodes& un:unconnected_nodes_)
+        {
+          bool found = false;
+          for(const NodePtr& n:replanned_path->getNodes())
+          {
+            if(un.start_node==n)
+            {
+              found = true;
+              break;
+            }
+          }
+          assert(found);
+        }
+        // //////////////////////////////////////////
+
         j = unconnected_nodes_.size(); //then j=j-1
 
         if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
@@ -1450,7 +1500,8 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
   {
     success_ = true;
     replanned_path_ = replanned_path;
-    replanned_path_->setTree(tree_);
+    if(!replanned_path_->getTree())
+      assert(0);
 
     if(replanned_paths_vector.size()>10)
     {

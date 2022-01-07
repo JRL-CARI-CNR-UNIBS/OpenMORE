@@ -11,6 +11,7 @@ max_time: 0.2
 start_configuration: [0.2, 0.2, 0.2]
 stop_configuration: [0.8, 0.8, 0.8]
 n_iter: 2
+max_distance: 0.2
 
 to_goal:
   n_threads_replan: 5
