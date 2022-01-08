@@ -10,8 +10,11 @@ group_name: "cartesian_arm"
 start_configuration: [0.2, 0.2, 0.2]
 stop_configuration: [0.8, 0.8, 0.8]
 max_distance: 0.2
+extend: false
+utopia_tolerance: 0.05
 max_time: 0.2
 n_iter: 2
+display: true
 
 to_goal:
   n_threads_replan: 5

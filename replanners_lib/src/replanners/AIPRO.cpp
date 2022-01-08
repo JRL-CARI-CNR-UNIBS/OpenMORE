@@ -842,10 +842,10 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
     connections.push_back(net_conn);
     connecting_path->setConnections(connections);
 
-    if(!subtree->isInTree(path2_node_fake))
-      assert(0);
-
     last_conn->remove();
+
+    if(path2_node->parent_connections_.size()>1)
+      assert(0);
   }
 
   std::vector<NodePtr>::iterator it;
@@ -1431,24 +1431,6 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
         subpath1 = replanned_path;
         replanned_path = bestExistingSolution(subpath1,reset_other_paths);
         replanned_path_cost = replanned_path->cost();
-
-        ROS_INFO_STREAM("cost subpath1: "<<subpath1->cost()<<" cost replanned path: "<<replanned_path_cost);
-
-        // ///////////////ELIMINA///////////////////
-        for(const unconnected_nodes& un:unconnected_nodes_)
-        {
-          bool found = false;
-          for(const NodePtr& n:replanned_path->getNodes())
-          {
-            if(un.start_node==n)
-            {
-              found = true;
-              break;
-            }
-          }
-          assert(found);
-        }
-        // //////////////////////////////////////////
 
         j = unconnected_nodes_.size(); //then j=j-1
 

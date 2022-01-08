@@ -10,7 +10,7 @@
 
   <node pkg="replanners_lib"
         name="crash_test_replanners"
-        type="test_replanners"
+        type="crash_test_replanners"
         output="screen"
         launch-prefix="gdb -ex run --args" >
   </node>

@@ -59,6 +59,12 @@ int main(int argc, char **argv)
     return 0;
   }
 
+  bool display;
+  if (!nh.getParam("display",display))
+  {
+    display = false;
+  }
+
   //  ///////////////////////////////////UPLOADING THE ROBOT ARM/////////////////////////////////////////////////////////////
 
   moveit::planning_interface::MoveGroupInterface move_group(group_name);
@@ -122,15 +128,22 @@ int main(int argc, char **argv)
   delta[0] = 0.0;
 
   double distance;
-  for(unsigned int i=0; i<(unsigned int)n_iter; i++)
+  for(int i=0; i<n_iter; i++)
   {
+    ROS_INFO("----------------------------------------------------------");
     distance = (goal_conf-start_conf).norm();
+    ROS_INFO_STREAM("Iter n: "<<std::to_string(i)<<" start: "<<start_conf.transpose()<< " goal: "<<goal_conf.transpose()<< " distance: "<<distance);
 
     pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf,goal_conf,lb,ub);
     pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics,checker,sampler);
 
     std::srand(std::time(NULL));
     pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
+
+    pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name,last_link);
+
+    if(display)
+      disp->displayPath(current_path);
 
     std::vector<pathplan::PathPtr> all_paths;
     all_paths.push_back(current_path);
@@ -140,12 +153,15 @@ int main(int argc, char **argv)
     Eigen::VectorXd parent = current_path->getConnections().at(n_conn)->getParent()->getConfiguration();
     Eigen::VectorXd child = current_path->getConnections().at(n_conn)->getChild()->getConfiguration();
 
-    Eigen::VectorXd current_configuration = parent + (child-parent)*0.05;
+    Eigen::VectorXd current_configuration = parent + (child-parent)*0.1;
+
+    if(display)
+      disp->displayNode(std::make_shared<pathplan::Node>(current_configuration));
     //    // ///////////////////////////ADDING THE OBSTACLE ////////////////////////////////////////////////
     if (!add_obj.waitForExistence(ros::Duration(10)))
     {
       ROS_FATAL("srv not found");
-          return 1;
+      return 1;
     }
 
     object_loader_msgs::AddObjects add_srv;
@@ -201,7 +217,9 @@ int main(int argc, char **argv)
     if(!checker->check(current_configuration))
       continue;
 
-    current_path->isValid();
+    bool valid = current_path->isValid();
+
+    ROS_INFO_STREAM("Path valid: "<<valid);
 
     // //////////////////////////////////////////DEFINING THE REPLANNER//////////////////////////////////////////////
     pathplan::ReplannerBasePtr replanner = NULL;
@@ -258,7 +276,7 @@ int main(int argc, char **argv)
 
     //      /////////////////////////////////////REPLANNING ////////////////////////////////////////////////////////
     bool success;
-    for(unsigned int j=0;j<2;j++)
+    for(int j=0;j<2;j++)
     {
       ros::WallTime tic = ros::WallTime::now();
       success =  replanner->replan();
@@ -275,19 +293,28 @@ int main(int argc, char **argv)
 
       if(success)
       {
-        ROS_INFO_STREAM("Iter n°: "<<i<<"_"<<j<<" success: "<<success<<" duration: "<<(toc-tic).toSec()<<" distance: "<< distance<< " cost: "<<replanner->getReplannedPath()->cost());
+        ROS_INFO_STREAM("Cycle n: "<<std::to_string(j)<<" success: "<<success<<" duration: "<<(toc-tic).toSec()<<" cost: "<<replanner->getReplannedPath()->cost());
 
         current_path = replanner->getReplannedPath();
         replanner->setCurrentConf(current_configuration);
         replanner->setCurrentPath(current_path);
+
+        if(display)
+          disp->displayPath(current_path);
       }
       else
       {
         pathplan::PathPtr subpath1 = current_path->getSubpathFromConf(current_configuration,true);
 
-        ROS_INFO_STREAM("Iter n°: "<<i<<"_"<<j<<" success: "<<success<<" duration: "<<(toc-tic).toSec()<<" distance: "<< distance<< " subpath1 cost: "<<subpath1->cost()<<" subpath1 norm: "<<subpath1->getNormFromConf(current_configuration));
+        ROS_INFO_STREAM("Cycle n: "<<std::to_string(j)<<" success: "<<success<<" duration: "<<(toc-tic).toSec()<< " subpath1 cost: "<<subpath1->cost()<<" subpath1 norm: "<<subpath1->getNormFromConf(current_configuration));
         break;
       }
+    }
+
+    if(display)
+    {
+      disp->clearMarkers();
+      disp->nextButton();
     }
 
     start_conf = start_conf+delta;
