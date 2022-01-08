@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<launch>
+  <rosparam command="load" file="$(find replanners_lib)/config/object_test_replanner.yaml"/>
+  <rosparam command="load" file="$(find replanners_lib)/config/crash_test_replanner.yaml"/>
+  <include file="$(find cartesian_moveit_config)/launch/demo.launch"/>
+  <node pkg="object_loader" name="context_manager_node" type="context_manager_node" respawn="true" output="screen"/>
+
+  <rosparam command="load" file="$(find replanners_lib)/config/static_scene_cartesian.yaml"/>
+  <node pkg="object_loader" name="scene_spawner" type="scene_spawner" output="screen"/>
+
+  <node pkg="replanners_lib"
+        name="crash_test_replanners"
+        type="test_replanners"
+        output="screen"
+        launch-prefix="gdb -ex run --args" >
+  </node>
+
+</launch>
