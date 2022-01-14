@@ -5,7 +5,7 @@
   <include file="$(find cartesian_moveit_config)/launch/demo.launch"/>
   <node pkg="object_loader" name="context_manager_node" type="context_manager_node" respawn="true" output="screen"/>
 
-  <rosparam command="load" file="$(find replanners_lib)/config/static_scene_cartesian.yaml"/>
+  <rosparam command="load" file="$(find replanners_lib)/config/static_scene_crash_test.yaml"/>
   <node pkg="object_loader" name="scene_spawner" type="scene_spawner" output="screen"/>
 
   <node pkg="replanners_lib"

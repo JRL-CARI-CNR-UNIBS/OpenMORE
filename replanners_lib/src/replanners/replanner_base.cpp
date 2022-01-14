@@ -82,7 +82,8 @@ std::vector<ConnectionPtr> ReplannerBase::startReplannedTreeFromNewCurrentConf(c
     ConnectionPtr conn2delete = new_tree_branch_connections.at(0);
     NodePtr child = conn2delete->getChild();
 
-    ConnectionPtr new_conn = std::make_shared<Connection>(replanned_path_start,child);
+
+    ConnectionPtr new_conn = std::make_shared<Connection>(replanned_path_start,child); //NetConnection??
     new_conn->setCost(conn2delete->getCost());
     new_conn->add();
 
@@ -367,8 +368,11 @@ PathPtr ReplannerBase::concatConnectingPathAndSubpath2(const std::vector<Connect
     double conn1_cost = metrics_->cost(path1_node,node1);
     double conn2_cost = metrics_->cost(node2,path2_node);
 
-    ConnectionPtr conn1 = std::make_shared<Connection>(path1_node,node1);
-    ConnectionPtr conn2 = std::make_shared<Connection>(node2,path2_node);
+    ConnectionPtr conn1, conn2;
+    (node1->parent_connections_.size() == 0)? (conn1 = std::make_shared<Connection>(path1_node,node1)):
+                                              (conn1 = std::make_shared<NetConnection>(path1_node,node1));
+    (path2_node->parent_connections_.size() == 0)? (conn2 = std::make_shared<Connection>(node2,path2_node)):
+                                                   (conn2 = std::make_shared<NetConnection>(node2,path2_node));
 
     conn1->setCost(conn1_cost);
     conn2->setCost(conn2_cost);
@@ -385,7 +389,10 @@ PathPtr ReplannerBase::concatConnectingPathAndSubpath2(const std::vector<Connect
   }
   else
   {
-    ConnectionPtr conn1 = std::make_shared<Connection>(path1_node,path2_node);
+    ConnectionPtr conn1;
+    (path2_node->parent_connections_.size() == 0)? (conn1 = std::make_shared<Connection>(path1_node,path2_node)): //RIVEDI
+                                                   (conn1 = std::make_shared<NetConnection>(path1_node,path2_node));
+
     double conn1_cost =  metrics_->cost(path1_node,path2_node);
     conn1->setCost(conn1_cost);
     conn1->add();
