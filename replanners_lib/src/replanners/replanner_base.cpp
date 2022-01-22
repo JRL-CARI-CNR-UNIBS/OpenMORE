@@ -369,10 +369,10 @@ PathPtr ReplannerBase::concatConnectingPathAndSubpath2(const std::vector<Connect
     double conn2_cost = metrics_->cost(node2,path2_node);
 
     ConnectionPtr conn1, conn2;
-    (node1->parent_connections_.size() == 0)? (conn1 = std::make_shared<Connection>(path1_node,node1)):
-                                              (conn1 = std::make_shared<NetConnection>(path1_node,node1));
-    (path2_node->parent_connections_.size() == 0)? (conn2 = std::make_shared<Connection>(node2,path2_node)):
-                                                   (conn2 = std::make_shared<NetConnection>(node2,path2_node));
+    (node1->parent_connections_.size() == 0)? (conn1 = std::make_shared<Connection>(path1_node,node1,false)):
+                                              (conn1 = std::make_shared<Connection>(path1_node,node1,true));
+    (path2_node->parent_connections_.size() == 0)? (conn2 = std::make_shared<Connection>(node2,path2_node,false)):
+                                                   (conn2 = std::make_shared<Connection>(node2,path2_node,true));
 
     conn1->setCost(conn1_cost);
     conn2->setCost(conn2_cost);
@@ -390,8 +390,8 @@ PathPtr ReplannerBase::concatConnectingPathAndSubpath2(const std::vector<Connect
   else
   {
     ConnectionPtr conn1;
-    (path2_node->parent_connections_.size() == 0)? (conn1 = std::make_shared<Connection>(path1_node,path2_node)): //RIVEDI
-                                                   (conn1 = std::make_shared<NetConnection>(path1_node,path2_node));
+    (path2_node->parent_connections_.size() == 0)? (conn1 = std::make_shared<Connection>(path1_node,path2_node,false)): //RIVEDI
+                                                   (conn1 = std::make_shared<Connection>(path1_node,path2_node,true));
 
     double conn1_cost =  metrics_->cost(path1_node,path2_node);
     conn1->setCost(conn1_cost);

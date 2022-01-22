@@ -1,7 +1,6 @@
 #ifndef AIPRO_H__
 #define AIPRO_H__
 #include <replanners_lib/replanners/replanner_base.h>
-#include <graph_core/graph/net_connection.h>
 #include <graph_core/graph/net.h>
 
 #define TIME_PERCENTAGE_VARIABILITY 0.7
@@ -54,7 +53,7 @@ protected:
   std::vector<NodePtr> startNodes(const std::vector<ConnectionPtr>& subpath1_conn);
   PathPtr getSubpath1(const ConnectionPtr& current_conn, NodePtr& current_node);
   PathPtr searchForExistingSolutions(const PathPtr& subpath1, const std::vector<PathPtr> &reset_other_paths);
-  PathPtr bestExistingSolution(const PathPtr& subpath1, const std::vector<PathPtr> &reset_other_paths);
+  PathPtr bestExistingSolution(const PathPtr& subpath1);
   double maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle);
   void optimizePath(PathPtr &connecting_path, const double &max_time);
   bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node, const double &diff_subpath_cost, const PathPtr &current_solution, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &quickly_solved);
