@@ -125,6 +125,7 @@ int main(int argc, char **argv)
   Eigen::VectorXd delta = (goal_conf-start_conf)/(n_iter);
   delta[2] = 0.0;
 
+  int id_start,id_goal;
   double distance;
   for(int i=0; i<n_iter; i++)
   {
@@ -132,15 +133,16 @@ int main(int argc, char **argv)
     distance = (goal_conf-start_conf).norm();
     ROS_INFO_STREAM("Iter n: "<<std::to_string(i)<<" start: "<<start_conf.transpose()<< " goal: "<<goal_conf.transpose()<< " distance: "<<distance);
 
-    if(display)
-    {
-      disp->changeNodeSize();
-      disp->displayNode(std::make_shared<pathplan::Node>(start_conf),"pathplan",{1.0,0.0,0.0,1.0});
-      disp->displayNode(std::make_shared<pathplan::Node>(goal_conf),"pathplan",{1.0,0.0,0.0,1.0});
-      disp->defaultNodeSize();
+    disp->clearMarker(id_start);
+    disp->clearMarker(id_goal);
 
+    disp->changeNodeSize();
+    id_start = disp->displayNode(std::make_shared<pathplan::Node>(start_conf),"pathplan",{1.0,0.0,0.0,1.0});
+    id_goal = disp->displayNode(std::make_shared<pathplan::Node>(goal_conf),"pathplan",{1.0,0.0,0.0,1.0});
+    disp->defaultNodeSize();
+
+    if(display)
       disp->nextButton();
-    }
 
     if (!ps_client.call(ps_srv))
     {
@@ -166,11 +168,13 @@ int main(int argc, char **argv)
     {
       start_conf = start_conf+delta;
       goal_conf = goal_conf-delta;
+
+
       continue;
     }
 
     if(display)
-      disp->displayPath(current_path,"pathplan",{0.0,1.0,0.0,1.0});
+        disp->displayPath(current_path,"pathplan",{0.0,1.0,0.0,1.0});
 
     std::vector<pathplan::PathPtr> all_paths;
     all_paths.push_back(current_path);

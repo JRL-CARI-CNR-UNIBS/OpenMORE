@@ -13,11 +13,17 @@ struct node_and_path
   PathPtr path;
 };
 
-struct unconnected_nodes
+struct invalid_connection
 {
-  NodePtr start_node;
-  std::vector<node_and_path> goals_and_paths;
+  ConnectionPtr connection;
+  double cost;
 };
+
+//struct unconnected_nodes
+//{
+//  NodePtr start_node;
+//  std::vector<node_and_path> goals_and_paths;
+//};
 
 class AIPRO;
 typedef std::shared_ptr<AIPRO> AIPROPtr;
@@ -26,12 +32,13 @@ class AIPRO: public ReplannerBase
 {
 protected:
 
-  TreePtr tree_;
   NetPtr net_;
-  std::vector<PathPtr> replanned_paths_vector_;
+  TreePtr tree_;
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> admissible_other_paths_;
-  std::vector<unconnected_nodes> unconnected_nodes_;
+  std::vector<PathPtr> replanned_paths_vector_;
+  std::vector<invalid_connection> invalid_connections_;
+  //std::vector<unconnected_nodes> unconnected_nodes_;
 
   double time_first_sol_;
   double time_replanning_;

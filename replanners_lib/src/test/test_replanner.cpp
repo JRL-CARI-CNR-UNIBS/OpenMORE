@@ -226,6 +226,8 @@ int main(int argc, char **argv)
   ros::ServiceClient remove_obj=nh.serviceClient<object_loader_msgs::RemoveObjects>("remove_object_from_scene");
   pathplan::MoveitUtils moveit_utils(planning_scene,group_name);
 
+  object_loader_msgs::AddObjects add_srv;
+  object_loader_msgs::RemoveObjects remove_srv;
   for(unsigned int i=0; i<(unsigned int)n_iter; i++)
   {
     //    /////////////////////////////////////////// VISUALIZATION OF CURRENT NODE ////////////////////////
@@ -238,8 +240,6 @@ int main(int argc, char **argv)
       return 1;
     }
 
-    object_loader_msgs::AddObjects add_srv;
-    object_loader_msgs::RemoveObjects remove_srv;
     object_loader_msgs::Object obj;
     obj.object_type="scatola";
 
@@ -253,7 +253,7 @@ int main(int argc, char **argv)
     tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
     obj.pose.header.frame_id="world";
 
-    if(i<(unsigned int)n_iter-1)
+    if((i%2) == 0)
     {
       add_srv.request.objects.push_back(obj);
       if (!add_obj.call(add_srv))
@@ -275,6 +275,13 @@ int main(int argc, char **argv)
         }
       }
     }
+    else
+      if (!remove_obj.call(remove_srv))
+      {
+        ROS_ERROR("call to srv not ok");
+        return 1;
+      }
+
     //      /////////////////////////////////////UPDATING THE PLANNING SCENE WITH THE NEW OBSTACLE ////////////////////////////////////////
     if (!ps_client.call(ps_srv))
     {
@@ -295,7 +302,14 @@ int main(int argc, char **argv)
     tic = ros::WallTime::now();
     success =  replanner->replan();
     toc = ros::WallTime::now();
-
+    if((i%2 != 0))
+    {
+      if (!remove_obj.call(remove_srv))
+      {
+        ROS_ERROR("call to srv not ok");
+        return 1;
+      }
+    }
     ROS_INFO_STREAM("Replanner -> "<<replanner_type<<" Duration: "<<(toc-tic).toSec()<<" success: "<<success);
 
     if(success)
@@ -330,25 +344,19 @@ int main(int argc, char **argv)
     else
       break;
 
-    if(i < (unsigned int)n_iter-1)
-    {
-      if (!remove_obj.call(remove_srv))
-      {
-        ROS_ERROR("call to srv not ok");
-        return 1;
-      }
-    }
-
     current_path = replanner->getReplannedPath();
 
-    Eigen::VectorXd parent = current_path->getConnections().at(n_conn)->getParent()->getConfiguration();
-    Eigen::VectorXd child = current_path->getConnections().at(n_conn)->getChild()->getConfiguration();
-    current_configuration = parent + (child-parent)*0.1;
+//    Eigen::VectorXd parent = current_path->getConnections().at(n_conn)->getParent()->getConfiguration();
+//    Eigen::VectorXd child = current_path->getConnections().at(n_conn)->getChild()->getConfiguration();
+//    current_configuration = parent + (child-parent)*0.1;
 
     replanner->setCurrentConf(current_configuration);
     replanner->setCurrentPath(current_path);
   }
 
+  disp->nextButton("Display final tree");
+  disp->clearMarkers();
+  disp->displayTree(current_path->getTree());
 
   return 0;
 }
