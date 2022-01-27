@@ -169,12 +169,11 @@ int main(int argc, char **argv)
       start_conf = start_conf+delta;
       goal_conf = goal_conf-delta;
 
-
       continue;
     }
 
     if(display)
-        disp->displayPath(current_path,"pathplan",{0.0,1.0,0.0,1.0});
+      disp->displayPath(current_path,"pathplan",{0.0,1.0,0.0,1.0});
 
     std::vector<pathplan::PathPtr> all_paths;
     all_paths.push_back(current_path);
@@ -184,7 +183,7 @@ int main(int argc, char **argv)
     Eigen::VectorXd parent = current_path->getConnections().at(n_conn)->getParent()->getConfiguration();
     Eigen::VectorXd child = current_path->getConnections().at(n_conn)->getChild()->getConfiguration();
 
-    Eigen::VectorXd current_configuration = parent + (child-parent)*0.1;
+    Eigen::VectorXd current_configuration = parent + (child-parent)*0.2;
     ROS_INFO_STREAM("Current configuration: "<<current_configuration.transpose());
 
     if(display)
@@ -226,14 +225,17 @@ int main(int argc, char **argv)
       std::vector<pathplan::PathPtr> other_paths;
       for(unsigned int i=0;i<n_other_paths;i++)
       {
-        solver->resetProblem();
-        pathplan::PathPtr path = trajectory.computePath(start_conf,goal_conf,solver,false);
+        pathplan::RRTPtr solver2 = std::make_shared<pathplan::RRT>(metrics,checker,sampler);
+        pathplan::PathPtr path = trajectory.computePath(start_conf,goal_conf,solver2,true);
 
         if(path)
         {
           other_paths.push_back(path);
           if(!path->getTree())
             assert(0);
+
+          if(display)
+            disp->displayPath(current_path,"pathplan",{0.0,0.0,1.0,1.0});
         }
       }
 
@@ -324,10 +326,13 @@ int main(int argc, char **argv)
       continue;
     }
 
-    bool valid = current_path->isValid();
-    ROS_INFO_STREAM("Path valid: "<<valid);
+    for(const pathplan::PathPtr& p:all_paths)
+      p->isValid();
 
     //      /////////////////////////////////////REPLANNING ////////////////////////////////////////////////////////
+    replanner->setDisp(disp);
+    replanner->setVerbosity(true);
+
     bool success;
     for(int j=0;j<2;j++)
     {
