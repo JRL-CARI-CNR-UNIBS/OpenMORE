@@ -59,7 +59,6 @@ protected:
   std::vector<node_and_path> sortNodesOnDistance(const NodePtr& node);
   std::vector<NodePtr> startNodes(const std::vector<ConnectionPtr>& subpath1_conn);
   PathPtr getSubpath1(const ConnectionPtr& current_conn, NodePtr& current_node);
-  PathPtr searchForExistingSolutions(const PathPtr& subpath1, const std::vector<PathPtr> &reset_other_paths);
   PathPtr bestExistingSolution(const PathPtr& subpath1);
   double maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle);
   void optimizePath(PathPtr &connecting_path, const double &max_time);
