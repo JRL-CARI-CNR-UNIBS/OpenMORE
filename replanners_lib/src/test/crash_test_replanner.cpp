@@ -270,7 +270,7 @@ int main(int argc, char **argv)
     if(n_conn == (current_path->getConnections().size()-1))
       obj_conn_pos = n_conn;
     else
-      obj_conn_pos = (std::rand() % (current_path->getConnections().size()-n_conn))+n_conn;
+      obj_conn_pos = (std::rand() % (current_path->getConnections().size()-1-n_conn))+n_conn;
 
     pathplan::ConnectionPtr obj_conn = current_path->getConnections().at(obj_conn_pos);
     pathplan::NodePtr obj_child = obj_conn->getChild();
@@ -323,15 +323,21 @@ int main(int argc, char **argv)
     {
       start_conf = start_conf+delta;
       goal_conf = goal_conf-delta;
+
+      if(!remove_obj.call(remove_srv))
+      {
+        ROS_ERROR("call to srv not ok");
+        return 1;
+      }
+
+      ROS_INFO("Current configuration in collision!");
       continue;
     }
 
     for(const pathplan::PathPtr& p:all_paths)
       p->isValid();
-
     //      /////////////////////////////////////REPLANNING ////////////////////////////////////////////////////////
     replanner->setDisp(disp);
-    replanner->setVerbosity(true);
 
     bool success;
     for(int j=0;j<2;j++)
@@ -366,7 +372,7 @@ int main(int argc, char **argv)
         if(display)
           disp->nextButton();
 
-        if (!remove_obj.call(remove_srv))
+        if(!remove_obj.call(remove_srv))
         {
           ROS_ERROR("call to srv not ok");
           return 1;
