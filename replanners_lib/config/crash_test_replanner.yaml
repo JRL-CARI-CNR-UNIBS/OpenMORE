@@ -1,11 +1,11 @@
 # Replanner strategy:
 # - replanner_to_goal
 # - DRRT*
-# - DRRT
+# -
 # - anytimeDRRT
 # - AIPRO
 
-replanner_type: "AIPRO"
+replanner_type: "DRRT"
 group_name: "cartesian_arm"
 start_configuration: [0.2,0.2,0.2]
 stop_configuration:  [0.8,0.8,0.8]

@@ -15,6 +15,9 @@ int main(int argc, char **argv)
 
   ros::NodeHandle nh;
 
+  nh.setParam("/max_distance",0.1);
+  std::srand(std::time(NULL));
+
   // ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   std::string group_name = "cartesian_arm";
@@ -65,7 +68,6 @@ int main(int argc, char **argv)
   }
 
   // //////////////////////////////////////////PATH PLAN & VISUALIZATION////////////////////////////////////////////////////////
-
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
   pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
 
@@ -86,6 +88,7 @@ int main(int argc, char **argv)
   {
     pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
     pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
+
     pathplan::PathPtr solution = trajectory.computePath(start_conf, goal_conf,solver,1);
     path_vector.push_back(solution);
 
@@ -103,48 +106,18 @@ int main(int argc, char **argv)
   pathplan::PathPtr current_path = path_vector.front();
   std::vector<pathplan::PathPtr> other_paths = {path_vector.at(1)};
 
-  Eigen::VectorXd parent = current_path->getConnections().at(1)->getParent()->getConfiguration();
-  Eigen::VectorXd child = current_path->getConnections().at(1)->getChild()->getConfiguration();
+  Eigen::VectorXd parent = current_path->getConnections().at(0)->getParent()->getConfiguration();
+  Eigen::VectorXd child = current_path->getConnections().at(0)->getChild()->getConfiguration();
 
   Eigen::VectorXd current_configuration = parent + (child-parent)*0.5;
   Eigen::VectorXd new_current_conf = parent + (child-parent)*0.1;
-
-
-  //  current_path->getConnections().at(3)->setCost(std::numeric_limits<double>::infinity());
-  //  current_path->cost();
 
   ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::AddObjects>("add_object_to_scene");
   pathplan::MoveitUtils moveit_utils(planning_scene,group_name);
 
   //    /////////////////////////////////////////// VISUALIZATION OF CURRENT NODE ////////////////////////
   disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),5000,"pathplan",{1.0,0.0,1.0,1.0});
-//  disp->displayNode(std::make_shared<pathplan::Node>(new_current_conf),5001,"pathplan",{0.0,1.0,1.0,1.0});
 
-//  pathplan::PathPtr subpath = current_path->getSubpathToConf(current_configuration,false);
-
-//  std::vector<double> marker_c= {1.0,1.0,0.0,1.0};
-//  std::vector<double> marker_scale(3,0.01);
-//  disp->changeConnectionSize(marker_scale);
-//  disp->displayPath(subpath,id,"pathplan",marker_c);
-
-//  disp->nextButton();
-
-//  Eigen::VectorXd parent2 = subpath->getConnections().at(1)->getParent()->getConfiguration();
-//  Eigen::VectorXd child2= subpath->getConnections().at(1)->getChild()->getConfiguration();
-
-//  subpath->setTree(current_path->getTree());
-//  pathplan::PathPtr subpath2 = subpath->getSubpathFromConf(new_current_conf,false);
-
-//  disp->changeConnectionSize(marker_scale);
-//  disp->displayPath(subpath2,id,"pathplan",marker_c);
-
-//  disp->nextButton();
-
-//  disp->clearMarkers();
-
-//  disp->displayPathAndWaypoints(current_path,id,id_wp,"pathplan",marker_c);
-
-//  return 0;
   //    // ///////////////////////////ADDING THE OBSTACLE ////////////////////////////////////////////////
   if (!add_obj.waitForExistence(ros::Duration(10)))
   {
@@ -167,7 +140,6 @@ int main(int argc, char **argv)
   tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
   obj.pose.header.frame_id="world";
 
-
   add_srv.request.objects.push_back(obj);
   if (!add_obj.call(add_srv))
   {
@@ -188,19 +160,12 @@ int main(int argc, char **argv)
   }
 
   checker->setPlanningSceneMsg(ps_srv.response.scene);
-
   //    /////////////////////////////////////////////////////PATH CHECKING & REPLANNING////////////////////////////////////
   bool valid;
   valid =current_path->isValid();
   ROS_INFO_STREAM("current path valid: "<<valid<<", cost: "<<current_path->cost());
 
   disp->nextButton();
-
-
-  // ///////////////////////////////////////// VISUALIZATION OF CURRENT NODE ///////////////////////////////////////////////////////////
-  std::vector<double> marker_color_sphere_actual = {1.0,0.0,1.0,1.0};
-  disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),id,"pathplan",marker_color_sphere_actual);
-  id++;
   // //////////////////////////////////////// REPLANNING & TEST ////////////////////////////////////////////////////////////////
   pathplan::SamplerPtr samp = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
   pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, samp);
@@ -245,7 +210,7 @@ int main(int argc, char **argv)
   parent_node = replanned_path_conn->getParent();
   child_node = replanned_path_conn->getChild();;
 
-  new_current_configuration = parent_node->getConfiguration()+0.1*(child_node->getConfiguration()-parent_node->getConfiguration());
+  new_current_configuration = parent_node->getConfiguration()+0.5*(child_node->getConfiguration()-parent_node->getConfiguration());
 
   rep->startReplannedPathFromNewCurrentConf(new_current_configuration);
 
@@ -300,23 +265,10 @@ int main(int argc, char **argv)
   disp->displayNode(std::make_shared<pathplan::Node>(new_current_configuration),id_new_curr_conf,"pathplan",marker_color_sphere_new_curr_conf);
 
   rep->setReplannedPath(replanned_path->clone());
-  //
-  //disp->nextButton("Starting replanned path from conf4 -> press NEXT");
-  //parent_node = replanned_path->getConnections().at(1)->getParent();
-  //child_node = replanned_path->getConnections().at(1)->getChild();
-  //
-  //new_current_configuration = parent_node->getConfiguration()+0.3*(child_node->getConfiguration()-parent_node->getConfiguration());
-  //
-  //rep->startReplannedPathFromNewCurrentConf(new_current_configuration);
-  //
-  //disp->displayPath(rep->getReplannedPath(),id,"pathplan",marker_color);
-  //disp->displayNode(std::make_shared<pathplan::Node>(new_current_configuration),id_new_curr_conf,"pathplan",marker_color_sphere_new_curr_conf);
-  //
-  //rep->setReplannedPath(replanned_path->clone());
-  //
-  disp->nextButton("Starting replanned path from conf5 -> press NEXT");
-  parent_node = current_path->getConnections().at(idx_replanned_path_start+1)->getParent();
-  child_node = current_path->getConnections().at(idx_replanned_path_start+1)->getChild();
+
+  disp->nextButton("Starting replanned path from conf4 -> press NEXT");
+  parent_node = current_path->getConnections().at(idx_replanned_path_start+2)->getParent();
+  child_node = current_path->getConnections().at(idx_replanned_path_start+2)->getChild();
 
   new_current_configuration = parent_node->getConfiguration()+0.3*(child_node->getConfiguration()-parent_node->getConfiguration());
 
@@ -329,7 +281,6 @@ int main(int argc, char **argv)
   }
   ROS_INFO_STREAM( rep->getReplannedPath()->getWaypoints().back().transpose());
 
-  disp->clearMarkers();
   disp->displayPath(rep->getReplannedPath(),id,"pathplan",marker_color);
   disp->displayNode(std::make_shared<pathplan::Node>(new_current_configuration),id_new_curr_conf,"pathplan",marker_color_sphere_new_curr_conf);
 

@@ -36,18 +36,15 @@ std::vector<ConnectionPtr> ReplannerBase::startReplannedTreeFromNewCurrentConf(c
   NodePtr goal = replanned_path_->getConnections().back()->getChild();
   NodePtr replanned_path_start = replanned_path_->getConnections().front()->getParent();
 
-  if(!tree->isInTree(replanned_path_start))
-    assert(0);
+  assert(tree->isInTree(replanned_path_start));
 
   //If the configuration matches to a node of the replanned path
   for(const NodePtr& node:replanned_path_->getNodes())
   {
     if(node->getConfiguration() == configuration)
     {
-      if(node->getConfiguration() == replanned_path_->getWaypoints().back())
-        assert(0);
-      if(!tree->isInTree(node))
-        assert(0);
+      assert(node->getConfiguration() != replanned_path_->getWaypoints().back());
+      assert(tree->isInTree(node));
 
       tree->changeRoot(node);
       path_connections = tree->getConnectionToNode(goal);
@@ -82,8 +79,7 @@ std::vector<ConnectionPtr> ReplannerBase::startReplannedTreeFromNewCurrentConf(c
     ConnectionPtr conn2delete = new_tree_branch_connections.at(0);
     NodePtr child = conn2delete->getChild();
 
-
-    ConnectionPtr new_conn = std::make_shared<Connection>(replanned_path_start,child); //NetConnection??
+    ConnectionPtr new_conn = std::make_shared<Connection>(replanned_path_start,child);
     new_conn->setCost(conn2delete->getCost());
     new_conn->add();
 
@@ -118,10 +114,9 @@ std::vector<ConnectionPtr> ReplannerBase::startReplannedTreeFromNewCurrentConf(c
 
       if(replanned_path_->getConnections().at(idx_current_conf_on_replanned)->getCost() == std::numeric_limits<double>::infinity())
       {
-        if(!checker_->checkConnection(conn))
-          cost = std::numeric_limits<double>::infinity();
-        else
-          cost = metrics_->cost(child->getConfiguration(),configuration);
+        checker_->checkConnection(conn)?
+              (cost = metrics_->cost(child->getConfiguration(),configuration)):
+              (cost = std::numeric_limits<double>::infinity());
       }
       else
         cost = metrics_->cost(child->getConfiguration(),configuration);
@@ -151,9 +146,11 @@ std::vector<ConnectionPtr> ReplannerBase::startReplannedTreeFromNewCurrentConf(c
       bool delete_conn = false;
       int idx = 0;
 
+      std::vector<ConnectionPtr> replanned_path_conns = replanned_path_->getConnections();
       for(unsigned int i=0;i<new_tree_branch_connections.size();i++)
       {
-        bool match = (new_tree_branch_connections.at(i)->getChild()->getConfiguration()  - replanned_path_->getConnections().at(i)->getChild()->getConfiguration()).norm()<1e-06;
+        bool match = (new_tree_branch_connections.at(i)->getChild()->getConfiguration()
+                      - replanned_path_conns.at(i)->getChild()->getConfiguration()).norm()<1e-06;
 
         if(match)
         {
@@ -163,14 +160,14 @@ std::vector<ConnectionPtr> ReplannerBase::startReplannedTreeFromNewCurrentConf(c
         else
           break;
 
-        if(delete_conn)
-          break;
+        //        if(delete_conn)
+        //          break;
       }
 
       ConnectionPtr new_conn;
       if(delete_conn)
       {
-        int new_size = new_tree_branch_connections.size()-1-idx;
+        int new_size = new_tree_branch_connections.size()-(idx+1);
         new_tree_branch_connections.insert(new_tree_branch_connections.begin(),new_tree_branch_connections.begin()+(idx+1),new_tree_branch_connections.end());
         new_tree_branch_connections.resize(new_size);
 
@@ -219,13 +216,11 @@ void ReplannerBase::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd &
   std::vector<ConnectionPtr> conn_replanned = replanned_path_->getConnections();
 
   //If the configuration matches to a node of the replanned path
-  for(const Eigen::VectorXd wp:replanned_path_->getWaypoints())
+  for(const Eigen::VectorXd& wp:replanned_path_->getWaypoints())
   {
     if(wp == configuration)
     {
-      if(wp == replanned_path_->getWaypoints().back())
-        assert(0);
-
+      assert(wp != replanned_path_->getWaypoints().back());
       replanned_path_ = replanned_path_->getSubpathFromNode(configuration);
       return;
     }
@@ -238,11 +233,9 @@ void ReplannerBase::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd &
   double abscissa_current_conf = current_path_->curvilinearAbscissaOfPoint(configuration,idx_current_conf);
   double abscissa_replanned_path_start = current_path_->curvilinearAbscissaOfPoint(replanned_path_start->getConfiguration(),idx_replanned_path_start);
 
-  if(abscissa_current_conf == abscissa_replanned_path_start) //the replanned path starts from the current configuration (redundant check)
-  {
-    return;
-  }
-  else if(abscissa_current_conf < abscissa_replanned_path_start)  //the replanned path starts from a position after the current one
+  assert(abscissa_current_conf != abscissa_replanned_path_start);
+
+  if(abscissa_current_conf < abscissa_replanned_path_start)  //the replanned path starts from a position after the current one
   {
     path_conf2replanned = current_path_->getSubpathToConf(replanned_path_start->getConfiguration(),true);
     path_conf2replanned = path_conf2replanned->getSubpathFromConf(configuration,true);
@@ -272,7 +265,8 @@ void ReplannerBase::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd &
 
       for(unsigned int i=0;i<conn_conf2replanned.size();i++)
       {
-        bool match = (conn_conf2replanned.at(i)->getChild()->getConfiguration()  - conn_replanned.at(i)->getChild()->getConfiguration()).norm()<1e-06;
+        bool match = (conn_conf2replanned.at(i)->getChild()->getConfiguration()
+                      - conn_replanned.at(i)->getChild()->getConfiguration()).norm()<1e-06;
 
         if(match)
         {
@@ -282,8 +276,8 @@ void ReplannerBase::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd &
         else
           break;
 
-        if(delete_conn)
-          break;
+        //        if(delete_conn)
+        //          break;
       }
 
       path_conf2replanned->flip();
@@ -291,7 +285,7 @@ void ReplannerBase::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd &
 
       if(delete_conn)
       {
-        path_connections.insert(path_connections.end(),conn_conf2replanned.begin(),conn_conf2replanned.begin()+(conn_conf2replanned.size()-1-idx));
+        path_connections.insert(path_connections.end(),conn_conf2replanned.begin(),conn_conf2replanned.begin()+(conn_conf2replanned.size()-(1+idx)));
         path_connections.insert(path_connections.end(),conn_replanned.begin()+(idx+1),conn_replanned.end());
       }
       else
@@ -304,109 +298,4 @@ void ReplannerBase::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd &
 
   replanned_path_->setConnections(path_connections);
 }
-
-bool ReplannerBase::computeConnectingPath(const NodePtr &path1_node_fake,
-                                          const NodePtr &path2_node_fake,
-                                          const double &diff_subpath_cost,
-                                          PathPtr &connecting_path,
-                                          bool &directly_connected)
-{
-  return computeConnectingPath(path1_node_fake,
-                               path2_node_fake,
-                               diff_subpath_cost,
-                               connecting_path,
-                               directly_connected,
-                               solver_);
-}
-
-bool ReplannerBase::computeConnectingPath(const NodePtr &path1_node_fake,
-                                          const NodePtr &path2_node_fake,
-                                          const double &diff_subpath_cost,
-                                          PathPtr &connecting_path,
-                                          bool &directly_connected,
-                                          TreeSolverPtr& solver)
-{
-  SamplerPtr sampler = std::make_shared<InformedSampler>(path1_node_fake->getConfiguration(), path2_node_fake->getConfiguration(), lb_, ub_,diff_subpath_cost);
-
-  solver->setSampler(sampler);
-  solver->resetProblem();
-  solver->addStart(path1_node_fake);
-
-  ros::WallTime tic_solver = ros::WallTime::now();
-  solver->addGoal(path2_node_fake,max_time_);
-  ros::WallTime toc_solver = ros::WallTime::now();
-
-  directly_connected = solver->solved();
-  bool solver_has_solved;
-
-  if(directly_connected)
-  {
-    connecting_path = solver->getSolution();
-    solver_has_solved = true;
-  }
-  else
-  {
-    double solver_time = max_time_-(toc_solver-tic_solver).toSec();
-    solver_has_solved = solver->solve(connecting_path,10000,solver_time);
-  }
-
-  return solver_has_solved;
-}
-
-PathPtr ReplannerBase::concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn,
-                                                       const std::vector<ConnectionPtr>& subpath2,
-                                                       const NodePtr& path1_node,
-                                                       const NodePtr& path2_node)
-{
-  std::vector<ConnectionPtr> new_connecting_path_conn;
-
-  if(connecting_path_conn.size()>1)
-  {
-    NodePtr node1 = connecting_path_conn.front()->getChild();
-    NodePtr node2 = connecting_path_conn.back()->getParent();
-
-    double conn1_cost = metrics_->cost(path1_node,node1);
-    double conn2_cost = metrics_->cost(node2,path2_node);
-
-    ConnectionPtr conn1, conn2;
-    (node1->parent_connections_.size() == 0)? (conn1 = std::make_shared<Connection>(path1_node,node1,false)):
-                                              (conn1 = std::make_shared<Connection>(path1_node,node1,true));
-    (path2_node->parent_connections_.size() == 0)? (conn2 = std::make_shared<Connection>(node2,path2_node,false)):
-                                                   (conn2 = std::make_shared<Connection>(node2,path2_node,true));
-
-    conn1->setCost(conn1_cost);
-    conn2->setCost(conn2_cost);
-
-    conn1->add();
-    conn2->add();
-
-    new_connecting_path_conn.push_back(conn1);
-    if(connecting_path_conn.size()>2) new_connecting_path_conn.insert(new_connecting_path_conn.end(), connecting_path_conn.begin()+1, connecting_path_conn.end()-1);
-    new_connecting_path_conn.push_back(conn2);
-
-    connecting_path_conn.front()->remove();
-    connecting_path_conn.back()->remove();
-  }
-  else
-  {
-    ConnectionPtr conn1;
-    (path2_node->parent_connections_.size() == 0)? (conn1 = std::make_shared<Connection>(path1_node,path2_node,false)): //RIVEDI
-                                                   (conn1 = std::make_shared<Connection>(path1_node,path2_node,true));
-
-    double conn1_cost =  metrics_->cost(path1_node,path2_node);
-    conn1->setCost(conn1_cost);
-    conn1->add();
-
-    new_connecting_path_conn.push_back(conn1);
-    connecting_path_conn.front()->remove();
-  }
-
-  if(!subpath2.empty())
-  {
-    new_connecting_path_conn.insert(new_connecting_path_conn.end(),subpath2.begin(),subpath2.end());
-  }
-
-  return std::make_shared<Path>(new_connecting_path_conn, metrics_, checker_);
-}
-
 }

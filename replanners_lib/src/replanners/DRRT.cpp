@@ -44,7 +44,7 @@ bool DynamicRRT::trimInvalidTree(NodePtr& node)
     if((ros::WallTime::now()-tic).toSec()>=max_time_)
       break;
 
-    if(!checker_->checkConnection(conn))
+    if(not checker_->checkConnection(conn))
     {
       NodePtr child = conn->getChild();
       tree->purgeFromHere(child,white_list,removed_nodes); //remove the successors and the connection from parent to child
@@ -67,15 +67,19 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
 
   //First thing to do: set the goal as the root
   NodePtr initial_goal = current_path_->getConnections().back()->getChild();
-  if(!current_path_->getTree()->changeRoot(initial_goal)) //revert the tree so the goal is the root
+  if(not current_path_->getTree()->changeRoot(initial_goal)) //revert the tree so the goal is the root
+  {
+    ROS_ERROR("The goal can't be set as root!");
     assert(0);
+  }
 
-  if(!tree_is_trimmed_)
+  if(not tree_is_trimmed_)
   {
     //Trim the tree
-    if(!trimInvalidTree(node))
+    if(not trimInvalidTree(node))
     {
-      ROS_INFO("Tree not trimmed");
+      if(verbose_)
+        ROS_INFO("Tree not trimmed");
       return false;
     }
     else
@@ -87,7 +91,7 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
   InformedSampler sampler (lb_,ub_,lb_,ub_);
 
   double time = (ros::WallTime::now()-tic).toSec();
-  while(time<max_time_ && !success_)
+  while(time<max_time_ && not success_)
   {
     NodePtr new_node;
     if(trimmed_tree_->extend(sampler.sample(),new_node))
@@ -126,13 +130,12 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
 bool DynamicRRT::replan()
 {
   double cost_from_conf = current_path_->getCostFromConf(current_configuration_);
-  ROS_INFO("COST FROM CONF: %f",cost_from_conf);
 
   if(cost_from_conf == std::numeric_limits<double>::infinity())
   {
     NodePtr node_replan;
 
-    if(!tree_is_trimmed_)
+    if(not tree_is_trimmed_)
     {
       ConnectionPtr conn = current_path_->findConnection(current_configuration_);
       node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
@@ -142,14 +145,14 @@ bool DynamicRRT::replan()
       node_replan = std::make_shared<Node>(current_configuration_);
     }
 
-    ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
+    if(verbose_)
+      ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
     regrowRRT(node_replan);
   }
   else //replan not needed
   {
-    if(!current_path_->isValidFromConf(current_configuration_))
-      assert(0);
+    assert(current_path_->isValidFromConf(current_configuration_));
 
     success_ = false;
     replanned_path_ = current_path_;

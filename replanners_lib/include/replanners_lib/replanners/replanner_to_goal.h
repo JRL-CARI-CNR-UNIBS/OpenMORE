@@ -24,8 +24,9 @@ protected:
   std::vector<NodePtr> node_to_delete_;
   std::mutex mtx_;
 
-  bool asyncComputeConnectingPath(const Eigen::VectorXd path1_node_conf, const Eigen::VectorXd path2_node_conf, const double diff_subpath_cost, const int index);
   PathPtr concatWithNewPathToGoal(const std::vector<ConnectionPtr>& connecting_path_conn, const NodePtr& path1_node);
+  bool asyncComputeConnectingPath(const Eigen::VectorXd path1_node_conf, const Eigen::VectorXd path2_node_conf, const double diff_subpath_cost, const int index);
+  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, const double &diff_subpath_cost, PathPtr &connecting_path, bool &directly_connected, TreeSolverPtr &solver);
   bool connect2goal(const NodePtr& node);
 
 public:
