@@ -1,15 +1,15 @@
 # Replanner strategy:
 # - replanner_to_goal
 # - DRRT*
-# -
+# - DRRT
 # - anytimeDRRT
 # - AIPRO
 
-replanner_type: "DRRT"
+replanner_type: "anytimeDRRT"
 group_name: "cartesian_arm"
 start_configuration: [0.2,0.2,0.2]
 stop_configuration:  [0.8,0.8,0.8]
-max_distance: 0.25
+max_distance: 0.3
 extend: false
 utopia_tolerance: 0.05
 max_time: 0.2

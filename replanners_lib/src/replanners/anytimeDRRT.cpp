@@ -8,8 +8,6 @@ AnytimeDynamicRRT::AnytimeDynamicRRT(Eigen::VectorXd& current_configuration,
                                      const double& max_time,
                                      const TreeSolverPtr &solver): DynamicRRT(current_configuration,current_path,max_time,solver)
 {
-  goal_conf_ = current_path->getConnections().back()->getChild()->getConfiguration();
-
   const std::type_info& ti1 = typeid(AnytimeRRT);
   const std::type_info& ti2 = typeid(*solver);
 
@@ -24,11 +22,9 @@ AnytimeDynamicRRT::AnytimeDynamicRRT(Eigen::VectorXd& current_configuration,
 
   solver_ = tmp_solver;
 
-  if(!solver_->getStartTree() || !solver_->getSolution())
-    assert(0);
-
-  if(!tmp_solver->solved())
-    assert(0);
+  assert(tmp_solver->solved());
+  assert(solver_->getSolution());
+  assert(solver_->getStartTree());
 }
 
 bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
@@ -52,18 +48,19 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
   {
     if(current_path_->getTree() != replanned_path_->getTree())
     {
-      ROS_INFO_STREAM("current path tree, replanned path tree: "<<current_path_->getTree()<<" "<<replanned_path_->getTree());
+      ROS_INFO_STREAM("Current path tree, replanned path tree: "<<current_path_->getTree()<<" "<<replanned_path_->getTree());
       assert(0);
     }
   }
+
   if(current_path_->getTree() != solver_->getStartTree())
   {
-    ROS_INFO_STREAM("current path tree, solver tree: "<<current_path_->getTree()<<" "<<solver_->getStartTree());
+    ROS_INFO_STREAM("Current path tree, solver tree: "<<current_path_->getTree()<<" "<<solver_->getStartTree());
     assert(0);
   }
 
-  if(!forced_cast_solver->getStartTree() || !forced_cast_solver->getSolution())
-    assert(0);
+  assert(forced_cast_solver->getStartTree());
+  assert(forced_cast_solver->getSolution());
 
   double path_cost = solver_->getSolution()->getCostFromConf(node->getConfiguration());
   double imprv = forced_cast_solver->getCostImpr();
@@ -75,12 +72,14 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
   while(time<max_time && n_fail<FAILED_ITER)
   {
     cost2beat = (1-imprv)*path_cost;
-    ROS_INFO_STREAM("path cost: "<<path_cost<<" cost2beat: "<<cost2beat);
+
+    if(verbose_)
+      ROS_INFO_STREAM("Path cost: "<<path_cost<<", cost2beat: "<<cost2beat);
 
     NodePtr start_node = std::make_shared<Node>(node->getConfiguration());
-    NodePtr goal_node  = std::make_shared<Node>(goal_conf_);
+    NodePtr goal_node  = std::make_shared<Node>(goal_node_->getConfiguration());
 
-    bool improved = forced_cast_solver->improve(start_node,goal_node,solution,cost2beat,1000,(max_time-time));
+    bool improved = forced_cast_solver->improve(start_node,goal_node,solution,cost2beat,10000,(max_time-time));
 
     if(improved)
     {
@@ -92,14 +91,18 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
       solver_->setStartTree(solution->getTree());
       solver_->setSolution(solution,true);
 
-      NodePtr initial_goal = replanned_path_->getNodes().back();
-      ROS_INFO_STREAM("goal after improve: "<<initial_goal<<*initial_goal);
+      if(verbose_)
+        ROS_INFO_STREAM("Improved cost: "<<path_cost);
 
-      if(!replanned_path_->getTree())
-        assert(0);
+      assert(replanned_path_->getTree());
     }
     else
+    {
       n_fail +=1;
+
+      if(verbose_)
+        ROS_INFO("Not improved");
+    }
 
     time = (ros::WallTime::now()-tic).toSec();
   }
@@ -112,13 +115,11 @@ bool AnytimeDynamicRRT::replan()
   ros::WallTime tic = ros::WallTime::now();
 
   double cost_from_conf = current_path_->getCostFromConf(current_configuration_);
-  ROS_INFO("COST FROM CONF: %f",cost_from_conf);
 
   if(cost_from_conf == std::numeric_limits<double>::infinity() || tree_is_trimmed_)
   {
     NodePtr node_replan;
-
-    if(!tree_is_trimmed_)
+    if(not tree_is_trimmed_)
     {
       ConnectionPtr conn = current_path_->findConnection(current_configuration_);
       node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
@@ -127,11 +128,12 @@ bool AnytimeDynamicRRT::replan()
     {
       node_replan = std::make_shared<Node>(current_configuration_);
     }
-    ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
+
+    if(verbose_)
+      ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
     if(regrowRRT(node_replan))
     {
-      ROS_WARN("REGROW");
       success_ = true;
 
       solver_->setStartTree(replanned_path_->getTree());
@@ -142,25 +144,20 @@ bool AnytimeDynamicRRT::replan()
       {
         solver_->setStartTree(replanned_path_->getTree());
         solver_->setSolution(replanned_path_,true);       //should be after setStartTree
-
-        for(const Eigen::VectorXd& wp:replanned_path_->getWaypoints())
-          ROS_INFO_STREAM("wp improved: "<<wp.transpose());
       }
-      ROS_INFO_STREAM("root after improve: "<<*replanned_path_->getTree()->getRoot());
     }
     else
     {
       success_ = false;
-      ROS_ERROR("Tree can not be regrown using regrowRRT");
+      if(verbose_)
+        ROS_ERROR("Tree can not be regrown using regrowRRT");
 
-      if(!tree_is_trimmed_)
-        assert(0);
+      assert(tree_is_trimmed_);
     }
   }
   else //replan not needed
   {
-    if(tree_is_trimmed_)
-      assert(0);
+    assert(not tree_is_trimmed_);
 
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
     NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,false);
@@ -171,17 +168,15 @@ bool AnytimeDynamicRRT::replan()
     double max_time_impr = 0.98*max_time_-(ros::WallTime::now()-tic).toSec();
     if(improvePath(node_replan,max_time_impr))
     {
-      ROS_WARN("IMPROVED");
-
       solver_->setStartTree(replanned_path_->getTree());
-      solver_->setSolution(replanned_path_,true);       //should be after setStartTree
+      solver_->setSolution(replanned_path_,true);   //should be after setStartTree
 
       success_ = true;
     }
     else
       success_ = false;
 
-    if(!success_)
+    if(not success_)
       current_path_->removeNodes();
   }
 

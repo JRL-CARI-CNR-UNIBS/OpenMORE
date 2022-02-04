@@ -24,7 +24,7 @@ DynamicRRT::DynamicRRT(Eigen::VectorXd& current_configuration,
   }
 
   solver_ = tmp_solver;
-
+  goal_node_ = current_path_->getConnections().back()->getChild();
   tree_is_trimmed_ = false;
 }
 
@@ -66,8 +66,7 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
   success_ = false;
 
   //First thing to do: set the goal as the root
-  NodePtr initial_goal = current_path_->getConnections().back()->getChild();
-  if(not current_path_->getTree()->changeRoot(initial_goal)) //revert the tree so the goal is the root
+  if(not current_path_->getTree()->changeRoot(goal_node_)) //revert the tree so the goal is the root
   {
     ROS_ERROR("The goal can't be set as root!");
     assert(0);
@@ -108,7 +107,7 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
 
           //Set the root in the node and extract the new path
           trimmed_tree_->changeRoot(node);
-          replanned_path_ = std::make_shared<Path>(trimmed_tree_->getConnectionToNode(initial_goal), metrics_, checker_);
+          replanned_path_ = std::make_shared<Path>(trimmed_tree_->getConnectionToNode(goal_node_), metrics_, checker_);
           replanned_path_->setTree(trimmed_tree_);
 
           solver_->setStartTree(trimmed_tree_);

@@ -35,7 +35,9 @@ bool DynamicRRTStar::nodeBehindObs(NodePtr& node_behind)
       else
         node_behind = current_path_->getConnections().at(i)->getChild();
 
-      ROS_INFO_STREAM("Replanning goal: \n"<< *node_behind);
+      if(verbose_)
+        ROS_INFO_STREAM("Replanning goal: \n"<< *node_behind);
+
       return true;
     }
   }
@@ -48,18 +50,18 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
 {
   ros::WallTime tic = ros::WallTime::now();
 
-  bool tree_modified = false;
   success_ = false;
+  bool tree_modified = false;
   TreePtr tree = current_path_->getTree();
 
-  if(!tree->isInTree(node))
+  if(not tree->isInTree(node))
   {
     ROS_ERROR("The starting node for replanning doesn't belong to the tree");
     return false;
   }
 
   NodePtr replan_goal;
-  if(!nodeBehindObs(replan_goal))
+  if(not nodeBehindObs(replan_goal))
     return false;
 
   double radius = 1.5*((replan_goal->getConfiguration()-node->getConfiguration()).norm());
@@ -91,20 +93,18 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
       if(disp_)
         disp_->displayNode(new_node);
 
-      if(replan_goal->getParents().at(0) == new_node)
-      {
+      if(replan_goal->getParents().front() == new_node)
         success_ = true;
-      }
 
-      if(!success_)  //if success, i should not try to connect to goal but only rewire to improve the path
+      if(not success_)  //if success, i should not try to connect to goal but only rewire to improve the path
       {
         if((new_node->getConfiguration()-replan_goal->getConfiguration()).norm()<max_distance)
         {
           if(checker_->checkPath(new_node->getConfiguration(),replan_goal->getConfiguration()))
           {
-            if(replan_goal->getParents().size()>0)
+            if(not replan_goal->getParents().empty())
             {
-              replan_goal->parent_connections_.at(0)->remove(); //delete the connection between replan_goal and the old parent
+              replan_goal->parent_connections_.front()->remove(); //delete the connection between replan_goal and the old parent
               replan_goal->parent_connections_.clear();         //remove the old parent connections because now the parents of replan_goal come frome new_node
             }
 
@@ -149,35 +149,29 @@ bool DynamicRRTStar::replan()
 {
   double cost_from_conf = current_path_->getCostFromConf(current_configuration_);
 
-  ROS_INFO("COST FROM CONF: %f",cost_from_conf);
-
-  ROS_INFO_STREAM("ROOT IN REPLAN: "<< *(replanned_path_->getTree()->getRoot())<<"\n"<<replanned_path_->getTree()->getRoot());
-
   if(cost_from_conf == std::numeric_limits<double>::infinity())
   {
     NodePtr root = current_path_->getTree()->getRoot();
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
     NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
 
-    ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
+    if(verbose_)
+      ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
     bool tree_modified =  connectBehindObs(node_replan);
 
-    if(!tree_modified & success_)
-      assert(0);
+    assert(tree_modified && success_ || not success_);
 
     if(!tree_modified)
     {
       if(!replanned_path_->getTree()->changeRoot(root))
+      {
+        ROS_ERROR("Root can't be restored");
         assert(0);
+      }
+      assert(replanned_path_->getTree()->getRoot() != node_replan);
 
-      if(replanned_path_->getTree()->getRoot() == node_replan)
-        assert(0);
-
-      if(replanned_path_->removeNodes())
-        ROS_INFO("removed node");
-      else
-        ROS_INFO("node can not be removed");
+      replanned_path_->removeNodes();
     }
 
     if(tree_modified && disp_)
@@ -186,16 +180,12 @@ bool DynamicRRTStar::replan()
       disp_->displayTree(current_path_->getTree());
     }
 
-    ROS_INFO_STREAM("NUOVA ROOT IN REPLAN: "<< *(replanned_path_->getTree()->getRoot())<<"\n"<<replanned_path_->getTree()->getRoot());
-
-    return tree_modified; // tree can be changed also if success_ == false
+    return tree_modified; // maybe tree is changed also if success_ == false
   }
   else //replan not needed
   {
     success_ = false;
     replanned_path_ = current_path_;
-
-    ROS_INFO_STREAM("NUOVA ROOT IN REPLAN: "<< *(replanned_path_->getTree()->getRoot())<<"\n"<<replanned_path_->getTree()->getRoot());
 
     return false;
   }

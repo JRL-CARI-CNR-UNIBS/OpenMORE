@@ -117,7 +117,7 @@ int main(int argc, char **argv)
 
   pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name,last_link);
 
-  ros::Duration(1.0).sleep();
+  ros::Duration(0.1).sleep();
 
   Eigen::VectorXd start_conf = Eigen::Map<Eigen::VectorXd>(start_configuration.data(), start_configuration.size());
   Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
@@ -183,7 +183,7 @@ int main(int argc, char **argv)
     Eigen::VectorXd parent = current_path->getConnections().at(n_conn)->getParent()->getConfiguration();
     Eigen::VectorXd child = current_path->getConnections().at(n_conn)->getChild()->getConfiguration();
 
-    Eigen::VectorXd current_configuration = parent + (child-parent)*0.2;
+    Eigen::VectorXd current_configuration = parent + (child-parent)*0.1;
     ROS_INFO_STREAM("Current configuration: "<<current_configuration.transpose());
 
     if(display)
@@ -195,7 +195,7 @@ int main(int argc, char **argv)
       disp->nextButton();
     }
 
-    // //////////////////////////////////////////0.794DEFINING THE REPLANNER//////////////////////////////////////////////
+    // //////////////////////////////////////////DEFINING THE REPLANNER//////////////////////////////////////////////
     pathplan::ReplannerBasePtr replanner = NULL;
     if(replanner_type == "replanner_to_goal")
     {
@@ -241,7 +241,7 @@ int main(int argc, char **argv)
 
       all_paths.insert(all_paths.end(),other_paths.begin(),other_paths.end());
 
-      pathplan::AIPROPtr aipro_replanner =  std::make_shared<pathplan::AIPRO>(current_configuration,current_path,max_time,solver);
+      pathplan::AIPROPtr aipro_replanner = std::make_shared<pathplan::AIPRO>(current_configuration,current_path,max_time,solver);
       aipro_replanner->setOtherPaths(other_paths);
 
       replanner = aipro_replanner;
@@ -252,7 +252,9 @@ int main(int argc, char **argv)
       return 0;
     }
 
-    //    // ///////////////////////////ADDING THE OBSTACLE ////////////////////////////////////////////////
+    //      /////////////////////////////////////REPLANNING ////////////////////////////////////////////////////////
+    replanner->setDisp(disp);
+
     pathplan::MoveitUtils moveit_utils(planning_scene,group_name);
     if (!add_obj.waitForExistence(ros::Duration(10)))
     {
@@ -260,88 +262,101 @@ int main(int argc, char **argv)
       return 1;
     }
 
-    object_loader_msgs::AddObjects add_srv;
-    object_loader_msgs::RemoveObjects remove_srv;
-    object_loader_msgs::Object obj;
-    obj.object_type="scatola";
-
-    std::srand(std::time(NULL));
-    int obj_conn_pos;
-    if(n_conn == (current_path->getConnections().size()-1))
-      obj_conn_pos = n_conn;
-    else
-      obj_conn_pos = (std::rand() % (current_path->getConnections().size()-1-n_conn))+n_conn;
-
-    pathplan::ConnectionPtr obj_conn = current_path->getConnections().at(obj_conn_pos);
-    pathplan::NodePtr obj_child = obj_conn->getChild();
-    pathplan::NodePtr obj_parent = obj_conn->getParent();
-    Eigen::VectorXd obj_pos = obj_parent->getConfiguration() + 0.75*(obj_child->getConfiguration()-obj_parent->getConfiguration());
-
-    moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
-    tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
-    obj.pose.header.frame_id="world";
-
-    add_srv.request.objects.push_back(obj);
-    if (!add_obj.call(add_srv))
+    pathplan::PathPtr current_path_copy = current_path->clone();
+    bool in_collision = false;
+    bool success;
+    for(int j=0;j<3;j++)
     {
-      ROS_ERROR("call to srv not ok");
-      return 1;
-    }
+      object_loader_msgs::AddObjects add_srv;
+      object_loader_msgs::RemoveObjects remove_srv;
+      object_loader_msgs::Object obj;
+      obj.object_type="scatola";
 
-    if (!add_srv.response.success)
-    {
-      ROS_ERROR("srv error");
-      return 1;
-    }
-    else
-    {
-      remove_srv.request.obj_ids.clear();
-      for (const std::string& str: add_srv.response.ids)
+      if(j!=2)
       {
-        remove_srv.request.obj_ids.push_back(str);
+        std::vector<pathplan::ConnectionPtr> subpath_conns = current_path_copy->getSubpathFromConf(current_configuration,true)->getConnections();
+
+        std::srand(std::time(NULL));
+        int obj_conn_pos;
+        if(subpath_conns.size() == 1)
+          obj_conn_pos = 0;
+        else
+          obj_conn_pos = (std::rand() % (subpath_conns.size()));
+
+        pathplan::ConnectionPtr obj_conn = subpath_conns.at(obj_conn_pos);
+        pathplan::NodePtr obj_child = obj_conn->getChild();
+        pathplan::NodePtr obj_parent = obj_conn->getParent();
+        Eigen::VectorXd obj_pos = obj_parent->getConfiguration() + 0.75*(obj_child->getConfiguration()-obj_parent->getConfiguration());
+
+        moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
+        tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
+        obj.pose.header.frame_id="world";
+
+        add_srv.request.objects.push_back(obj);
+        if (!add_obj.call(add_srv))
+        {
+          ROS_ERROR("call to srv not ok");
+          return 1;
+        }
+
+        if (!add_srv.response.success)
+        {
+          ROS_ERROR("srv error");
+          return 1;
+        }
+        else
+        {
+          remove_srv.request.obj_ids.clear();
+          for (const std::string& str: add_srv.response.ids)
+          {
+            remove_srv.request.obj_ids.push_back(str);
+          }
+        }
+
+        ros::Duration(1).sleep();
       }
-    }
-
-    ros::Duration(1).sleep();
-
-    //      /////////////////////////////////////UPDATING THE PLANNING SCENE WITH THE NEW OBSTACLE ////////////////////////////////////////
-    if (!ps_client.call(ps_srv))
-    {
-      ROS_ERROR("call to srv not ok");
-      return 1;
-    }
-
-    if (!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
-    {
-      ROS_ERROR("unable to update planning scene");
-      return 1;
-    }
-
-    checker->setPlanningSceneMsg(ps_srv.response.scene);
-
-    if(!checker->check(current_configuration))
-    {
-      start_conf = start_conf+delta;
-      goal_conf = goal_conf-delta;
-
-      if(!remove_obj.call(remove_srv))
+      //  /////////////////////////////////////UPDATING THE PLANNING SCENE WITH THE NEW OBSTACLE ////////////////////////////////////////
+      if (!ps_client.call(ps_srv))
       {
         ROS_ERROR("call to srv not ok");
         return 1;
       }
 
-      ROS_INFO("Current configuration in collision!");
-      continue;
-    }
+      if (!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
+      {
+        ROS_ERROR("unable to update planning scene");
+        return 1;
+      }
 
-    for(const pathplan::PathPtr& p:all_paths)
-      p->isValid();
-    //      /////////////////////////////////////REPLANNING ////////////////////////////////////////////////////////
-    replanner->setDisp(disp);
+      checker->setPlanningSceneMsg(ps_srv.response.scene);
 
-    bool success;
-    for(int j=0;j<2;j++)
-    {
+      if(!checker->check(current_configuration))
+      {
+        start_conf = start_conf+delta;
+        goal_conf = goal_conf-delta;
+
+        if(j!=2)
+        {
+          if(!remove_obj.call(remove_srv))
+          {
+            ROS_ERROR("call to srv not ok");
+            return 1;
+          }
+        }
+
+        in_collision = true;
+        ROS_INFO("Current configuration in collision!");
+        break;
+      }
+
+      bool valid = current_path->isValid();
+      if(j != 2 && valid)
+        assert(0);
+
+      for(const pathplan::PathPtr& p:all_paths)
+        p->isValid();
+
+      // //////////////////////////////REPLANNING///////////////////////////////////////////////////
       ros::WallTime tic = ros::WallTime::now();
       success =  replanner->replan();
       ros::WallTime toc = ros::WallTime::now();
@@ -353,6 +368,8 @@ int main(int argc, char **argv)
         current_path = replanner->getReplannedPath();
         replanner->setCurrentPath(current_path);
 
+        current_path_copy = current_path->clone();
+
         current_configuration = current_path->getWaypoints().front();
         replanner->setCurrentConf(current_configuration);
 
@@ -361,24 +378,27 @@ int main(int argc, char **argv)
       }
       else
       {
-        pathplan::PathPtr subpath1 = current_path->getSubpathFromConf(current_configuration,true);
+        ROS_INFO_STREAM("-Cycle n: "<<std::to_string(j)<<" success: "<<success<<" duration: "<<(toc-tic).toSec());
 
-        ROS_INFO_STREAM("-Cycle n: "<<std::to_string(j)<<" success: "<<success<<" duration: "<<(toc-tic).toSec()<< " subpath1 cost: "<<subpath1->cost()<<" subpath1 norm: "<<subpath1->getNormFromConf(current_configuration));
-        break;
+        //pathplan::PathPtr subpath1 = current_path->getSubpathFromConf(current_configuration,true);
+        //ROS_INFO_STREAM("-Cycle n: "<<std::to_string(j)<<" success: "<<success<<" duration: "<<(toc-tic).toSec()<< " subpath1 cost: "<<subpath1->cost()<<" subpath1 norm: "<<subpath1->getNormFromConf(current_configuration));
+        //break;
       }
 
-      if(j == 0)
+      if(j != 2)
       {
-        if(display)
-          disp->nextButton();
-
         if(!remove_obj.call(remove_srv))
         {
           ROS_ERROR("call to srv not ok");
           return 1;
         }
+
+        ros::Duration(1).sleep();
       }
     }
+
+    if(in_collision)
+      continue;
 
     if(display)
     {
