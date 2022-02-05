@@ -110,7 +110,7 @@ protected:
   void spawnObjects()              ;
   void trajectoryExecutionThread() ;
   double readScalingTopics()       ;
-  std::vector<ConnectionPtr> connectCurrentConfToTree()  ;
+  std::vector<ConnectionPtr> connectCurrentConfToTree();
   bool detachAddedBranch(std::vector<NodePtr>& nodes, std::vector<double>& costs);
 
   virtual bool replan()=0                ;

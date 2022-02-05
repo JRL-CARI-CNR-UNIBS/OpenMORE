@@ -64,70 +64,84 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
   if(not nodeBehindObs(replan_goal))
     return false;
 
+  std::vector<NodePtr> black_list = current_path_->getNodes();
+  SubtreePtr subtree = pathplan::Subtree::createSubtree(tree,node,black_list);
+
   double radius = 1.5*((replan_goal->getConfiguration()-node->getConfiguration()).norm());
   LocalInformedSampler sampler (node->getConfiguration(),replan_goal->getConfiguration(),lb_,ub_,std::numeric_limits<double>::infinity());
   sampler.addBall(node->getConfiguration(),radius);
 
   //*  STEP 1: REWIRING  *//
-  tree->changeRoot(node);
+  //tree->changeRoot(node);
 
   std::vector<ConnectionPtr> checked_connections;
-  tree_modified = tree->rewireOnlyWithPathCheck(node,checked_connections,radius,2);
+  tree_modified = subtree->rewireOnlyWithPathCheck(node,checked_connections,radius,2); //rewire only children
 
   //*  STEP 2: ADDING NEW NODES AND SEARCHING WITH RRT*  *//
-  double max_distance = tree->getMaximumDistance();
+  double max_distance = subtree->getMaximumDistance();
 
-  if(disp_)
+  if(disp_ && verbose_)
     disp_->changeNodeSize({0.01,0.01,0.01});
 
+  double cost2goal = std::numeric_limits<double>::infinity();
+  double distance_new_node_goal, cost2new_node;
+
   ros::WallTime toc = ros::WallTime::now();
-  while(max_time_-((toc-tic).toSec())>0.0)
+  while(((0.98*max_time_)-((toc-tic).toSec()))>0.0)
   {
     NodePtr new_node;
     Eigen::VectorXd q=sampler.sample();
 
-    if(tree->rewireWithPathCheck(q,checked_connections,radius,new_node))
+    if(subtree->rewireWithPathCheck(q,checked_connections,radius,new_node))
     {
       tree_modified = true;  //at least a rewiring has been done
 
-      if(disp_)
+      if(disp_ && verbose_)
         disp_->displayNode(new_node);
 
-      if(replan_goal->getParents().front() == new_node)
-        success_ = true;
+      //      if(replan_goal->getParents().front() == new_node)
+      //        success_ = true;
 
-      if(not success_)  //if success, i should not try to connect to goal but only rewire to improve the path
+      assert(replan_goal->getParents().size() == 1);
+
+      distance_new_node_goal = (new_node->getConfiguration()-replan_goal->getConfiguration()).norm();
+      if(distance_new_node_goal > max_distance)
+        continue;
+
+      cost2new_node = subtree->costToNode(new_node);
+
+      //      if(not success_)  //if success, i should not try to connect to goal but only rewire to improve the path
+      if((cost2new_node+distance_new_node_goal) < cost2goal)
       {
-        if((new_node->getConfiguration()-replan_goal->getConfiguration()).norm()<max_distance)
+        if(checker_->checkPath(new_node->getConfiguration(),replan_goal->getConfiguration()))
         {
-          if(checker_->checkPath(new_node->getConfiguration(),replan_goal->getConfiguration()))
+          if(not replan_goal->getParents().empty())
           {
-            if(not replan_goal->getParents().empty())
-            {
-              replan_goal->parent_connections_.front()->remove(); //delete the connection between replan_goal and the old parent
-              replan_goal->parent_connections_.clear();         //remove the old parent connections because now the parents of replan_goal come frome new_node
-            }
-
-            double cost = metrics_->cost(new_node->getConfiguration(),replan_goal->getConfiguration());
-            ConnectionPtr conn = std::make_shared<Connection>(new_node,replan_goal);
-            conn->setCost(cost);
-
-            conn->add(); //add connection between new_node (the new parent) and replan_goal in parent_connections of replan_goal
-
-            success_ = true;
+            replan_goal->parent_connections_.front()->remove(); //delete the connection between replan_goal and the old parent
+            replan_goal->parent_connections_.clear();         //remove the old parent connections because now the parents of replan_goal come frome new_node
           }
+
+          double cost = metrics_->cost(new_node->getConfiguration(),replan_goal->getConfiguration());
+          ConnectionPtr conn = std::make_shared<Connection>(new_node,replan_goal);
+          conn->setCost(cost);
+          conn->add();
+
+          cost2goal = cost+cost2new_node;
+
+          success_ = true;
         }
       }
     }
+
     toc = ros::WallTime::now();
   }
 
-  if(disp_)
+  if(disp_ && verbose_)
     disp_->defaultNodeSize();
 
   if(tree_modified)
   {
-    std::vector<ConnectionPtr> new_connections = tree->getConnectionToNode(replan_goal);
+    std::vector<ConnectionPtr> new_connections = subtree->getConnectionToNode(replan_goal);
 
     if(replan_goal->getConfiguration() != current_path_->getWaypoints().back())
     {
@@ -162,9 +176,9 @@ bool DynamicRRTStar::replan()
 
     assert(tree_modified && success_ || not success_);
 
-    if(!tree_modified)
+    if(not tree_modified)
     {
-      if(!replanned_path_->getTree()->changeRoot(root))
+      if(not replanned_path_->getTree()->changeRoot(root))
       {
         ROS_ERROR("Root can't be restored");
         assert(0);
@@ -174,7 +188,7 @@ bool DynamicRRTStar::replan()
       replanned_path_->removeNodes();
     }
 
-    if(tree_modified && disp_)
+    if(tree_modified && disp_ && verbose_)
     {
       disp_->clearMarkers();
       disp_->displayTree(current_path_->getTree());
