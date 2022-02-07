@@ -5,7 +5,7 @@
 # - anytimeDRRT
 # - AIPRO
 
-replanner_type: "DRRT*"
+replanner_type: "AIPRO"
 group_name: "cartesian_arm"
 start_configuration: [0.2,0.2,0.2]
 stop_configuration:  [0.8,0.8,0.8]

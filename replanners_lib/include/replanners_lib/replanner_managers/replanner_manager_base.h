@@ -153,11 +153,11 @@ public:
     return pnt_unscaled;
   }
 
-  bool run()                                                                                      ;
-  bool start()                                                                                    ;
-  bool startWithoutReplanning()                                                                   ;
-  bool cancel()                                                                                   ;
-  bool stop()                                                                                     ;
+  bool run()                   ;
+  bool start()                 ;
+  bool startWithoutReplanning();
+  bool cancel()                ;
+  bool stop()                  ;
 
 };
 

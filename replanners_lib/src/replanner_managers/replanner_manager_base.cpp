@@ -14,8 +14,6 @@ ReplannerManagerBase::ReplannerManagerBase(PathPtr &current_path,
   subscribeTopicsAndServices();
 }
 
-// /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void ReplannerManagerBase::fromParam()
 {
   if(!nh_.getParam("trj_execution_thread_frequency",trj_exec_thread_frequency_))
@@ -652,8 +650,6 @@ void ReplannerManagerBase::displayThread()
 
   disp->clearMarkers();
 
-  //replanner_->setDisp(disp);  //ELIMINA
-
   double display_thread_frequency = 0.75*trj_exec_thread_frequency_;
   ros::Rate lp(display_thread_frequency);
 
@@ -661,7 +657,7 @@ void ReplannerManagerBase::displayThread()
   bool stop = stop_;
   stop_mtx_.unlock();
 
-  while(!stop && ros::ok())
+  while(not stop && ros::ok())
   {
     paths_mtx_.lock();
     pathplan::PathPtr current_path = current_path_shared_->clone();
@@ -735,18 +731,18 @@ void ReplannerManagerBase::spawnObjects()
   bool stop = stop_;
   stop_mtx_.unlock();
 
-  while(!stop && ros::ok())
+  while(not stop && ros::ok())
   {
     //    // ////////////////////////////////////////////SPAWNING THE OBJECT/////////////////////////////////////////////
-    if(real_time_>=2.0 && !second_object_spawned)
+    if(real_time_>=2.0 && not second_object_spawned)
     {
       second_object_spawned = true;
       object_spawned = false;
     }
 
-    if(!object_spawned && real_time_>=1.0)
+    if(not object_spawned && real_time_>=1.0)
     {
-      if (!add_obj_.waitForExistence(ros::Duration(10)))
+      if (not add_obj_.waitForExistence(ros::Duration(10)))
       {
         ROS_FATAL("srv not found");
       }
@@ -812,11 +808,11 @@ void ReplannerManagerBase::spawnObjects()
       srv_add_object.request.objects.push_back(obj);
 
       scene_mtx_.lock();
-      if (!add_obj_.call(srv_add_object))
+      if (not add_obj_.call(srv_add_object))
       {
         ROS_ERROR("call to srv not ok");
       }
-      if (!srv_add_object.response.success)
+      if (not srv_add_object.response.success)
       {
         ROS_ERROR("srv error");
       }
@@ -844,15 +840,15 @@ void ReplannerManagerBase::spawnObjects()
   ros::Duration(1).sleep();
 
   scene_mtx_.lock();
-  if (!remove_obj_.waitForExistence(ros::Duration(10)))
+  if (not remove_obj_.waitForExistence(ros::Duration(10)))
   {
     ROS_FATAL("srv not found");
   }
-  if (!remove_obj_.call(srv_remove_object))
+  if (not remove_obj_.call(srv_remove_object))
   {
     ROS_ERROR("call to srv not ok");
   }
-  if (!srv_remove_object.response.success)
+  if (not srv_remove_object.response.success)
   {
     ROS_ERROR("srv error");
   }

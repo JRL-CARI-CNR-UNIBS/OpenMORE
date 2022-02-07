@@ -64,21 +64,19 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
   if(not nodeBehindObs(replan_goal))
     return false;
 
-  std::vector<NodePtr> black_list = current_path_->getNodes();
-  SubtreePtr subtree = pathplan::Subtree::createSubtree(tree,node,black_list);
-
   double radius = 1.5*((replan_goal->getConfiguration()-node->getConfiguration()).norm());
   LocalInformedSampler sampler (node->getConfiguration(),replan_goal->getConfiguration(),lb_,ub_,std::numeric_limits<double>::infinity());
   sampler.addBall(node->getConfiguration(),radius);
 
   //*  STEP 1: REWIRING  *//
-  //tree->changeRoot(node);
+  tree->changeRoot(node);
 
   std::vector<ConnectionPtr> checked_connections;
-  tree_modified = subtree->rewireOnlyWithPathCheck(node,checked_connections,radius,2); //rewire only children
+  std::vector<NodePtr> white_list = current_path_->getNodes();
+  tree_modified = tree->rewireOnlyWithPathCheck(node,checked_connections,radius,white_list,2); //rewire only children
 
   //*  STEP 2: ADDING NEW NODES AND SEARCHING WITH RRT*  *//
-  double max_distance = subtree->getMaximumDistance();
+  double max_distance = tree->getMaximumDistance();
 
   if(disp_ && verbose_)
     disp_->changeNodeSize({0.01,0.01,0.01});
@@ -92,7 +90,7 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
     NodePtr new_node;
     Eigen::VectorXd q=sampler.sample();
 
-    if(subtree->rewireWithPathCheck(q,checked_connections,radius,new_node))
+    if(tree->rewireWithPathCheck(q,checked_connections,radius,white_list,new_node))
     {
       tree_modified = true;  //at least a rewiring has been done
 
@@ -108,7 +106,7 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
       if(distance_new_node_goal > max_distance)
         continue;
 
-      cost2new_node = subtree->costToNode(new_node);
+      cost2new_node = tree->costToNode(new_node);
 
       //      if(not success_)  //if success, i should not try to connect to goal but only rewire to improve the path
       if((cost2new_node+distance_new_node_goal) < cost2goal)
@@ -141,7 +139,7 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
 
   if(tree_modified)
   {
-    std::vector<ConnectionPtr> new_connections = subtree->getConnectionToNode(replan_goal);
+    std::vector<ConnectionPtr> new_connections = tree->getConnectionToNode(replan_goal);
 
     if(replan_goal->getConfiguration() != current_path_->getWaypoints().back())
     {

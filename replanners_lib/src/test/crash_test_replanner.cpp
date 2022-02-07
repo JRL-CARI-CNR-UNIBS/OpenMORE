@@ -357,6 +357,8 @@ int main(int argc, char **argv)
         p->isValid();
 
       // //////////////////////////////REPLANNING///////////////////////////////////////////////////
+      replanner->setMaxTime(max_time);
+
       ros::WallTime tic = ros::WallTime::now();
       success =  replanner->replan();
       ros::WallTime toc = ros::WallTime::now();

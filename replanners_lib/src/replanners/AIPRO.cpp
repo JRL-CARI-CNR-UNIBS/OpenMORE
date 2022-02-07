@@ -497,8 +497,6 @@ void AIPRO::optimizePath(PathPtr& path, const double& max_time)
 
 bool AIPRO::simplifyReplannedPath(const double& distance)
 {
-  int count = 0;
-
   bool simplify1 = false;
   bool simplify2 = false;
   bool simplified = false;
@@ -507,11 +505,9 @@ bool AIPRO::simplifyReplannedPath(const double& distance)
   {
     simplify1 = replanned_path_->removeNodes();
     simplify2 = replanned_path_->simplify(distance);
+
     if(simplify1 || simplify2)
-    {
-      count +=1;
       simplified = true;
-    }
   }
   while(simplify1 || simplify2);
 
@@ -780,11 +776,11 @@ bool AIPRO::pathSwitch(const PathPtr &current_path,
     double diff_subpath_cost = candidate_solution_cost - path2_subpath_cost; //it is the maximum cost to make the connecting_path convenient
     double utopia = metrics_->utopia(path1_node->getConfiguration(),path2_node->getConfiguration()); //the Euclidean distance is the minimum cost that the connecting_path can have
 
-        if(pathSwitch_disp_)
-        {
-          ROS_INFO_STREAM("candidate_solution_cost: "<<candidate_solution_cost<<" subpath2_cost: "<<path2_subpath_cost);
-          ROS_INFO_STREAM("diff_subpath_cost: "<< diff_subpath_cost<<" utopia: " << utopia);
-        }
+    if(pathSwitch_disp_)
+    {
+      ROS_INFO_STREAM("candidate_solution_cost: "<<candidate_solution_cost<<" subpath2_cost: "<<path2_subpath_cost);
+      ROS_INFO_STREAM("diff_subpath_cost: "<< diff_subpath_cost<<" utopia: " << utopia);
+    }
 
     //if the Euclidean distance between the two nodes is bigger than
     //the maximum cost for the connecting_path to be convenient,
@@ -1048,7 +1044,7 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
   const double TIME_LIMIT = 0.85*MAX_TIME; //seconds
   const int CONT_LIMIT = 5;
 
-  if(!informedOnlineReplanning_disp_ && available_time_<=0.0)
+  if(not informedOnlineReplanning_disp_ && available_time_<=0.0)
     return false;
 
   /*//////////////For display//////////////////*/
@@ -1068,10 +1064,9 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
   bool success = false;
   bool solved = false;
   bool first_sol = true;
-  bool no_available_paths = true;
   unsigned int cont = 0;
+  double previous_cost;
   double replanned_path_cost = std::numeric_limits<double>::infinity();
-  double previous_cost = current_path_->getCostFromConf(current_configuration_);
 
   success_ = false;
   an_obstacle_ = false;
@@ -1085,15 +1080,6 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
   admissible_other_paths_.clear();
   reset_other_paths = addAdmissibleCurrentPath(current_conn_idx,admissible_current_path);
   admissible_other_paths_ = reset_other_paths;
-
-  for(const PathPtr& path: admissible_other_paths_)
-  {
-    if(path->getConnections().back()->getCost() != std::numeric_limits<double>::infinity())
-    {
-      no_available_paths = false;
-      break;
-    }
-  }
 
   //Compute the subpath1
   NodePtr current_node;
@@ -1117,6 +1103,11 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
 
   replanned_path = bestExistingSolution(subpath1);  //if a solution is not found, replanned_path = subpath1
   replanned_path_cost = replanned_path->cost();
+  if(replanned_path != subpath1)  //if an already existing solution has been found (different from subpath1), success = true
+  {
+    success = true;
+    assert(replanned_path_cost<std::numeric_limits<double>::infinity());
+  }
 
   assert(replanned_path->getTree() == tree_);
 
@@ -1131,7 +1122,6 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
     disp_->nextButton("Press Next to start searching for a better solution");
   }
 
-  //int j = unconnected_nodes_.size()-1;
   std::vector<NodePtr> start_node_vector = startNodes(replanned_path->getConnectionsConst());
   int j = start_node_vector.size()-1;
   NodePtr start_node_for_pathSwitch;
