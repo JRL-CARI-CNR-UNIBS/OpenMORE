@@ -80,7 +80,6 @@ protected:
   std::thread col_check_thread_ ;
   std::thread trj_exec_thread_  ;
 
-  std::mutex checker_mtx_  ;
   std::mutex trj_mtx_      ;
   std::mutex paths_mtx_    ;
   std::mutex scene_mtx_    ;

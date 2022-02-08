@@ -170,7 +170,7 @@ bool DynamicRRTStar::replan()
     if(verbose_)
       ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
-    bool tree_modified =  connectBehindObs(node_replan);
+    bool tree_modified = connectBehindObs(node_replan);
 
     assert(tree_modified && success_ || not success_);
 
@@ -192,7 +192,7 @@ bool DynamicRRTStar::replan()
       disp_->displayTree(current_path_->getTree());
     }
 
-    return tree_modified; // maybe tree is changed also if success_ == false
+    return tree_modified; // maybe tree is changed also if success_ == false  VERIFICA: CON LA WHITE LIST ORA NON DOVREBBE CAMBIARE IL PATH
   }
   else //replan not needed
   {

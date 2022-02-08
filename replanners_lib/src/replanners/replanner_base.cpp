@@ -275,9 +275,6 @@ void ReplannerBase::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd &
         }
         else
           break;
-
-        //        if(delete_conn)
-        //          break;
       }
 
       path_conf2replanned->flip();
