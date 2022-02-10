@@ -125,6 +125,7 @@ public:
     tree_ = current_path_->getTree();
     net_->setTree(tree_);
     admissible_other_paths_ = other_paths_;
+    goal_node_ = current_path_->getConnections().back()->getChild();
     success_ = false;
   }
 

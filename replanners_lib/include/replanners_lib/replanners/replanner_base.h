@@ -35,6 +35,7 @@ protected:
   Eigen::VectorXd lb_;
   Eigen::VectorXd ub_;
   DisplayPtr disp_;
+  NodePtr goal_node_;
 
   bool success_;
   bool verbose_;
@@ -60,8 +61,9 @@ public:
 
   virtual void setCurrentPath(const PathPtr& path)
   {
-    current_path_ = path;
     success_ = false;
+    current_path_ = path;
+    goal_node_  = current_path_->getConnections().back()->getChild();
   }
 
   void setReplannedPath(const PathPtr& path)
@@ -83,6 +85,11 @@ public:
   {
     current_configuration_ = q;
     success_ = false;
+  }
+
+  NodePtr getGoal()
+  {
+    return goal_node_;
   }
 
   Eigen::VectorXd getCurrentConf()
@@ -114,9 +121,6 @@ public:
   {
     return success_;
   }
-
-  virtual std::vector<ConnectionPtr> startReplannedTreeFromNewCurrentConf(const Eigen::VectorXd &configuration, const PathPtr &current_path_copy);
-  virtual void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd &configuration);
 
   virtual bool replan() = 0;
 };

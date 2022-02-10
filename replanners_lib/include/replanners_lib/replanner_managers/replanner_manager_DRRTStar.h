@@ -14,9 +14,7 @@ class ReplannerManagerDRRTStar: public ReplannerManagerBase
 protected:
 
   bool haveToReplan(const bool path_obstructed);
-  bool replan();
   void initReplanner();
-  void connectToReplannedPath();
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -25,6 +23,7 @@ public:
                            TreeSolverPtr solver,
                            ros::NodeHandle &nh);
 
+  void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd &configuration);
 };
 
 }

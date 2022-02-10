@@ -14,11 +14,9 @@ class ReplannerManagerToGoal: public ReplannerManagerBase
 protected:
   int n_threads_replan_;
 
-  bool replan();
   bool haveToReplan(const bool path_obstructed);
   void initReplanner();
   void additionalParams();
-  void connectToReplannedPath();
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -27,6 +25,7 @@ public:
                          TreeSolverPtr solver,
                          ros::NodeHandle &nh);
 
+  void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd &configuration);
 };
 
 }

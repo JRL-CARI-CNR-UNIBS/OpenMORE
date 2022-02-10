@@ -37,10 +37,9 @@ bool AIPRO::mergePathToTree(PathPtr &path)
 {
   TreePtr path_tree = path->getTree();
   NodePtr path_goal = path->getConnections().back()->getChild();
-  NodePtr goal = current_path_->getConnections().back()->getChild();
 
   //Merging the root
-  if(!tree_)
+  if(not tree_)
   {
     if(path_tree)
       tree_ = path_tree;
@@ -159,10 +158,8 @@ bool AIPRO::mergePathToTree(PathPtr &path)
         path->setConnections(connections);
       }
 
-      if(path_tree)
-        tree_->addTree(path_tree);
-      else
-        tree_->addBranch(path->getConnections());
+      path_tree? tree_->addTree(path_tree):
+                 tree_->addBranch(path->getConnections());
 
       current_path_->setTree(tree_);
       path->setTree(tree_);
@@ -179,9 +176,9 @@ bool AIPRO::mergePathToTree(PathPtr &path)
   ConnectionPtr conn2delete = path->getConnections().back();
 
   ConnectionPtr new_goal_conn;
-  (goal->parent_connections_.size() == 0)?
-        (new_goal_conn = std::make_shared<Connection>(conn2delete->getParent(),goal,false)):
-        (new_goal_conn= std::make_shared<Connection>(conn2delete->getParent(),goal,true));
+  (goal_node_->parent_connections_.size() == 0)?
+        (new_goal_conn = std::make_shared<Connection>(conn2delete->getParent(),goal_node_,false)):
+        (new_goal_conn= std::make_shared<Connection>(conn2delete->getParent(),goal_node_,true));
 
   new_goal_conn->setCost(conn2delete->getCost());
   new_goal_conn->add();
@@ -335,11 +332,10 @@ PathPtr AIPRO::bestExistingSolution(const PathPtr& subpath1)
   std::multimap<double,std::vector<ConnectionPtr>> tmp_map;
   PathPtr solution;
 
-  NodePtr goal_node = subpath1->getConnections().back()->getChild();
   NodePtr current_node = subpath1->getConnections().front()->getParent();
   double best_cost = subpath1->cost();
 
-  tmp_map = net_->getConnectionBetweenNodes(current_node,goal_node);
+  tmp_map = net_->getConnectionBetweenNodes(current_node,goal_node_);
 
   if(informedOnlineReplanning_verbose_)
     ROS_INFO_STREAM(tmp_map.size()<<" solutions already exist!");
@@ -744,7 +740,6 @@ bool AIPRO::pathSwitch(const PathPtr &current_path,
   std::vector<double> marker_scale(3,0.01);
 
   bool success = false;
-  NodePtr goal = current_path->getConnections().back()->getChild();
 
   // Identifying the subpath of current_path starting from node
   PathPtr path1_subpath;
@@ -766,7 +761,7 @@ bool AIPRO::pathSwitch(const PathPtr &current_path,
     std::vector<ConnectionPtr> path2_subpath_conn;
     double path2_subpath_cost = 0.0;
 
-    if(path2_node != goal)
+    if(path2_node != goal_node_)
     {
       path2_subpath = path2->getSubpathFromNode(path2_node);
       path2_subpath_conn = path2_subpath->getConnections();

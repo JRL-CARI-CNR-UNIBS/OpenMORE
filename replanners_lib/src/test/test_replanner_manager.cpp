@@ -107,7 +107,7 @@ int main(int argc, char **argv)
 
   //    ////////////////////////////////////////// REPLAN ////////////////////////////////////////////////////////////////
 
-  pathplan::ReplannerManagerBasePtr replanner_manager = NULL;
+  pathplan::ReplannerManagerBasePtr replanner_manager = nullptr;
 
   if(replanner_type == "replanner_to_goal")
   {

@@ -112,9 +112,7 @@ protected:
   std::vector<ConnectionPtr> connectCurrentConfToTree();
   bool detachAddedBranch(std::vector<NodePtr>& nodes, std::vector<double>& costs);
 
-  virtual bool replan()=0                ;
   virtual void initReplanner()=0         ;
-  virtual void connectToReplannedPath()=0;
   virtual bool haveToReplan(const bool path_obstructed)=0;
 
   bool alwaysReplan()
@@ -151,6 +149,13 @@ public:
 
     return pnt_unscaled;
   }
+
+  ReplannerBasePtr getReplanner()
+  {
+    return replanner_;
+  }
+
+  virtual void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)=0;
 
   bool run()                   ;
   bool start()                 ;

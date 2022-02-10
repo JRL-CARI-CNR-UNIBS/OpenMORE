@@ -323,7 +323,7 @@ void ReplannerManagerBase::replanningThread()
       if(haveToReplan(path_obstructed))
       {
         tic_rep=ros::WallTime::now();
-        path_changed = replan(); //CONTROLLA     //path may have changed even though replanning was unsuccessful
+        path_changed = replanner_->replan(); //path may have changed even though replanning was unsuccessful
         toc_rep=ros::WallTime::now();
 
         success = replanner_->getSuccess();
@@ -345,16 +345,16 @@ void ReplannerManagerBase::replanningThread()
         replanner_mtx_.lock();
         trj_mtx_.lock();
 
-        connectToReplannedPath(); //CONTROLLA
-        //replanner_->getReplannedPath()->setTree(current_path_replanning_->getTree());
-        if(replanner_->getReplannedPath()->getTree()) //ELIMINA
-        {
-          if(replanner_->getReplannedPath()->getTree() != replanner_->getCurrentPath()->getTree())
-          {
-            ROS_INFO_STREAM("current path tree, replanned path tree: "<<replanner_->getCurrentPath()->getTree()<<" "<<replanner_->getReplannedPath()->getTree());
-            assert(0);
-          }
-        }
+        startReplannedPathFromNewCurrentConf(current_configuration_);
+//        replanner_->getReplannedPath()->setTree(current_path_replanning_->getTree());
+//        if(replanner_->getReplannedPath()->getTree()) //ELIMINA
+//        {
+//          if(replanner_->getReplannedPath()->getTree() != replanner_->getCurrentPath()->getTree())
+//          {
+//            ROS_INFO_STREAM("current path tree, replanned path tree: "<<replanner_->getCurrentPath()->getTree()<<" "<<replanner_->getReplannedPath()->getTree());
+//            assert(0);
+//          }
+//        }
 
         current_path_replanning_ = replanner_->getReplannedPath();
         replanner_->setCurrentPath(current_path_replanning_);
@@ -413,19 +413,17 @@ void ReplannerManagerBase::collisionCheckThread()
   while ((not stop) && ros::ok())
   {
     ros::WallTime tic = ros::WallTime::now();
-    double duration1, duration2, duration3, duration5; //ELIMINA
+    double duration_copy_path, duration_update_cost_info, duration_pln_scn_srv, duration_check; //ELIMINA
 
-    ros::WallTime tic1 = ros::WallTime::now();
     scene_mtx_.lock();
-    ros::WallTime tic2 = ros::WallTime::now();
+    ros::WallTime tic1 = ros::WallTime::now();
     if (!plannning_scene_client_.call(ps_srv))
     {
       ROS_ERROR("call to srv not ok");
     }
-    duration5 = (ros::WallTime::now()-tic2).toSec();
+    duration_pln_scn_srv = (ros::WallTime::now()-tic1).toSec();
     checker_cc_->setPlanningSceneMsg(ps_srv.response.scene);
     scene_mtx_.unlock();
-    duration1 = (ros::WallTime::now()-tic1).toSec();
 
     tic1 = ros::WallTime::now();
     trj_mtx_.lock();
@@ -440,9 +438,11 @@ void ReplannerManagerBase::collisionCheckThread()
     }
     paths_mtx_.unlock();
 
-    duration2 = (ros::WallTime::now()-tic1).toSec();
+    duration_copy_path = (ros::WallTime::now()-tic1).toSec();
 
+    tic1 = ros::WallTime::now();
     current_path_copy->isValidFromConf(current_configuration_copy,checker_cc_);
+    duration_check = (ros::WallTime::now()-tic1).toSec();
 
     tic1 = ros::WallTime::now();
     paths_mtx_.lock();
@@ -456,14 +456,14 @@ void ReplannerManagerBase::collisionCheckThread()
       current_path_shared_->cost();
     }
     paths_mtx_.unlock();
-    duration3 = (ros::WallTime::now()-tic1).toSec();
+    duration_update_cost_info = (ros::WallTime::now()-tic1).toSec();
 
     ros::WallTime toc=ros::WallTime::now();
     double duration = (toc-tic).toSec();
 
     if(duration>(1.0/collision_checker_thread_frequency_) && display_timing_warning_)
     {
-      ROS_WARN("Collision checking thread time expired: duration-> %f, duration1.0-> %f, duration1.1-> %f, duration2-> %f, duration3-> %f",duration,duration1,duration5,duration2,duration3);
+      ROS_WARN("Collision checking thread time expired: total duration-> %f, duration_check-> %f duration_pln_scn_srv-> %f, duration_copy_path-> %f, duration_update_cost_info-> %f",duration,duration_check,duration_pln_scn_srv,duration_copy_path,duration_update_cost_info);
     }
 
     stop_mtx_.lock();
@@ -648,6 +648,8 @@ void ReplannerManagerBase::displayThread()
   std::vector<double> marker_scale_sphere(3,0.02);
 
   disp->clearMarkers();
+
+  replanner_->setDisp(disp); //ELIMINAAAAAAAAAAAAAAAAAAA
 
   double display_thread_frequency = 0.75*trj_exec_thread_frequency_;
   ros::Rate lp(display_thread_frequency);
@@ -854,20 +856,20 @@ void ReplannerManagerBase::spawnObjects()
   scene_mtx_.unlock();
 }
 
-std::vector<ConnectionPtr> ReplannerManagerBase::connectCurrentConfToTree()
+std::vector<ConnectionPtr> ReplannerManagerBase::connectCurrentConfToTree() //ELIMINA
 {
-  paths_mtx_.lock();
-  PathPtr current_path_copy = current_path_shared_->clone();
-  paths_mtx_.unlock();
+//  paths_mtx_.lock();
+//  PathPtr current_path_copy = current_path_shared_->clone();
+//  paths_mtx_.unlock();
 
-  root_for_detach_ = replanner_->getReplannedPath()->getTree()->getRoot();
+//  //root_for_detach_ = replanner_->getReplannedPath()->getTree()->getRoot();
 
-  std::vector<ConnectionPtr> new_branch;
-  new_branch = replanner_->startReplannedTreeFromNewCurrentConf(current_configuration_,current_path_copy); //set the new root at the current config
+//  std::vector<ConnectionPtr> new_branch;
+//  new_branch = replanner_->startReplannedTreeFromNewCurrentConf(current_configuration_,current_path_copy); //set the new root at the current config
 
-  path_start_ = replanner_->getReplannedPath()->getTree()->getRoot();
+//  //path_start_ = replanner_->getReplannedPath()->getTree()->getRoot();
 
-  return new_branch;
+//  return new_branch;
 }
 
 bool ReplannerManagerBase::detachAddedBranch(std::vector<NodePtr>& nodes,
@@ -878,8 +880,6 @@ bool ReplannerManagerBase::detachAddedBranch(std::vector<NodePtr>& nodes,
 
   if(root_for_detach_)
   {
-    ROS_WARN("INIZIO DETACH");
-
     if(tree->isInTree(root_for_detach_))
     {
       NodePtr root = tree->getRoot();
@@ -893,7 +893,6 @@ bool ReplannerManagerBase::detachAddedBranch(std::vector<NodePtr>& nodes,
           {
             if(branch_conn == conn)
             {
-              ROS_ERROR("DETACH ADDED BRANCH: branch part of the solution");
               return false;
             }
           }
@@ -903,7 +902,6 @@ bool ReplannerManagerBase::detachAddedBranch(std::vector<NodePtr>& nodes,
         {
           if(conn_old_root_old_start.at(i)->getChild() == root)
           {
-            ROS_ERROR("DETACH ADDED BRANCH: root");
             ROS_INFO_STREAM(*root);
             return false;
           }

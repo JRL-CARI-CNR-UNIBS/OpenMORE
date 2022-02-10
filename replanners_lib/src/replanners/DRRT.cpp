@@ -24,7 +24,6 @@ DynamicRRT::DynamicRRT(Eigen::VectorXd& current_configuration,
   }
 
   solver_ = tmp_solver;
-  goal_node_ = current_path_->getConnections().back()->getChild();
   tree_is_trimmed_ = false;
 }
 

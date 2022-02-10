@@ -16,7 +16,6 @@ class DynamicRRT: public ReplannerBase
 {
 protected:
   TreePtr trimmed_tree_;
-  NodePtr goal_node_;
   bool tree_is_trimmed_;
 
   bool trimInvalidTree(NodePtr& node);
@@ -33,13 +32,6 @@ public:
   bool getTreeIsTrimmed()
   {
     return tree_is_trimmed_;
-  }
-
-  virtual void setCurrentPath(const PathPtr& path) override
-  {
-    success_ = false;
-    current_path_ = path;
-    goal_node_ = current_path_->getConnections().back()->getChild();
   }
 
   virtual bool replan() override;

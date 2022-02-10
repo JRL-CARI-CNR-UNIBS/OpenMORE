@@ -2,7 +2,6 @@
 #include <graph_core/parallel_moveit_collision_checker.h>
 #include <graph_replanning/trajectory.h>
 #include <moveit/robot_state/robot_state.h>
-#include <graph_replanning/replanner.h>
 #include <object_loader_msgs/AddObjects.h>
 #include <object_loader_msgs/RemoveObjects.h>
 #include <replanners_lib/replanners/replanner_to_goal.h>

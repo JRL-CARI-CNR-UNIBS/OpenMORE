@@ -84,6 +84,7 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
     if(improved)
     {
       replanned_path_ = solution;
+      goal_node_ = goal_node;
       path_cost = solution->cost();
       success = true;
       n_fail = 0;
@@ -114,11 +115,15 @@ bool AnytimeDynamicRRT::replan()
 {
   ros::WallTime tic = ros::WallTime::now();
 
+  int curr_size = current_path_->getConnections().size(); //ELIMINA
+  std::vector<NodePtr> list_nodes = current_path_->getNodes(); //elimina
+  PathPtr copy = current_path_->clone();
+
   double cost_from_conf = current_path_->getCostFromConf(current_configuration_);
 
+  NodePtr node_replan;
   if(cost_from_conf == std::numeric_limits<double>::infinity() || tree_is_trimmed_)
   {
-    NodePtr node_replan;
     if(not tree_is_trimmed_)
     {
       ConnectionPtr conn = current_path_->findConnection(current_configuration_);
@@ -134,6 +139,9 @@ bool AnytimeDynamicRRT::replan()
 
     if(regrowRRT(node_replan))
     {
+      curr_size = current_path_->getConnections().size(); //elimina
+      copy = current_path_->clone();
+
       success_ = true;
 
       solver_->setStartTree(replanned_path_->getTree());
@@ -144,6 +152,37 @@ bool AnytimeDynamicRRT::replan()
       {
         solver_->setStartTree(replanned_path_->getTree());
         solver_->setSolution(replanned_path_,true);       //should be after setStartTree
+      }
+      else
+      {
+        /* ELIMINA */
+
+        if(current_path_->getConnections().size() != curr_size) //ELIMINA
+        {
+          ROS_INFO("CASO 1");
+          ROS_INFO_STREAM("Curr size: "<<current_path_->getConnections().size()<<" old size "<<curr_size);
+          PathPtr new_copy = current_path_->clone();
+
+          ROS_INFO_STREAM("Node rep: "<<*node_replan);
+
+          ROS_INFO("OLD NODES");
+          for(const NodePtr& on:list_nodes)
+            ROS_INFO_STREAM(on->getConfiguration().transpose());
+
+          ROS_INFO("NOW NODES");
+          for(const NodePtr& on:current_path_->getNodes())
+            ROS_INFO_STREAM(on->getConfiguration().transpose());
+
+          disp_->nextButton();
+          disp_->clearMarkers();
+          disp_->displayPathAndWaypoints(copy);
+          disp_->nextButton();
+          disp_->displayPathAndWaypoints(new_copy);
+
+          assert(0);
+        }
+
+        /* ///// */
       }
     }
     else
@@ -160,7 +199,7 @@ bool AnytimeDynamicRRT::replan()
     assert(not tree_is_trimmed_);
 
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,false);
+    node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,false);
 
     solver_->setStartTree(current_path_->getTree());
     solver_->setSolution(current_path_,true);       //should be after setStartTree
@@ -176,8 +215,33 @@ bool AnytimeDynamicRRT::replan()
     else
       success_ = false;
 
-    if(not success_)
-      current_path_->removeNodes();
+    /* ELIMINA */
+
+    if(current_path_->getConnections().size() != curr_size) //ELIMINA
+    {
+      ROS_INFO("CASO 2");
+      ROS_INFO_STREAM("Curr size: "<<current_path_->getConnections().size()<<" old size "<<curr_size);
+      PathPtr new_copy = current_path_->clone();
+
+      ROS_INFO_STREAM("Node rep: "<<*node_replan);
+
+      ROS_INFO("OLD NODES");
+      for(const NodePtr& on:list_nodes)
+        ROS_INFO_STREAM(on->getConfiguration().transpose());
+
+      ROS_INFO("NOW NODES");
+      for(const NodePtr& on:current_path_->getNodes())
+        ROS_INFO_STREAM(on->getConfiguration().transpose());
+
+      disp_->nextButton();
+      disp_->clearMarkers();
+      disp_->displayPathAndWaypoints(copy);
+      disp_->nextButton();
+      disp_->displayPathAndWaypoints(new_copy);
+
+      assert(0);
+    }
+    /* ///// */
   }
 
   return success_;

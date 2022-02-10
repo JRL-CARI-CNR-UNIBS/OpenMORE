@@ -48,6 +48,8 @@ ReplannerToGoal::ReplannerToGoal(Eigen::VectorXd& current_configuration,
   directly_connected_vector_.resize(number_of_parallel_plannings_);
 }
 
+
+
 bool ReplannerToGoal::asyncComputeConnectingPath(const Eigen::VectorXd path1_node_conf,
                                                  const Eigen::VectorXd path2_node_conf,
                                                  const double diff_subpath_cost,
@@ -90,7 +92,6 @@ bool ReplannerToGoal::connect2goal(const NodePtr& node)
 {
   success_ = false;
   std::vector<std::shared_future<bool>> futures;
-  Eigen::VectorXd goal = current_path_->getConnections().back()->getChild()->getConfiguration();
 
   for(unsigned int i=0; i<number_of_parallel_plannings_;i++)
   {
@@ -99,7 +100,8 @@ bool ReplannerToGoal::connect2goal(const NodePtr& node)
 
     futures.push_back(std::async(std::launch::async,
                                  &ReplannerToGoal::asyncComputeConnectingPath,
-                                 this,node->getConfiguration(),goal,cost,index));
+                                 this,node->getConfiguration(),
+                                 goal_node_->getConfiguration(),cost,index));
   }
 
   std::vector<double> marker_color;
@@ -155,7 +157,6 @@ bool ReplannerToGoal::connect2goal(const NodePtr& node)
 
   return success_;
 }
-
 
 PathPtr ReplannerToGoal::concatWithNewPathToGoal(const std::vector<ConnectionPtr>& connecting_path_conn,
                                                  const NodePtr& path1_node)

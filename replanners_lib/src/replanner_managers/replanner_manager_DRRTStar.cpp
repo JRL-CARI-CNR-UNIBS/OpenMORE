@@ -12,13 +12,24 @@ ReplannerManagerDRRTStar::ReplannerManagerDRRTStar(PathPtr &current_path,
   solver_  = tmp_solver;
 }
 
-void ReplannerManagerDRRTStar::connectToReplannedPath()
+void ReplannerManagerDRRTStar::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
 {
-  std::vector<NodePtr> nodes;
-  std::vector<double> costs;
-  detachAddedBranch(nodes,costs);
+//  std::vector<NodePtr> nodes;
+//  std::vector<double> costs;
+//  detachAddedBranch(nodes,costs);
+//  connectCurrentConfToTree();
 
-  connectCurrentConfToTree();
+  PathPtr current_path = replanner_->getCurrentPath();
+  PathPtr replanned_path = replanner_->getReplannedPath();
+  TreePtr tree = current_path->getTree();
+
+  ConnectionPtr conn;
+  NodePtr current_node = current_path->addNodeAtCurrentConfig(configuration,conn,true);
+
+  tree->changeRoot(current_node);
+
+  std::vector<ConnectionPtr> new_conns = tree->getConnectionToNode(replanner_->getGoal());
+  replanned_path->setConnections(new_conns);
 }
 
 bool ReplannerManagerDRRTStar::haveToReplan(const bool path_obstructed)
@@ -32,10 +43,4 @@ void ReplannerManagerDRRTStar::initReplanner()
   replanner_ = std::make_shared<pathplan::DynamicRRTStar>(configuration_replan_, current_path_replanning_, time_for_repl, solver_);
 }
 
-bool ReplannerManagerDRRTStar::replan()
-{
-  bool replanned = replanner_->replan();
-
-  return replanned;
-}
 }
