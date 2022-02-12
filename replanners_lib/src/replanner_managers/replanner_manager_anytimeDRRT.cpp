@@ -3,9 +3,9 @@
 namespace pathplan
 {
 
-ReplannerManagerAnytimeDRRT::ReplannerManagerAnytimeDRRT(PathPtr &current_path,
-                                                         TreeSolverPtr solver,
-                                                         ros::NodeHandle &nh):ReplannerManagerDRRT(current_path,solver,nh)
+ReplannerManagerAnytimeDRRT::ReplannerManagerAnytimeDRRT(const PathPtr &current_path,
+                                                         const TreeSolverPtr &solver,
+                                                         const ros::NodeHandle &nh):ReplannerManagerDRRT(current_path,solver,nh)
 {
   AnytimeRRTPtr tmp_solver = std::make_shared<pathplan::AnytimeRRT>(solver_->getMetrics(), checker_replanning_, solver_->getSampler());
   tmp_solver->importFromSolver(solver);

@@ -3,9 +3,9 @@
 namespace pathplan
 {
 
-ReplannerManagerToGoal::ReplannerManagerToGoal(PathPtr &current_path,
-                                               TreeSolverPtr solver,
-                                               ros::NodeHandle &nh):ReplannerManagerBase(current_path,solver,nh)
+ReplannerManagerToGoal::ReplannerManagerToGoal(const PathPtr &current_path,
+                                               const TreeSolverPtr &solver,
+                                               const ros::NodeHandle &nh):ReplannerManagerBase(current_path,solver,nh)
 {
   RRTPtr tmp_solver = std::make_shared<pathplan::RRT>(solver_->getMetrics(), checker_replanning_, solver_->getSampler());
   tmp_solver->importFromSolver(solver);

@@ -30,10 +30,9 @@ bool DynamicRRTStar::nodeBehindObs(NodePtr& node_behind)
   {
     if(current_path_->getConnections().at(i)->getCost() == std::numeric_limits<double>::infinity())
     {
-      if(i < current_path_->getConnections().size()-1)
-        node_behind = current_path_->getConnections().at(i+1)->getChild();
-      else
-        node_behind = current_path_->getConnections().at(i)->getChild();
+      (i<current_path_->getConnections().size()-1)?
+            (node_behind=current_path_->getConnections().at(i+1)->getChild()):
+            (node_behind=current_path_->getConnections().at(i)->getChild());
 
       if(verbose_)
         ROS_INFO_STREAM("Replanning goal: \n"<< *node_behind);
@@ -174,7 +173,17 @@ bool DynamicRRTStar::replan()
 
     connectBehindObs(node_replan);
 
-    if(not success_)
+    if(success_)
+    {
+      if(disp_ && verbose_)
+      {
+        disp_->clearMarkers();
+        disp_->displayTree(current_path_->getTree());
+      }
+
+      return true;  //path is changed
+    }
+    else
     {
       if(not replanned_path_->getTree()->changeRoot(root))
       {
@@ -183,16 +192,12 @@ bool DynamicRRTStar::replan()
       }
       assert(replanned_path_->getTree()->getRoot() != node_replan);
 
-      replanned_path_->removeNodes(); //se rimuove nodi allora il path è cambiato e devi dare true in uscita, verifica!
+      std::vector<NodePtr> void_list;
+      if(replanned_path_->removeNode(node_replan,void_list)) //if added node is removed the path is not changed, otherwise it is changed
+        return false; //path is no changed
+      else
+        return true;  //path is changed
     }
-
-    if(success_ && disp_ && verbose_)
-    {
-      disp_->clearMarkers();
-      disp_->displayTree(current_path_->getTree());
-    }
-
-    return success_; // maybe tree is changed also if success_ == false  VERIFICA: CON LA WHITE LIST ORA NON DOVREBBE CAMBIARE IL PATH
   }
   else //replan not needed
   {

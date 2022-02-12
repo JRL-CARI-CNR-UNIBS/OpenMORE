@@ -19,9 +19,9 @@ protected:
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  ReplannerManagerAnytimeDRRT(PathPtr &current_path,
-                              TreeSolverPtr solver,
-                              ros::NodeHandle &nh);
+  ReplannerManagerAnytimeDRRT(const PathPtr &current_path,
+                              const TreeSolverPtr &solver,
+                              const ros::NodeHandle &nh);
 
 };
 

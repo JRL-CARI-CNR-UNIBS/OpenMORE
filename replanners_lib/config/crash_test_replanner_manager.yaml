@@ -20,9 +20,10 @@ collision_checker_thread_frequency: 30
 spawn_objs: true
 display_timing_warning: true
 display_replanning_success: true
-scaling: 0.5
+scaling: 1.0
 read_real_joints_values_: false
 checker_resolution: 0.01
+replanner_verbosity: true
 
 to_goal:
   n_threads_replan: 5

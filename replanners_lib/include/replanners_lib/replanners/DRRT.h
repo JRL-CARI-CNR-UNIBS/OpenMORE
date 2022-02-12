@@ -17,6 +17,8 @@ class DynamicRRT: public ReplannerBase
 protected:
   TreePtr trimmed_tree_;
   bool tree_is_trimmed_;
+  InformedSamplerPtr sampler_;
+  Eigen::VectorXd goal_conf_; //ELIMINA
 
   bool trimInvalidTree(NodePtr& node);
   bool regrowRRT(NodePtr& node);
@@ -32,6 +34,24 @@ public:
   bool getTreeIsTrimmed()
   {
     return tree_is_trimmed_;
+  }
+
+  void setCurrentPath(const PathPtr& path) override
+  {
+    success_ = false;
+    current_path_ = path;
+    goal_node_  = current_path_->getConnections().back()->getChild();
+
+    if(goal_conf_ != goal_node_->getConfiguration())
+    {
+      ROS_INFO_STREAM("goal_conf_: "<<goal_conf_.transpose());
+      ROS_INFO_STREAM("goal_node_: "<<goal_node_->getConfiguration().transpose());
+
+      for(const Eigen::VectorXd& wp:current_path_->getWaypoints())
+        ROS_INFO_STREAM("wp: "<<wp.transpose());
+
+      assert(0);
+    }
   }
 
   virtual bool replan() override;

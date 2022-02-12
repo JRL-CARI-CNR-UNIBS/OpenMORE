@@ -2,9 +2,10 @@
 
 namespace pathplan
 {
-ReplannerManagerBase::ReplannerManagerBase(PathPtr &current_path,
-                                           TreeSolverPtr &solver,
-                                           ros::NodeHandle &nh)
+
+ReplannerManagerBase::ReplannerManagerBase(const PathPtr &current_path,
+                                           const TreeSolverPtr &solver,
+                                           const ros::NodeHandle &nh)
 {
   current_path_replanning_ = current_path;
   solver_       = solver;
@@ -68,12 +69,14 @@ void ReplannerManagerBase::fromParam()
     display_timing_warning_ = false;
   if(!nh_.getParam("display_replanning_success", display_replanning_success_))
     display_replanning_success_ = false;
+  if(!nh_.getParam("replanner_verbosity", replanner_verbosity_))
+    replanner_verbosity_ = false;
 }
 
 void ReplannerManagerBase::attributeInitialization()
 {
   stop_                            = false;
-  current_path_changed_            = false;
+  current_path_sync_needed_            = false;
   n_conn_                          = 0    ;
   scaling_                         = 1.0  ;
   real_time_                       = 0.0  ;
@@ -153,6 +156,7 @@ void ReplannerManagerBase::attributeInitialization()
   n_conn_ = 0;
 
   initReplanner();
+  replanner_->setVerbosity(replanner_verbosity_);
 
   new_joint_state_.position                 = pnt_.positions                  ;
   new_joint_state_.velocity                 = pnt_.velocities                 ;
@@ -222,7 +226,6 @@ void ReplannerManagerBase::replanningThread()
 {
   ros::Rate lp(replanning_thread_frequency_);
 
-  bool do_replan = true;
   bool success = false;
   bool path_changed = false;
   bool path_obstructed = true;
@@ -250,9 +253,7 @@ void ReplannerManagerBase::replanningThread()
       point2project(i) = pnt_replan_.positions.at(i);
     trj_mtx_.unlock();
 
-    do_replan = (point2project-goal_conf).norm()>goal_tol_;
-
-    if(do_replan)
+    if((point2project-goal_conf).norm()>goal_tol_)
     {
       scene_mtx_.lock();
       moveit_msgs::PlanningScene scn;
@@ -261,8 +262,13 @@ void ReplannerManagerBase::replanningThread()
       scene_mtx_.unlock();
 
       replanner_mtx_.lock();
+      paths_mtx_.lock();
       past_configuration_replan = configuration_replan_;
-      path2project_on = replanner_->getCurrentPath()->clone();
+
+      path2project_on = current_path_shared_->clone();
+      //path2project_on = replanner_->getCurrentPath()->clone();
+
+      paths_mtx_.unlock();
       replanner_mtx_.unlock();
 
       projection = path2project_on->projectOnClosestConnectionKeepingPastPrj(point2project,past_configuration_replan,n_conn_replan);
@@ -272,8 +278,11 @@ void ReplannerManagerBase::replanningThread()
       replanner_mtx_.unlock();
 
       paths_mtx_.lock(); //replanningThread should work with the original current path, so its copy is used for collision check and then the cost is updated here
-      if(not current_path_changed_) //ELIMINA
+      if(not current_path_sync_needed_)
       {
+        ROS_WARN("Check conformity"); //elimina
+
+        //ELIMINA
         if(current_path_replanning_->getConnections().size() != current_path_shared_->getConnections().size())
         {
           ROS_INFO_STREAM("current path replanning size: "<<current_path_replanning_->getConnections().size()<<" current path shared size: "<<current_path_shared_->getConnections().size());
@@ -322,9 +331,16 @@ void ReplannerManagerBase::replanningThread()
 
       if(haveToReplan(path_obstructed))
       {
+        int size =current_path_replanning_->getConnections().size(); //elimina
+
         tic_rep=ros::WallTime::now();
         path_changed = replanner_->replan(); //path may have changed even though replanning was unsuccessful
         toc_rep=ros::WallTime::now();
+
+        if(not path_changed) //ELIMINA
+        {
+          ROS_INFO_STREAM("Sizes should be equal: new-> "<<current_path_replanning_->getConnections().size()<< " old-> "<<size);
+        }
 
         success = replanner_->getSuccess();
 
@@ -346,22 +362,25 @@ void ReplannerManagerBase::replanningThread()
         trj_mtx_.lock();
 
         startReplannedPathFromNewCurrentConf(current_configuration_);
-//        replanner_->getReplannedPath()->setTree(current_path_replanning_->getTree());
-//        if(replanner_->getReplannedPath()->getTree()) //ELIMINA
-//        {
-//          if(replanner_->getReplannedPath()->getTree() != replanner_->getCurrentPath()->getTree())
-//          {
-//            ROS_INFO_STREAM("current path tree, replanned path tree: "<<replanner_->getCurrentPath()->getTree()<<" "<<replanner_->getReplannedPath()->getTree());
-//            assert(0);
-//          }
-//        }
+        //        replanner_->getReplannedPath()->setTree(current_path_replanning_->getTree());
+        //        if(replanner_->getReplannedPath()->getTree()) //ELIMINA
+        //        {
+        //          if(replanner_->getReplannedPath()->getTree() != replanner_->getCurrentPath()->getTree())
+        //          {
+        //            ROS_INFO_STREAM("current path tree, replanned path tree: "<<replanner_->getCurrentPath()->getTree()<<" "<<replanner_->getReplannedPath()->getTree());
+        //            assert(0);
+        //          }
+        //        }
+
 
         current_path_replanning_ = replanner_->getReplannedPath();
         replanner_->setCurrentPath(current_path_replanning_);
 
         paths_mtx_.lock();
         current_path_shared_ = current_path_replanning_->clone();
-        current_path_changed_ = true;
+        current_path_sync_needed_ = true;
+
+        ROS_WARN("current path just changed"); //elimina
         paths_mtx_.unlock();
 
         moveit_msgs::RobotTrajectory tmp_trj_msg;
@@ -431,10 +450,12 @@ void ReplannerManagerBase::collisionCheckThread()
     trj_mtx_.unlock();
 
     paths_mtx_.lock();
-    if(current_path_changed_)
+    if(current_path_sync_needed_)
     {
       current_path_copy = current_path_shared_->clone();
-      current_path_changed_ = false;
+      current_path_sync_needed_ = false;
+      ROS_WARN("CC syncronized with current path "); //elimina
+
     }
     paths_mtx_.unlock();
 
@@ -446,8 +467,10 @@ void ReplannerManagerBase::collisionCheckThread()
 
     tic1 = ros::WallTime::now();
     paths_mtx_.lock();
-    if(not current_path_changed_)  //if changed, it is useless checking current_path_copy
+    if(not current_path_sync_needed_)  //if changed, it is useless checking current_path_copy
     {
+      ROS_WARN("CC update cost current path "); //elimina
+
       std::vector<ConnectionPtr> current_path_conns      = current_path_shared_->getConnections();
       std::vector<ConnectionPtr> current_path_copy_conns = current_path_copy   ->getConnections();
       for(unsigned int z=0;z<current_path_conns.size();z++)
@@ -579,7 +602,7 @@ void ReplannerManagerBase::trajectoryExecutionThread()
                         (scaling_ = scaling_from_param_);
 
     t_+= scaling_*dt_;
-    t_replan_ = t_+(replan_offset_*scaling_);
+    t_replan_ = t_+(replan_offset_*scaling_); //controlla e vedi se modificare anche il tempo massimo di replanning
 
     paths_mtx_.lock();
     path2project_on = current_path_shared_->clone();
@@ -735,13 +758,13 @@ void ReplannerManagerBase::spawnObjects()
   while(not stop && ros::ok())
   {
     //    // ////////////////////////////////////////////SPAWNING THE OBJECT/////////////////////////////////////////////
-    if(real_time_>=2.0 && not second_object_spawned)
+    if(real_time_>=1.2 && not second_object_spawned)
     {
       second_object_spawned = true;
       object_spawned = false;
     }
 
-    if(not object_spawned && real_time_>=1.0)
+    if(not object_spawned && real_time_>=0.5)
     {
       if (not add_obj_.waitForExistence(ros::Duration(10)))
       {
@@ -858,18 +881,18 @@ void ReplannerManagerBase::spawnObjects()
 
 std::vector<ConnectionPtr> ReplannerManagerBase::connectCurrentConfToTree() //ELIMINA
 {
-//  paths_mtx_.lock();
-//  PathPtr current_path_copy = current_path_shared_->clone();
-//  paths_mtx_.unlock();
+  //  paths_mtx_.lock();
+  //  PathPtr current_path_copy = current_path_shared_->clone();
+  //  paths_mtx_.unlock();
 
-//  //root_for_detach_ = replanner_->getReplannedPath()->getTree()->getRoot();
+  //  //root_for_detach_ = replanner_->getReplannedPath()->getTree()->getRoot();
 
-//  std::vector<ConnectionPtr> new_branch;
-//  new_branch = replanner_->startReplannedTreeFromNewCurrentConf(current_configuration_,current_path_copy); //set the new root at the current config
+  //  std::vector<ConnectionPtr> new_branch;
+  //  new_branch = replanner_->startReplannedTreeFromNewCurrentConf(current_configuration_,current_path_copy); //set the new root at the current config
 
-//  //path_start_ = replanner_->getReplannedPath()->getTree()->getRoot();
+  //  //path_start_ = replanner_->getReplannedPath()->getTree()->getRoot();
 
-//  return new_branch;
+  //  return new_branch;
 }
 
 bool ReplannerManagerBase::detachAddedBranch(std::vector<NodePtr>& nodes,

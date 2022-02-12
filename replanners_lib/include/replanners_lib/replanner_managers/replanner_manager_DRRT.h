@@ -13,17 +13,17 @@ class ReplannerManagerDRRT: public ReplannerManagerBase
 {
 protected:
 
-  virtual bool haveToReplan(const bool path_obstructed);
-  virtual void initReplanner();
+  virtual bool haveToReplan(const bool path_obstructed) override;
+  virtual void initReplanner() override;
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  ReplannerManagerDRRT(PathPtr &current_path,
-                       TreeSolverPtr solver,
-                       ros::NodeHandle &nh);
+  ReplannerManagerDRRT(const PathPtr &current_path,
+                       const TreeSolverPtr &solver,
+                       const ros::NodeHandle &nh);
 
-  void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration);
+  void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration) override;
 };
 
 }

@@ -13,17 +13,17 @@ class ReplannerManagerDRRTStar: public ReplannerManagerBase
 {
 protected:
 
-  bool haveToReplan(const bool path_obstructed);
-  void initReplanner();
+  bool haveToReplan(const bool path_obstructed) override;
+  void initReplanner() override;
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  ReplannerManagerDRRTStar(PathPtr &current_path,
-                           TreeSolverPtr solver,
-                           ros::NodeHandle &nh);
+  ReplannerManagerDRRTStar(const PathPtr &current_path,
+                           const TreeSolverPtr &solver,
+                           const ros::NodeHandle &nh);
 
-  void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd &configuration);
+  void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd &configuration) override;
 };
 
 }

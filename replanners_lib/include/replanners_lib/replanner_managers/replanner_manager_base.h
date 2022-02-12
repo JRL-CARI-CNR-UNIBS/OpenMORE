@@ -39,10 +39,11 @@ protected:
   // Global variables
   bool stop_                      ;
   bool spawn_objs_                ;
-  bool display_timing_warning_    ;
-  bool display_replanning_success_;
   bool read_safe_scaling_         ;
-  bool current_path_changed_      ;
+  bool replanner_verbosity_       ;
+  bool display_timing_warning_    ;
+  bool current_path_sync_needed_  ;
+  bool display_replanning_success_;
 
   int n_conn_;
 
@@ -100,15 +101,15 @@ protected:
   ros::ServiceClient remove_obj_            ;
 
   void overrideCallback(const std_msgs::Int64ConstPtr& msg, const std::string& override_name);
-  void fromParam()                 ;
-  void attributeInitialization()   ;
-  void subscribeTopicsAndServices();
-  void replanningThread()          ;
-  void collisionCheckThread()      ;
-  void displayThread()             ;
-  void spawnObjects()              ;
-  void trajectoryExecutionThread() ;
-  double readScalingTopics()       ;
+  void fromParam()                   ;
+  void attributeInitialization()     ;
+  void subscribeTopicsAndServices()  ;
+  virtual void replanningThread()    ;
+  virtual void collisionCheckThread();
+  void displayThread()               ;
+  void spawnObjects()                ;
+  void trajectoryExecutionThread()   ;
+  double readScalingTopics()         ;
   std::vector<ConnectionPtr> connectCurrentConfToTree();
   bool detachAddedBranch(std::vector<NodePtr>& nodes, std::vector<double>& costs);
 
@@ -128,9 +129,9 @@ protected:
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  ReplannerManagerBase(PathPtr &current_path,
-                       TreeSolverPtr &solver,
-                       ros::NodeHandle &nh);
+  ReplannerManagerBase(const PathPtr &current_path,
+                       const TreeSolverPtr &solver,
+                       const ros::NodeHandle &nh);
 
   trajectory_msgs::JointTrajectoryPoint getJointTarget()
   {
@@ -157,11 +158,11 @@ public:
 
   virtual void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)=0;
 
-  bool run()                   ;
-  bool start()                 ;
-  bool startWithoutReplanning();
-  bool cancel()                ;
-  bool stop()                  ;
+  bool stop();
+  bool cancel();
+  virtual bool run();
+  virtual bool start();
+  virtual bool startWithoutReplanning();
 
 };
 

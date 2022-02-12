@@ -2,9 +2,9 @@
 
 namespace pathplan
 {
-ReplannerManagerDRRTStar::ReplannerManagerDRRTStar(PathPtr &current_path,
-                                                   TreeSolverPtr solver,
-                                                   ros::NodeHandle &nh):ReplannerManagerBase(current_path,solver,nh)
+ReplannerManagerDRRTStar::ReplannerManagerDRRTStar(const PathPtr &current_path,
+                                                   const TreeSolverPtr &solver,
+                                                   const ros::NodeHandle &nh):ReplannerManagerBase(current_path,solver,nh)
 {
   RRTStarPtr tmp_solver = std::make_shared<pathplan::RRTStar>(solver_->getMetrics(), checker_replanning_, solver_->getSampler());
   tmp_solver->importFromSolver(solver);

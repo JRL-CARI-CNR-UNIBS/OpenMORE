@@ -127,7 +127,7 @@ bool AnytimeDynamicRRT::replan()
     if(not tree_is_trimmed_)
     {
       ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-      node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
+      node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true); //sistema come in DRRT
     }
     else
     {

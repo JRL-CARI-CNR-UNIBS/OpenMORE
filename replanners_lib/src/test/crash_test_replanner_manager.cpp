@@ -188,6 +188,9 @@ int main(int argc, char **argv)
 
     // //////////////////////////////REPLANNING///////////////////////////////////////////////////
     replanner_manager->start();
+
+    start_conf = start_conf+delta;
+    goal_conf = goal_conf-delta;
   }
 
   return 0;
