@@ -50,6 +50,83 @@ DynamicRRT::DynamicRRT(Eigen::VectorXd& current_configuration,
   goal_conf_ = current_path_->getWaypoints().back(); //ELIMINA
 }
 
+void DynamicRRT::fixTree(const NodePtr& node_replan, const NodePtr& root, std::vector<NodePtr>& old_nodes, std::vector<double>& old_connections_costs)
+{
+  if(success_)
+    return;
+
+  if(tree_is_trimmed_) //rebuild the tree adding the old path as a branch
+  {
+    std::reverse(old_nodes.begin(),old_nodes.end());  //so the node are ordered from the goal to the start
+    std::reverse(old_connections_costs.begin(),old_connections_costs.end());
+
+    assert(not trimmed_tree_->isInTree(node_replan));
+    assert(old_nodes.front() == goal_node_);
+
+    std::vector<ConnectionPtr> restore_old_path;
+    for(unsigned int i=1; i<old_nodes.size();i++) //the goal (i = 0) is in the tree (it is the root)
+    {
+      if(trimmed_tree_->isInTree(old_nodes.at(i)))
+        continue;
+      else
+      {
+        for(unsigned z=i;z<old_nodes.size();z++) //ELIMINA
+        {
+          if(not old_nodes.at(z)->parent_connections_.empty() || not old_nodes.at(z)->child_connections_.empty())
+          {
+            for(const NodePtr& n:old_nodes)
+              ROS_INFO_STREAM("path node\n"<<*n);
+
+            assert(0);
+          }
+        }
+
+        for(unsigned int j=i;j<old_nodes.size();j++)
+        {
+          ConnectionPtr conn = std::make_shared<Connection>(old_nodes.at(j-1),old_nodes.at(j));
+          conn->setCost(old_connections_costs.at(j-1));
+          conn->add();
+
+          restore_old_path.push_back(conn);
+        }
+        break;
+      }
+    }
+
+    trimmed_tree_->addBranch(restore_old_path);
+    tree_is_trimmed_ = false;
+
+    trimmed_tree_->changeRoot(root); //the old root (the starting point of the current path)
+    current_path_->setConnections(trimmed_tree_->getConnectionToNode(goal_node_));
+
+    assert(not trimmed_tree_->isInTree(node_replan));
+  }
+  else
+  {
+    assert(trimmed_tree_->isInTree(node_replan));
+
+    if(std::find(old_nodes.begin(),old_nodes.end(),node_replan) == old_nodes.end()) //if the node_replan has been added to the path and tree, remove it. If it was already present, do not remove it
+    {
+      assert(node_replan->parent_connections_.size() == 1 && node_replan->child_connections_.size() == 1);
+
+      NodePtr parent = node_replan->getParents().front();
+      NodePtr child = node_replan->getChildren().front();
+
+      ConnectionPtr conn = std::make_shared<Connection>(parent,child);
+      double cost = node_replan->parent_connections_.front()->getCost()+child->parent_connections_.front()->getCost();
+      conn->setCost(cost);
+      conn->add();
+
+      trimmed_tree_->removeNode(node_replan);
+      trimmed_tree_->changeRoot(root);
+
+      current_path_->setConnections(trimmed_tree_->getConnectionToNode(goal_node_));
+
+      assert(not trimmed_tree_->isInTree(node_replan));
+    }
+  }
+}
+
 bool DynamicRRT::trimInvalidTree(NodePtr& node)
 {
   ros::WallTime tic = ros::WallTime::now();
@@ -145,7 +222,6 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
           replanned_path_ = std::make_shared<Path>(trimmed_tree_->getConnectionToNode(goal_node_), metrics_, checker_);
           replanned_path_->setTree(trimmed_tree_);
 
-
           // SOLUZIONE MOMENTANEA
           for(unsigned int i=0;i<replanned_path_->getConnections().size();i++)
           {
@@ -177,7 +253,7 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
               }
             }
           }
-           // FINO A QUA
+          // FINO A QUA
 
           solver_->setStartTree(trimmed_tree_);
           solver_->setSolution(replanned_path_,true);
@@ -201,15 +277,18 @@ bool DynamicRRT::replan()
 
   if(cost_from_conf == std::numeric_limits<double>::infinity())
   {
-    std::vector<Eigen::VectorXd> wp; //ELIMINA
-    wp = current_path_->getWaypoints(); //ELIMINA
+    std::vector<Eigen::VectorXd> old_wp; //ELIMINA
+    old_wp = current_path_->getWaypoints(); //ELIMINA
 
-    std::vector<NodePtr> path_nodes = current_path_->getNodes();  //save node pointer (the same pointer stored in the tree)
+    for(const Eigen::VectorXd& wp:old_wp)
+      ROS_INFO_STREAM("old wp: "<<wp.transpose());
+
+    std::vector<NodePtr> path_nodes = current_path_->getNodes();  //save nodes pointers (the same pointers stored in the tree)
     assert(path_nodes.front() == current_path_->getTree()->getRoot());
 
-    std::vector<double> connections_cost;
+    std::vector<double> connections_costs;
     for(const ConnectionPtr& conn:current_path_->getConnections())
-      connections_cost.push_back(conn->getCost());
+      connections_costs.push_back(conn->getCost());
 
     for(const NodePtr& n:path_nodes)
       assert(current_path_->getTree()->isInTree(n));
@@ -220,77 +299,32 @@ bool DynamicRRT::replan()
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
     NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
 
+    if(std::find(path_nodes.begin(),path_nodes.end(),node_replan) == path_nodes.end()) //ELIMINA
+    {
+      for(const Eigen::VectorXd& wp:old_wp)
+      {
+        if(wp == node_replan->getConfiguration())
+        {
+          for(const Eigen::VectorXd& wp2:old_wp)
+            ROS_INFO_STREAM("2old wp: "<<wp2.transpose());
+          assert(0);
+        }
+      }
+    }
+
     if(verbose_)
       ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
     if(not regrowRRT(node_replan)) //root is goal
-    {
-      if(tree_is_trimmed_) //rebuild the tree adding the old path as a branch
-      {
-        std::reverse(path_nodes.begin(),path_nodes.end());  //so the node are ordered from the goal to the start
-        std::reverse(connections_cost.begin(),connections_cost.end());
-
-        std::vector<ConnectionPtr> restore_old_path;
-        for(unsigned int i=1; i<path_nodes.size();i++) //the goal (i = 0) is in the tree (it is the root)
-        {
-          if(trimmed_tree_->isInTree(path_nodes.at(i)))
-            continue;
-          else
-          {
-            for(unsigned z=i;z<path_nodes.size();z++)
-            {
-              if(not path_nodes.at(z)->parent_connections_.empty() || not path_nodes.at(z)->child_connections_.empty())
-              {
-                for(const NodePtr& n:path_nodes)
-                  ROS_INFO_STREAM("path node\n"<<*n);
-              }
-            }
-
-            for(unsigned int j=i;j<path_nodes.size();j++)
-            {
-              ConnectionPtr conn = std::make_shared<Connection>(path_nodes.at(j-1),path_nodes.at(j));
-              conn->setCost(connections_cost.at(j-1));
-              conn->add();
-
-              restore_old_path.push_back(conn);
-            }
-            break;
-          }
-        }
-
-        trimmed_tree_->addBranch(restore_old_path);
-        tree_is_trimmed_ = false;
-
-        trimmed_tree_->changeRoot(root); //the old root (the starting point of the current path)
-        current_path_->setConnections(trimmed_tree_->getConnectionToNode(goal_node_));
-      }
-      else
-      {
-        assert(trimmed_tree_->isInTree(node_replan));
-        assert(node_replan->parent_connections_.size() == 1 && node_replan->child_connections_.size() == 1);
-
-        NodePtr parent = node_replan->getParents().front();
-        NodePtr child = node_replan->getChildren().front();
-
-        ConnectionPtr conn = std::make_shared<Connection>(parent,child);
-        double cost = node_replan->parent_connections_.front()->getCost()+child->parent_connections_.front()->getCost();
-        conn->setCost(cost);
-        conn->add();
-
-        trimmed_tree_->removeNode(node_replan);
-        trimmed_tree_->changeRoot(root);
-
-        current_path_->setConnections(trimmed_tree_->getConnectionToNode(goal_node_));
-      }
-    }
+      fixTree(node_replan,root,path_nodes,connections_costs);
 
     if(not success_) //ELIMINA
     {
       std::vector<Eigen::VectorXd> wp_now = current_path_->getWaypoints();
 
-      if(wp.size() != wp_now.size())
+      if(old_wp.size() != wp_now.size())
       {
-        for(const Eigen::VectorXd& w:wp)
+        for(const Eigen::VectorXd& w:old_wp)
           ROS_INFO_STREAM("old wp: "<<w.transpose());
 
         for(const Eigen::VectorXd& w:wp_now)
@@ -299,11 +333,11 @@ bool DynamicRRT::replan()
         assert(0);
       }
 
-      for(unsigned int i = 0; i<wp.size(); i++)
+      for(unsigned int i = 0; i<old_wp.size(); i++)
       {
-        if(wp.at(i) != wp_now.at(i))
+        if(old_wp.at(i) != wp_now.at(i))
         {
-          for(const Eigen::VectorXd& w:wp)
+          for(const Eigen::VectorXd& w:old_wp)
             ROS_INFO_STREAM("old wp: "<<w.transpose());
 
           for(const Eigen::VectorXd& w:wp_now)

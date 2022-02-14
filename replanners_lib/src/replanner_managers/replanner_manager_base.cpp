@@ -778,7 +778,7 @@ void ReplannerManagerBase::spawnObjects()
 
       replanner_mtx_.lock();
       trj_mtx_.lock();
-      replanner_->getCurrentPath()->findConnection(current_configuration_,idx_current_conn);
+      replanner_->getCurrentPath()->findConnection(configuration_replan_,idx_current_conn);
       trj_mtx_.unlock();
       replanner_mtx_.unlock();
 
@@ -801,7 +801,7 @@ void ReplannerManagerBase::spawnObjects()
         obj_conn = replanner_->getCurrentPath()->getConnections().at(obj_conn_pos);
         obj_parent = obj_conn->getParent();
         obj_child = obj_conn->getChild();
-        obj_pos = obj_parent->getConfiguration() + 0.8*(obj_child->getConfiguration()-obj_parent->getConfiguration());
+        obj_pos = obj_parent->getConfiguration() + 0.75*(obj_child->getConfiguration()-obj_parent->getConfiguration());
 
         if((obj_pos-configuration_replan_).norm()<0.20 && ((obj_conn_pos+1)<replanner_->getCurrentPath()->getConnections().size()))
         {
@@ -810,7 +810,7 @@ void ReplannerManagerBase::spawnObjects()
           obj_parent = obj_conn->getParent();
           obj_child = obj_conn->getChild();
 
-          obj_pos = obj_parent->getConfiguration() + 0.8*(obj_child->getConfiguration()-obj_parent->getConfiguration());
+          obj_pos = obj_parent->getConfiguration() + 0.75*(obj_child->getConfiguration()-obj_parent->getConfiguration());
         }
       }
       else

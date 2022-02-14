@@ -68,10 +68,10 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
   sampler.addBall(node->getConfiguration(),radius);
 
   //*  STEP 1: REWIRING  *//
-  tree->changeRoot(node);
-
   std::vector<ConnectionPtr> checked_connections;
-  std::vector<NodePtr> white_list = current_path_->getNodes();
+  std::vector<NodePtr> white_list = current_path_->getNodes();  //first save the path nodes
+
+  tree->changeRoot(node);  //then change the root
   tree->rewireOnlyWithPathCheck(node,checked_connections,radius,white_list,2); //rewire only children
 
   //*  STEP 2: ADDING NEW NODES AND SEARCHING WITH RRT*  *//
@@ -106,7 +106,7 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
       {
         if(checker_->checkPath(new_node->getConfiguration(),replan_goal->getConfiguration()))
         {
-          if(not replan_goal->getParents().empty())
+          if(not replan_goal->parent_connections_.empty())
           {
             replan_goal->parent_connections_.front()->remove(); //delete the connection between replan_goal and the old parent
             replan_goal->parent_connections_.clear();           //remove the old parent connections because now the parents of replan_goal come frome new_node
@@ -140,6 +140,8 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
     solver_->setStartTree(tree);
     solver_->setSolution(replanned_path_);
 
+    tree->changeRoot(root);
+
     /*///////////////////  ELIMINA /////////////////////*/
     std::vector<NodePtr> current_path_nodes = current_path_->getNodes();
     std::vector<NodePtr>::iterator it = std::find(current_path_nodes.begin(),current_path_nodes.end(),replan_goal);
@@ -152,8 +154,6 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
     assert(it<replanned_path_nodes.end());
     /* /////////////////////////////////////////////// */
   }
-
-  tree->changeRoot(root);
 
   return success_;
 }

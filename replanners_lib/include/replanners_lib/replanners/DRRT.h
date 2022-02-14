@@ -22,6 +22,7 @@ protected:
 
   bool trimInvalidTree(NodePtr& node);
   bool regrowRRT(NodePtr& node);
+  void fixTree(const NodePtr& node_replan, const NodePtr& root, std::vector<NodePtr> &old_nodes, std::vector<double> &old_connections_costs);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

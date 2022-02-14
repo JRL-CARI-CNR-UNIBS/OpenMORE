@@ -115,33 +115,32 @@ bool AnytimeDynamicRRT::replan()
 {
   ros::WallTime tic = ros::WallTime::now();
 
-  int curr_size = current_path_->getConnections().size(); //ELIMINA
-  std::vector<NodePtr> list_nodes = current_path_->getNodes(); //elimina
-  PathPtr copy = current_path_->clone();
-
   double cost_from_conf = current_path_->getCostFromConf(current_configuration_);
 
   NodePtr node_replan;
-  if(cost_from_conf == std::numeric_limits<double>::infinity() || tree_is_trimmed_)
+  if(cost_from_conf == std::numeric_limits<double>::infinity())
   {
-    if(not tree_is_trimmed_)
-    {
-      ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-      node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true); //sistema come in DRRT
-    }
-    else
-    {
-      node_replan = std::make_shared<Node>(current_configuration_);
-    }
+    std::vector<NodePtr> path_nodes = current_path_->getNodes();  //save nodes pointers (the same pointers stored in the tree)
+    assert(path_nodes.front() == current_path_->getTree()->getRoot());
+
+    std::vector<double> connections_costs;
+    for(const ConnectionPtr& conn:current_path_->getConnections())
+      connections_costs.push_back(conn->getCost());
+
+    for(const NodePtr& n:path_nodes)
+      assert(current_path_->getTree()->isInTree(n));
+
+    NodePtr root = current_path_->getTree()->getRoot();
+    assert(root == current_path_->getConnections().front()->getParent());
+
+    ConnectionPtr conn = current_path_->findConnection(current_configuration_);
+    node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true); //sistema come in DRRT
 
     if(verbose_)
       ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
     if(regrowRRT(node_replan))
     {
-      curr_size = current_path_->getConnections().size(); //elimina
-      copy = current_path_->clone();
-
       success_ = true;
 
       solver_->setStartTree(replanned_path_->getTree());
@@ -153,51 +152,18 @@ bool AnytimeDynamicRRT::replan()
         solver_->setStartTree(replanned_path_->getTree());
         solver_->setSolution(replanned_path_,true);       //should be after setStartTree
       }
-      else
-      {
-        /* ELIMINA */
-
-        if(current_path_->getConnections().size() != curr_size) //ELIMINA
-        {
-          ROS_INFO("CASO 1");
-          ROS_INFO_STREAM("Curr size: "<<current_path_->getConnections().size()<<" old size "<<curr_size);
-          PathPtr new_copy = current_path_->clone();
-
-          ROS_INFO_STREAM("Node rep: "<<*node_replan);
-
-          ROS_INFO("OLD NODES");
-          for(const NodePtr& on:list_nodes)
-            ROS_INFO_STREAM(on->getConfiguration().transpose());
-
-          ROS_INFO("NOW NODES");
-          for(const NodePtr& on:current_path_->getNodes())
-            ROS_INFO_STREAM(on->getConfiguration().transpose());
-
-          disp_->nextButton();
-          disp_->clearMarkers();
-          disp_->displayPathAndWaypoints(copy);
-          disp_->nextButton();
-          disp_->displayPathAndWaypoints(new_copy);
-
-          assert(0);
-        }
-
-        /* ///// */
-      }
     }
     else
     {
+      fixTree(node_replan,root,path_nodes,connections_costs);
+
       success_ = false;
       if(verbose_)
         ROS_ERROR("Tree can not be regrown using regrowRRT");
-
-      assert(tree_is_trimmed_);
     }
   }
-  else //replan not needed
+  else
   {
-    assert(not tree_is_trimmed_);
-
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
     node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,false);
 
@@ -214,37 +180,145 @@ bool AnytimeDynamicRRT::replan()
     }
     else
       success_ = false;
-
-    /* ELIMINA */
-
-    if(current_path_->getConnections().size() != curr_size) //ELIMINA
-    {
-      ROS_INFO("CASO 2");
-      ROS_INFO_STREAM("Curr size: "<<current_path_->getConnections().size()<<" old size "<<curr_size);
-      PathPtr new_copy = current_path_->clone();
-
-      ROS_INFO_STREAM("Node rep: "<<*node_replan);
-
-      ROS_INFO("OLD NODES");
-      for(const NodePtr& on:list_nodes)
-        ROS_INFO_STREAM(on->getConfiguration().transpose());
-
-      ROS_INFO("NOW NODES");
-      for(const NodePtr& on:current_path_->getNodes())
-        ROS_INFO_STREAM(on->getConfiguration().transpose());
-
-      disp_->nextButton();
-      disp_->clearMarkers();
-      disp_->displayPathAndWaypoints(copy);
-      disp_->nextButton();
-      disp_->displayPathAndWaypoints(new_copy);
-
-      assert(0);
-    }
-    /* ///// */
   }
 
   return success_;
 }
+
+//bool AnytimeDynamicRRT::replan()
+//{
+//  ros::WallTime tic = ros::WallTime::now();
+
+//  int curr_size = current_path_->getConnections().size(); //ELIMINA
+//  std::vector<NodePtr> list_nodes = current_path_->getNodes(); //elimina
+//  PathPtr copy = current_path_->clone();
+
+//  double cost_from_conf = current_path_->getCostFromConf(current_configuration_);
+
+//  NodePtr node_replan;
+//  if(cost_from_conf == std::numeric_limits<double>::infinity() || tree_is_trimmed_)
+//  {
+//    if(not tree_is_trimmed_)
+//    {
+//      ConnectionPtr conn = current_path_->findConnection(current_configuration_);
+//      node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true); //sistema come in DRRT
+//    }
+//    else
+//    {
+//      node_replan = std::make_shared<Node>(current_configuration_);
+//    }
+
+//    if(verbose_)
+//      ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
+
+//    if(regrowRRT(node_replan))
+//    {
+//      curr_size = current_path_->getConnections().size(); //elimina
+//      copy = current_path_->clone();
+
+//      success_ = true;
+
+//      solver_->setStartTree(replanned_path_->getTree());
+//      solver_->setSolution(replanned_path_,true);
+
+//      double max_time_impr = 0.98*max_time_-(ros::WallTime::now()-tic).toSec();
+//      if(improvePath(node_replan,max_time_impr)) //if not improved, success_ = true anyway beacuse a new path has been found with regrowRRT()
+//      {
+//        solver_->setStartTree(replanned_path_->getTree());
+//        solver_->setSolution(replanned_path_,true);       //should be after setStartTree
+//      }
+//      else
+//      {
+//        /* ELIMINA */
+
+//        if(current_path_->getConnections().size() != curr_size) //ELIMINA
+//        {
+//          ROS_INFO("CASO 1");
+//          ROS_INFO_STREAM("Curr size: "<<current_path_->getConnections().size()<<" old size "<<curr_size);
+//          PathPtr new_copy = current_path_->clone();
+
+//          ROS_INFO_STREAM("Node rep: "<<*node_replan);
+
+//          ROS_INFO("OLD NODES");
+//          for(const NodePtr& on:list_nodes)
+//            ROS_INFO_STREAM(on->getConfiguration().transpose());
+
+//          ROS_INFO("NOW NODES");
+//          for(const NodePtr& on:current_path_->getNodes())
+//            ROS_INFO_STREAM(on->getConfiguration().transpose());
+
+//          disp_->nextButton();
+//          disp_->clearMarkers();
+//          disp_->displayPathAndWaypoints(copy);
+//          disp_->nextButton();
+//          disp_->displayPathAndWaypoints(new_copy);
+
+//          assert(0);
+//        }
+
+//        /* ///// */
+//      }
+//    }
+//    else
+//    {
+//      success_ = false;
+//      if(verbose_)
+//        ROS_ERROR("Tree can not be regrown using regrowRRT");
+
+//      assert(tree_is_trimmed_);
+//    }
+//  }
+//  else //replan not needed
+//  {
+//    assert(not tree_is_trimmed_);
+
+//    ConnectionPtr conn = current_path_->findConnection(current_configuration_);
+//    node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,false);
+
+//    solver_->setStartTree(current_path_->getTree());
+//    solver_->setSolution(current_path_,true);       //should be after setStartTree
+
+//    double max_time_impr = 0.98*max_time_-(ros::WallTime::now()-tic).toSec();
+//    if(improvePath(node_replan,max_time_impr))
+//    {
+//      solver_->setStartTree(replanned_path_->getTree());
+//      solver_->setSolution(replanned_path_,true);   //should be after setStartTree
+
+//      success_ = true;
+//    }
+//    else
+//      success_ = false;
+
+//    /* ELIMINA */
+
+//    if(current_path_->getConnections().size() != curr_size) //ELIMINA
+//    {
+//      ROS_INFO("CASO 2");
+//      ROS_INFO_STREAM("Curr size: "<<current_path_->getConnections().size()<<" old size "<<curr_size);
+//      PathPtr new_copy = current_path_->clone();
+
+//      ROS_INFO_STREAM("Node rep: "<<*node_replan);
+
+//      ROS_INFO("OLD NODES");
+//      for(const NodePtr& on:list_nodes)
+//        ROS_INFO_STREAM(on->getConfiguration().transpose());
+
+//      ROS_INFO("NOW NODES");
+//      for(const NodePtr& on:current_path_->getNodes())
+//        ROS_INFO_STREAM(on->getConfiguration().transpose());
+
+//      disp_->nextButton();
+//      disp_->clearMarkers();
+//      disp_->displayPathAndWaypoints(copy);
+//      disp_->nextButton();
+//      disp_->displayPathAndWaypoints(new_copy);
+
+//      assert(0);
+//    }
+//    /* ///// */
+//  }
+
+//  return success_;
+//}
 
 }

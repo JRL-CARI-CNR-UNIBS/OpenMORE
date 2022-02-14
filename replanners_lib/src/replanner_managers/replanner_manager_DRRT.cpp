@@ -96,7 +96,7 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
   NodePtr goal = replanned_path->getConnections().back()->getChild();
   NodePtr replanned_path_start = replanned_path->getConnections().front()->getParent();
 
-  ROS_INFO_STREAM("ddrt goal ptr "<<goal);
+  ROS_INFO_STREAM("ddrt goal ptr "<<goal); //ELIMINA
 
   if(not checkTree(tree)) //ELIMINA
   {
@@ -169,7 +169,18 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
   }
   else if(abscissa_current_conf < abscissa_replanned_path_start)
   {
-    new_tree_branch = current_path_copy->getSubpathToConf(replanned_path_start->getConfiguration(),true);
+    ROS_INFO("abscissa_current_conf < abscissa_replanned_path_start");
+    try
+    {
+      new_tree_branch = current_path_copy->getSubpathToConf(replanned_path_start->getConfiguration(),true);
+    }
+    catch(...)
+    {
+      ROS_INFO_STREAM("replanned_path_start conf:  "<<replanned_path_start->getConfiguration().transpose());
+      for(const Eigen::VectorXd& wp:current_path_copy->getWaypoints())
+        ROS_INFO_STREAM("CURRENT PATH COPY WP: "<<wp.transpose());
+    }
+
     ROS_INFO("TO REPLANNED");
     plotBranch(new_tree_branch->getConnectionsConst()); //ELIMINA
 
@@ -306,7 +317,18 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
     }
     else
     {
-      new_tree_branch = current_path_copy->getSubpathToConf(configuration,true);
+      ROS_INFO("no conn");
+      try
+      {
+        new_tree_branch = current_path_copy->getSubpathToConf(configuration,true);
+      }
+      catch(...)
+      {
+        ROS_INFO_STREAM("rconfiguration:  "<<configuration.transpose());
+        for(const Eigen::VectorXd& wp:current_path_copy->getWaypoints())
+          ROS_INFO_STREAM("CURRENT PATH COPY WP: "<<wp.transpose());
+      }
+
       new_tree_branch = new_tree_branch->getSubpathFromConf(replanned_path_start->getConfiguration(),true);
 
       std::vector<ConnectionPtr> new_tree_branch_connections = new_tree_branch->getConnections();
@@ -333,8 +355,9 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
       ConnectionPtr new_conn;
       if(delete_conn)
       {
-        new_tree_branch_connections.clear();
+        int size_branch = new_tree_branch_connections.size()-(idx+1);
         new_tree_branch_connections.insert(new_tree_branch_connections.begin(),new_tree_branch_connections.begin()+(idx+1),new_tree_branch_connections.end());
+        new_tree_branch_connections.resize(size_branch);
 
         ConnectionPtr conn2delete = new_tree_branch_connections.at(0);
         NodePtr parent = replanned_path->getConnections().at(idx)->getChild();
