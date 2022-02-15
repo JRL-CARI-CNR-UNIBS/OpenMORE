@@ -99,7 +99,8 @@ void DynamicRRT::fixTree(const NodePtr& node_replan, const NodePtr& root, std::v
     trimmed_tree_->changeRoot(root); //the old root (the starting point of the current path)
     current_path_->setConnections(trimmed_tree_->getConnectionToNode(goal_node_));
 
-    assert(not trimmed_tree_->isInTree(node_replan));
+    if(std::find(old_nodes.begin(),old_nodes.end(),node_replan) == old_nodes.end())
+      assert(not trimmed_tree_->isInTree(node_replan));
   }
   else
   {

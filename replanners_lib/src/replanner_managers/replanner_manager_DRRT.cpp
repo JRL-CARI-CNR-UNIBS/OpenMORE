@@ -181,20 +181,20 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
         ROS_INFO_STREAM("CURRENT PATH COPY WP: "<<wp.transpose());
     }
 
-    ROS_INFO("TO REPLANNED");
-    plotBranch(new_tree_branch->getConnectionsConst()); //ELIMINA
+//    ROS_INFO("TO REPLANNED");
+//    plotBranch(new_tree_branch->getConnectionsConst()); //ELIMINA
 
     new_tree_branch = new_tree_branch->getSubpathFromConf(configuration,true);
-    ROS_INFO("FROM CONF");
-    plotBranch(new_tree_branch->getConnectionsConst()); //ELIMINA
+//    ROS_INFO("FROM CONF");
+//    plotBranch(new_tree_branch->getConnectionsConst()); //ELIMINA
 
     new_tree_branch->flip();
-    ROS_INFO("FLIPPED");
-    plotBranch(new_tree_branch->getConnectionsConst()); //ELIMINA
+//    ROS_INFO("FLIPPED");
+//    plotBranch(new_tree_branch->getConnectionsConst()); //ELIMINA
 
     std::vector<ConnectionPtr> new_tree_branch_connections = new_tree_branch->getConnections();
-    ROS_INFO("BEFORE CHANGING FIRST CONNECTION");
-    plotBranch(new_tree_branch_connections); //ELIMINA
+//    ROS_INFO("BEFORE CHANGING FIRST CONNECTION");
+//    plotBranch(new_tree_branch_connections); //ELIMINA
 
     ConnectionPtr conn2delete = new_tree_branch_connections.at(0);
     NodePtr child = conn2delete->getChild();
@@ -220,8 +220,8 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
     assert(current_node->getConfiguration() == configuration);
 
     checkNewBranch(new_tree_branch_connections); //ELIMINA
-    ROS_INFO("AFTER CHANGING FIRST CONNECTION");
-    plotBranch(new_tree_branch_connections); //ELIMINA
+//    ROS_INFO("AFTER CHANGING FIRST CONNECTION");
+//    plotBranch(new_tree_branch_connections); //ELIMINA
 
     if(not tree->addBranch(new_tree_branch_connections))
       ROS_ERROR("Branch from current node not added to the replanned tree");

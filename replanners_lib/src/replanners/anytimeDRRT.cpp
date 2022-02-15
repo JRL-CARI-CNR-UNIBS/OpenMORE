@@ -33,16 +33,7 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
 
   bool success = false;
 
-  const std::type_info& ti1 = typeid(AnytimeRRT);
-  const std::type_info& ti2 = typeid(*solver_);
-
-  if(ti1 != ti2)
-  {
-    ROS_ERROR_STREAM("Solver not of type AnytimeRRT");
-    return false;
-  }
-
-  AnytimeRRTPtr forced_cast_solver = std::static_pointer_cast<AnytimeRRT>(solver_);
+  AnytimeRRTPtr forced_cast_solver = std::static_pointer_cast<AnytimeRRT>(solver_);  //solver_ is of type AnytimeRRT (see constructor)
 
   if(replanned_path_)
   {
@@ -62,8 +53,9 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
   assert(forced_cast_solver->getStartTree());
   assert(forced_cast_solver->getSolution());
 
-  double path_cost = solver_->getSolution()->getCostFromConf(node->getConfiguration());
   double imprv = forced_cast_solver->getCostImpr();
+  double path_cost = solver_->getSolution()->getCostFromConf(node->getConfiguration());
+  forced_cast_solver->setPathCost(path_cost);
 
   int n_fail = 0;
   PathPtr solution;
@@ -85,15 +77,16 @@ bool AnytimeDynamicRRT::improvePath(NodePtr &node, const double& max_time)
     {
       replanned_path_ = solution;
       goal_node_ = goal_node;
-      path_cost = solution->cost();
       success = true;
       n_fail = 0;
+
+      assert(replanned_path_->getConnections().back()->getChild()->getConfiguration() == goal_node->getConfiguration());
 
       solver_->setStartTree(solution->getTree());
       solver_->setSolution(solution,true);
 
       if(verbose_)
-        ROS_INFO_STREAM("Improved cost: "<<path_cost);
+        ROS_INFO_STREAM("Improved cost: "<<solution->cost());
 
       assert(replanned_path_->getTree());
     }
@@ -131,10 +124,10 @@ bool AnytimeDynamicRRT::replan()
       assert(current_path_->getTree()->isInTree(n));
 
     NodePtr root = current_path_->getTree()->getRoot();
-    assert(root == current_path_->getConnections().front()->getParent());
+    assert(root == path_nodes.front());
 
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-    node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true); //sistema come in DRRT
+    node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
 
     if(verbose_)
       ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
