@@ -14,22 +14,32 @@ ReplannerManagerDRRTStar::ReplannerManagerDRRTStar(const PathPtr &current_path,
 
 void ReplannerManagerDRRTStar::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
 {
-//  std::vector<NodePtr> nodes;
-//  std::vector<double> costs;
-//  detachAddedBranch(nodes,costs);
-//  connectCurrentConfToTree();
+  //  std::vector<NodePtr> nodes;
+  //  std::vector<double> costs;
+  //  detachAddedBranch(nodes,costs);
+  //  connectCurrentConfToTree();
 
   PathPtr current_path = replanner_->getCurrentPath();
   PathPtr replanned_path = replanner_->getReplannedPath();
   TreePtr tree = current_path->getTree();
 
-  ConnectionPtr conn;
-  NodePtr current_node = current_path->addNodeAtCurrentConfig(configuration,conn,true);
+  for(const ConnectionPtr& conn:current_path->getConnections()) //ELIMINA
+  {
+    ROS_INFO_STREAM("p: "<<conn->getParent()->getConfiguration().transpose());
+    ROS_INFO_STREAM("c: "<<conn->getChild() ->getConfiguration().transpose());
+  }
+
+  //  if(old_current_node_)
+  //    current_path->removeNode(old_current_node_,{});
+
+  NodePtr current_node = current_path->addNodeAtCurrentConfig(configuration,true);
 
   tree->changeRoot(current_node);
 
   std::vector<ConnectionPtr> new_conns = tree->getConnectionToNode(replanner_->getGoal());
   replanned_path->setConnections(new_conns);
+
+  //  old_current_node_ = current_node;
 }
 
 bool ReplannerManagerDRRTStar::haveToReplan(const bool path_obstructed)

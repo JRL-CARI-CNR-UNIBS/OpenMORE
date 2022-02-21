@@ -343,6 +343,12 @@ void ReplannerManagerBase::replanningThread()
       {
         int size =current_path_replanning_->getConnections().size(); //elimina
 
+        for(const ConnectionPtr& conn:current_path_replanning_->getConnections()) //ELIMINA
+        {
+          ROS_INFO_STREAM("p: "<<conn->getParent()->getConfiguration().transpose());
+          ROS_INFO_STREAM("c: "<<conn->getChild() ->getConfiguration().transpose());
+        }
+
         tic_rep=ros::WallTime::now();
         path_changed = replanner_->replan(); //path may have changed even though replanning was unsuccessful
         toc_rep=ros::WallTime::now();
@@ -372,13 +378,25 @@ void ReplannerManagerBase::replanningThread()
         trj_mtx_.lock();
 
         NodePtr goal_curr = replanner_->getReplannedPath()->getConnections().back()->getChild(); //elimina
+        if(goal_curr != replanner_->getGoal())
+        {
+          ROS_INFO_STREAM("goal before: "<<goal_curr->getConfiguration().transpose()<<" "<<goal_curr);
+          ROS_INFO_STREAM("rep goal: "<<replanner_->getGoal()->getConfiguration().transpose()<<" "<<replanner_->getGoal());
+          assert(0);
+        }
+
+
         startReplannedPathFromNewCurrentConf(current_configuration_);
+
+
         NodePtr new_goal_curr = replanner_->getReplannedPath()->getConnections().back()->getChild(); //elimina
 
-        if(goal_curr != new_goal_curr)
+        if(goal_curr != new_goal_curr) //ELIMINA
         {
           ROS_INFO_STREAM("goal before: "<<goal_curr->getConfiguration().transpose()<<" "<<goal_curr);
           ROS_INFO_STREAM("new goal before: "<<new_goal_curr->getConfiguration().transpose()<<" "<<new_goal_curr);
+          ROS_INFO_STREAM("goal rep: "<<replanner_->getGoal()->getConfiguration().transpose()<<" "<<replanner_->getGoal());
+
           assert(0);
         }
 
@@ -387,6 +405,7 @@ void ReplannerManagerBase::replanningThread()
 
         paths_mtx_.lock();
         current_path_shared_ = current_path_replanning_->clone();
+        current_path_shared_->setChecker(checker_cc_);
         current_path_sync_needed_ = true;
 
         //        ROS_WARN("current path just changed"); //elimina
@@ -432,6 +451,7 @@ void ReplannerManagerBase::collisionCheckThread()
 
   Eigen::VectorXd current_configuration_copy;
   PathPtr current_path_copy = current_path_shared_->clone();
+  current_path_copy->setChecker(checker_cc_);
   moveit_msgs::GetPlanningScene ps_srv;
 
   stop_mtx_.lock();
@@ -462,6 +482,7 @@ void ReplannerManagerBase::collisionCheckThread()
     if(current_path_sync_needed_)
     {
       current_path_copy = current_path_shared_->clone();
+      current_path_copy->setChecker(checker_cc_);
       current_path_sync_needed_ = false;
       //      ROS_WARN("CC syncronized with current path "); //elimina
 
@@ -681,8 +702,6 @@ void ReplannerManagerBase::displayThread()
 
   disp->clearMarkers();
 
-  replanner_->setDisp(disp); //ELIMINAAAAAAAAAAAAAAAAAAA
-
   double display_thread_frequency = 0.75*trj_exec_thread_frequency_;
   ros::Rate lp(display_thread_frequency);
 
@@ -753,7 +772,7 @@ void ReplannerManagerBase::spawnObjects()
   object_loader_msgs::RemoveObjects srv_remove_object;
   MoveitUtils moveit_utils(planning_scn_cc_,group_name_);
 
-  ros::Rate lp(0.5*trj_exec_thread_frequency_);
+  ros::Rate lp(trj_exec_thread_frequency_);
 
   bool object_spawned = false;
   bool second_object_spawned = false;
@@ -763,6 +782,8 @@ void ReplannerManagerBase::spawnObjects()
   stop_mtx_.lock();
   bool stop = stop_;
   stop_mtx_.unlock();
+
+  CollisionCheckerPtr checker = checker_cc_->clone();
 
   while(not stop && ros::ok())
   {
@@ -786,28 +807,31 @@ void ReplannerManagerBase::spawnObjects()
       int idx_current_conn;
 
       replanner_mtx_.lock();
-      trj_mtx_.lock();
-      replanner_->getCurrentPath()->findConnection(configuration_replan_,idx_current_conn);
-      trj_mtx_.unlock();
+      paths_mtx_.lock();
+      PathPtr path_copy = current_path_shared_->clone();
+      path_copy->setChecker(checker);
+      path_copy = path_copy->getSubpathFromConf(configuration_replan_,true);
+      paths_mtx_.unlock();
       replanner_mtx_.unlock();
 
-      replanner_mtx_.lock();
-      int size = replanner_->getCurrentPath()->getConnections().size();
-      replanner_mtx_.unlock();
+      //replanner_mtx_.lock();
+      int size = path_copy->getConnections().size();
+      //replanner_mtx_.unlock();
 
       std::srand(time(NULL));
-      obj_conn_pos = (rand() % (size-idx_current_conn)) + idx_current_conn;
+      obj_conn_pos = rand() % size;
+      //obj_conn_pos = (rand() % (size-idx_current_conn)) + idx_current_conn;
 
       pathplan::ConnectionPtr obj_conn;
       pathplan::NodePtr obj_parent;
       pathplan::NodePtr obj_child;
       Eigen::VectorXd obj_pos;
 
-      replanner_mtx_.lock();
-      trj_mtx_.lock();
+      //replanner_mtx_.lock();
+      //trj_mtx_.lock();
       if(obj_conn_pos != size-1)
       {
-        obj_conn = replanner_->getCurrentPath()->getConnections().at(obj_conn_pos);
+        obj_conn = path_copy->getConnections().at(obj_conn_pos);
         obj_parent = obj_conn->getParent();
         obj_child = obj_conn->getChild();
         obj_pos = obj_parent->getConfiguration() + 0.75*(obj_child->getConfiguration()-obj_parent->getConfiguration());
@@ -824,7 +848,7 @@ void ReplannerManagerBase::spawnObjects()
       }
       else
       {
-        obj_conn = replanner_->getCurrentPath()->getConnections().at(size -1);
+        obj_conn = path_copy->getConnections().at(size -1);
         obj_parent = obj_conn->getParent();
         obj_child = obj_conn->getChild();
         obj_pos = obj_parent->getConfiguration() + 0.3*(obj_child->getConfiguration()-obj_parent->getConfiguration());
@@ -835,8 +859,8 @@ void ReplannerManagerBase::spawnObjects()
         }
       }
 
-      trj_mtx_.unlock();
-      replanner_mtx_.unlock();
+      //trj_mtx_.unlock();
+      //replanner_mtx_.unlock();
 
       moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
 

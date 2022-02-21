@@ -12,6 +12,7 @@ typedef std::shared_ptr<ReplannerManagerDRRTStar> ReplannerManagerDRRTStarPtr;
 class ReplannerManagerDRRTStar: public ReplannerManagerBase
 {
 protected:
+  NodePtr old_current_node_ = nullptr;
 
   bool haveToReplan(const bool path_obstructed) override;
   void initReplanner() override;

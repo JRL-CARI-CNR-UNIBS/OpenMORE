@@ -87,6 +87,7 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
   ROS_INFO("------");
   paths_mtx_.lock();
   PathPtr current_path_copy = current_path_shared_->clone();
+  current_path_copy->setChecker(checker_replanning_);
   paths_mtx_.unlock();
 
   std::vector<ConnectionPtr> path_connections;
@@ -96,7 +97,7 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
   NodePtr goal = replanned_path->getConnections().back()->getChild();
   NodePtr replanned_path_start = replanned_path->getConnections().front()->getParent();
 
-  ROS_INFO_STREAM("ddrt goal ptr "<<goal); //ELIMINA
+  ROS_INFO_STREAM("ddrt goal "<<goal->getConfiguration()<<" "<<goal); //ELIMINA
 
   if(not checkTree(tree)) //ELIMINA
   {

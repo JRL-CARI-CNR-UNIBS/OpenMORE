@@ -12,6 +12,7 @@ typedef std::shared_ptr<ReplannerManagerAIPRO> ReplannerManagerAIPROPtr;
 class ReplannerManagerAIPRO: public ReplannerManagerBase
 {
 protected:
+  std::vector<PathPtr> other_paths_;
 
   void replanningThread() override;
   void collisionCheckThread() override;
@@ -25,11 +26,20 @@ public:
                         const TreeSolverPtr &solver,
                         const ros::NodeHandle &nh);
 
-//  ReplannerManagerAIPRO(PathPtr &current_path,
-//                        std::vector<PathPtr> &other_path,
-//                        TreeSolverPtr &solver,
-//                        ros::NodeHandle &nh);
+  ReplannerManagerAIPRO(const PathPtr &current_path,
+                        const TreeSolverPtr &solver,
+                        const ros::NodeHandle &nh,
+                        std::vector<PathPtr> &other_paths);
 
+  void setOtherPaths(std::vector<PathPtr>& other_paths)
+  {
+    other_paths_ = other_paths;
+    if(replanner_)
+    {
+      AIPROPtr aipro_replanner = std::static_pointer_cast<AIPRO>(replanner_);
+      aipro_replanner->setOtherPaths(other_paths);
+    }
+  }
   void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration) override;
 };
 

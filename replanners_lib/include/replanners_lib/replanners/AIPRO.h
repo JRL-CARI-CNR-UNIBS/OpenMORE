@@ -19,12 +19,6 @@ struct invalid_connection
   double cost;
 };
 
-//struct unconnected_nodes
-//{
-//  NodePtr start_node;
-//  std::vector<node_and_path> goals_and_paths;
-//};
-
 class AIPRO;
 typedef std::shared_ptr<AIPRO> AIPROPtr;
 
@@ -38,7 +32,6 @@ protected:
   std::vector<PathPtr> admissible_other_paths_;
   std::vector<PathPtr> replanned_paths_vector_;
   std::vector<invalid_connection> invalid_connections_;
-  //std::vector<unconnected_nodes> unconnected_nodes_;
 
   double time_first_sol_;
   double time_replanning_;

@@ -71,6 +71,9 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
   std::vector<ConnectionPtr> checked_connections;
   std::vector<NodePtr> white_list = current_path_->getNodes();  //first save the path nodes
 
+  for(const NodePtr& n:white_list) //ELIMINA
+    ROS_INFO_STREAM("white node: "<<n->getConfiguration().transpose());
+
   tree->changeRoot(node);  //then change the root
   tree->rewireOnlyWithPathCheck(node,checked_connections,radius,white_list,2); //rewire only children
 
@@ -111,6 +114,7 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
             replan_goal->parent_connections_.front()->remove(); //delete the connection between replan_goal and the old parent
             replan_goal->parent_connections_.clear();           //remove the old parent connections because now the parents of replan_goal come frome new_node
           }
+          assert(replan_goal->parent_connections_.size() == 0);
 
           double cost = metrics_->cost(new_node->getConfiguration(),replan_goal->getConfiguration());
           ConnectionPtr conn = std::make_shared<Connection>(new_node,replan_goal);
@@ -120,6 +124,8 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
           cost2goal = cost+cost2new_node;
 
           success_ = true;
+
+          assert(replan_goal->parent_connections_.size() == 1);
         }
       }
     }
@@ -160,6 +166,7 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
 
 bool DynamicRRTStar::replan()
 {
+  success_ = false;
   double cost_from_conf = current_path_->getCostFromConf(current_configuration_);
 
   if(cost_from_conf == std::numeric_limits<double>::infinity())
@@ -185,22 +192,33 @@ bool DynamicRRTStar::replan()
     }
     else
     {
-      if(not replanned_path_->getTree()->changeRoot(root))
+      if(not current_path_->getTree()->changeRoot(root))
       {
         ROS_ERROR("Root can't be restored");
         assert(0);
       }
-      assert(replanned_path_->getTree()->getRoot() != node_replan);
+      assert(root != node_replan && current_path_->getTree()->getRoot() != node_replan || root == node_replan);
 
       std::vector<NodePtr> void_list;
-      if(replanned_path_->removeNode(node_replan,void_list)) //if added node is removed the path is not changed, otherwise it is changed
+
+      if(current_path_->removeNode(node_replan,void_list)) //if added node is removed the path is not changed, otherwise it is changed
+      {
+        if(verbose_)
+          ROS_INFO("Node replan removed");
         return false; //path is no changed
+      }
       else
+      {
+        if(verbose_)
+          ROS_INFO("Node replan not removed");
         return true;  //path is changed
+      }
     }
   }
   else //replan not needed
   {
+    assert(current_path_->isValidFromConf(current_configuration_));
+
     success_ = false;
     replanned_path_ = current_path_;
 
