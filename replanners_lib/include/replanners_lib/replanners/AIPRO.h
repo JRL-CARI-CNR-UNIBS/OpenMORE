@@ -146,7 +146,7 @@ public:
 
   void addOtherPath(PathPtr& path)
   {
-    if(!mergePathToTree(path))
+    if(not mergePathToTree(path))
       assert(0);
 
     other_paths_.push_back(path);

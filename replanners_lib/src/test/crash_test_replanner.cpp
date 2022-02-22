@@ -61,6 +61,13 @@ int main(int argc, char **argv)
     return 0;
   }
 
+  double max_distance;
+  if(!nh.getParam("max_distance",max_distance))
+  {
+    ROS_ERROR("max_distance not set, set 0.5");
+    max_distance = 0.5;
+  }
+
   bool display;
   if (!nh.getParam("display",display))
   {
@@ -159,6 +166,7 @@ int main(int argc, char **argv)
     pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
     pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf,goal_conf,lb,ub);
     pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics,checker,sampler);
+    solver->setMaxDistance(max_distance);
 
     std::srand(std::time(NULL));
     pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);

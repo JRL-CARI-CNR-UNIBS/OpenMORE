@@ -19,7 +19,7 @@ protected:
   bool tree_is_trimmed_;
   InformedSamplerPtr sampler_;
 
-  bool trimInvalidTree(NodePtr& node);
+  bool trimInvalidTree(NodePtr& node, std::vector<ConnectionPtr> &checked_connections);
   bool regrowRRT(NodePtr& node);
   void fixTree(const NodePtr& node_replan, const NodePtr& root, std::vector<NodePtr> &old_nodes, std::vector<double> &old_connections_costs);
 

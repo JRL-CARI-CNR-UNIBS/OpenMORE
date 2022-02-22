@@ -75,41 +75,43 @@ protected:
   sensor_msgs::JointState                   new_joint_state_unscaled_;
   sensor_msgs::JointState                   new_joint_state_         ;
 
-  std::thread display_thread_   ;
-  std::thread spawn_obj_thread_ ;
+  std::thread display_thread_;
+  std::thread spawn_obj_thread_;
   std::thread replanning_thread_;
-  std::thread col_check_thread_ ;
-  std::thread trj_exec_thread_  ;
+  std::thread col_check_thread_;
+  std::thread trj_exec_thread_;
 
-  std::mutex trj_mtx_      ;
-  std::mutex paths_mtx_    ;
-  std::mutex scene_mtx_    ;
+  std::mutex trj_mtx_;
+  std::mutex paths_mtx_;
+  std::mutex scene_mtx_;
   std::mutex replanner_mtx_;
-  std::mutex stop_mtx_     ;
-  std::mutex ovr_mtx_      ;
+  std::mutex stop_mtx_;
+  std::mutex ovr_mtx_;
 
   std::vector<std::string>                                                        scaling_topics_names_ ;
   std::vector<std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>>> scaling_topics_vector_;
   std::map<std::string,double> overrides_;
   double global_override_;
 
-  ros::Publisher target_pub_         ;
+  ros::Publisher target_pub_;
   ros::Publisher unscaled_target_pub_;
 
   ros::ServiceClient plannning_scene_client_;
-  ros::ServiceClient add_obj_               ;
-  ros::ServiceClient remove_obj_            ;
+  ros::ServiceClient add_obj_;
+  ros::ServiceClient remove_obj_;
 
   void overrideCallback(const std_msgs::Int64ConstPtr& msg, const std::string& override_name);
-  void fromParam()                   ;
-  void attributeInitialization()     ;
-  void subscribeTopicsAndServices()  ;
-  virtual void replanningThread()    ;
+  void subscribeTopicsAndServices();
+  virtual bool replan();
+  virtual void fromParam();
+  virtual void updatePathCost();
+  virtual void attributeInitialization();
+  virtual void replanningThread();
   virtual void collisionCheckThread();
-  void displayThread()               ;
-  void spawnObjects()                ;
-  void trajectoryExecutionThread()   ;
-  double readScalingTopics()         ;
+  void displayThread();
+  void spawnObjects();
+  void trajectoryExecutionThread();
+  double readScalingTopics();
   std::vector<ConnectionPtr> connectCurrentConfToTree();
   bool detachAddedBranch(std::vector<NodePtr>& nodes, std::vector<double>& costs);
 

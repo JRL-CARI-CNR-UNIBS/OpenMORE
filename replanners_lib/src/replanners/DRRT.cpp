@@ -95,17 +95,19 @@ void DynamicRRT::fixTree(const NodePtr& node_replan, const NodePtr& root, std::v
   assert(trimmed_tree_->getRoot() == root);
 }
 
-bool DynamicRRT::trimInvalidTree(NodePtr& node)
+bool DynamicRRT::trimInvalidTree(NodePtr& node, std::vector<ConnectionPtr>& checked_connections)
 {
   ros::WallTime tic = ros::WallTime::now();
 
   bool trimmed = false;
-
   TreePtr tree= current_path_->getTree();
-  std::vector<ConnectionPtr> node2goal = tree->getConnectionToNode(node); //Note: the root must be the goal (set in regrowRRT())
 
-  std::vector<NodePtr> white_list; //not needed
+  NodePtr child;
   unsigned int removed_nodes;      //not needed
+  std::vector<NodePtr> white_list; //not needed
+
+  //Firstly trim the tree starting from the path to node
+  std::vector<ConnectionPtr> node2goal = tree->getConnectionToNode(node); //Note: the root must be the goal (set in regrowRRT())
   for(const ConnectionPtr &conn: node2goal)
   {
     if((ros::WallTime::now()-tic).toSec()>=max_time_)
@@ -119,13 +121,21 @@ bool DynamicRRT::trimInvalidTree(NodePtr& node)
       obstructed = true;
     else
     {
-      if(not checker_->checkConnection(conn))
-        obstructed = true;
+      if(std::find(checked_connections.begin(),checked_connections.end(),conn) != checked_connections.end())
+      {
+        if(not checker_->checkConnection(conn))
+        {
+          conn->setCost(std::numeric_limits<double>::infinity());
+          obstructed = true;
+        }
+
+        checked_connections.push_back(conn);
+      }
     }
 
     if(obstructed)
     {
-      NodePtr child = conn->getChild();
+      child = conn->getChild();
       tree->purgeFromHere(child,white_list,removed_nodes); //remove the successors and the connection from parent to child
 
       trimmed = true;
@@ -133,8 +143,44 @@ bool DynamicRRT::trimInvalidTree(NodePtr& node)
     }
   }
 
-  trimmed_tree_ = tree;
+  //Now check the remaining tree
+  bool trimmed_again;
+  do
+  {
+    trimmed_again = false;
 
+    std::vector<NodePtr> leaves;
+    std::vector<ConnectionPtr> path_connections;
+
+    for(const NodePtr& n:tree->getNodes())
+    {
+      assert(((n->parent_connections_.size() == 1) && (n!=tree->getRoot())) || (n == tree->getRoot()));
+      if(n->child_connections_.empty())
+        leaves.push_back(n);
+    }
+
+    for(const NodePtr& leave:leaves)
+    {
+      if(not tree->checkPathToNode(leave,checked_connections,path_connections))
+      {
+        for(const ConnectionPtr& conn:path_connections)
+        {
+          if(conn->getCost() == std::numeric_limits<double>::infinity())
+          {
+            child = conn->getChild();
+            tree->purgeFromHere(child,white_list,removed_nodes);
+
+            trimmed = true;
+            trimmed_again = true;
+
+            break;
+          }
+        }
+      }
+    }
+  }while(trimmed_again);
+
+  trimmed_tree_ = tree;
   return trimmed;
 }
 
@@ -142,7 +188,9 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
 {
   ros::WallTime tic = ros::WallTime::now();
 
-  //First thing to do: set the goal as the root
+  std::vector<ConnectionPtr> checked_connections = current_path_->getSubpathFromNode(node)->getConnections();
+
+  //Set the goal as the root
   if(not current_path_->getTree()->changeRoot(goal_node_)) //revert the tree so the goal is the root
   {
     ROS_ERROR("The goal can't be set as root!");
@@ -155,7 +203,7 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
   if(not tree_is_trimmed_)
   {
     //Trim the tree
-    if(not trimInvalidTree(node))
+    if(not trimInvalidTree(node,checked_connections))
     {
       if(verbose_)
         ROS_INFO("Tree not trimmed");
@@ -166,9 +214,13 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
     else
       tree_is_trimmed_ = true;
   }
+  double perc = ((ros::WallTime::now()-tic).toSec()/max_time_)*100;
+  ROS_WARN_STREAM("tempo impiegato "<<perc<< "%"); //ELIMINA
 
   //Regrow the tree
   double max_distance = trimmed_tree_->getMaximumDistance();
+  assert(max_distance>0.0);
+
   //InformedSampler sampler(lb_,ub_,lb_,ub_);
 
   double time = (ros::WallTime::now()-tic).toSec();
@@ -176,6 +228,7 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
   {
     NodePtr new_node;
     Eigen::VectorXd conf = sampler_->sample(); //CHIEDI A MANUEL PERCHE CAPITA CHE VENGA CAMPIONATA LA STESSA CONFIGURAZIONE PIU VOLTE
+    //if(trimmed_tree_->extendWithPathCheck(conf,new_node,checked_connections))
     if(trimmed_tree_->extend(conf,new_node))
     {
       ROS_INFO_STREAM("new_node: "<<new_node->getConfiguration().transpose()<<" conf: "<<conf.transpose()); //ELIMINA
@@ -192,6 +245,8 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
           ConnectionPtr conn = std::make_shared<Connection>(new_node, node);
           conn->setCost(metrics_->cost(new_node, node));
           conn->add();
+
+          checked_connections.push_back(conn);
 
           trimmed_tree_->addNode(node);
 

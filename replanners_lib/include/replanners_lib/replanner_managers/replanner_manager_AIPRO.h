@@ -12,10 +12,17 @@ typedef std::shared_ptr<ReplannerManagerAIPRO> ReplannerManagerAIPROPtr;
 class ReplannerManagerAIPRO: public ReplannerManagerBase
 {
 protected:
+  bool first_replanning_;
+  double dt_replan_relaxed_;
   std::vector<PathPtr> other_paths_;
+  std::vector<PathPtr> other_paths_shared_;
 
+  void fromParam() override;
+  void updatePathCost() override;
+  void attributeInitialization() override;
   void replanningThread() override;
   void collisionCheckThread() override;
+  bool replan() override;
   bool haveToReplan(const bool path_obstructed) override;
   void initReplanner() override;
 

@@ -17,6 +17,8 @@ protected:
 
   bool nodeBehindObs(NodePtr& node_behind);
   bool connectBehindObs(NodePtr& node);
+  bool rewireBehindObs(NodePtr& node);
+
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
