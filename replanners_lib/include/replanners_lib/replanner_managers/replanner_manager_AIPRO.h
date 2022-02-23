@@ -20,7 +20,6 @@ protected:
   void fromParam() override;
   void updatePathCost() override;
   void attributeInitialization() override;
-  void replanningThread() override;
   void collisionCheckThread() override;
   bool replan() override;
   bool haveToReplan(const bool path_obstructed) override;

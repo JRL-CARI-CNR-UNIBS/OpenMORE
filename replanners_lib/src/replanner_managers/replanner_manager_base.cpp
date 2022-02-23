@@ -76,7 +76,7 @@ void ReplannerManagerBase::fromParam()
 void ReplannerManagerBase::attributeInitialization()
 {
   stop_                            = false;
-  current_path_sync_needed_            = false;
+  current_path_sync_needed_        = false;
   n_conn_                          = 0    ;
   scaling_                         = 1.0  ;
   real_time_                       = 0.0  ;
@@ -462,7 +462,6 @@ void ReplannerManagerBase::collisionCheckThread()
       current_path_copy->setChecker(checker_cc_);
       current_path_sync_needed_ = false;
       //      ROS_WARN("CC syncronized with current path "); //elimina
-
     }
     paths_mtx_.unlock();
 
