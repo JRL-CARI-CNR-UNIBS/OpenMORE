@@ -34,6 +34,8 @@ void ReplannerManagerMPRRT::additionalParams()
 
 void ReplannerManagerMPRRT::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
 {
+  ROS_WARN("START FROM NEW CONF"); //ELIMINA
+
   std::vector<pathplan::ConnectionPtr> path_connections;
   PathPtr replanned_path = replanner_->getReplannedPath();
   pathplan::NodePtr replanned_path_start = replanned_path->getConnections().front()->getParent();
