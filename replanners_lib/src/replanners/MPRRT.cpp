@@ -1,13 +1,13 @@
-#include "replanners_lib/replanners/replanner_to_goal.h"
+#include "replanners_lib/replanners/MPRRT.h"
 
 namespace pathplan
 {
 
-ReplannerToGoal::ReplannerToGoal(Eigen::VectorXd& current_configuration,
-                                 PathPtr& current_path,
-                                 const double& max_time,
-                                 const TreeSolverPtr& solver,
-                                 const unsigned int& number_of_parallel_plannings): ReplannerBase(current_configuration,current_path,max_time,solver)
+MPRRT::MPRRT(Eigen::VectorXd& current_configuration,
+             PathPtr& current_path,
+             const double& max_time,
+             const TreeSolverPtr& solver,
+             const unsigned int& number_of_parallel_plannings): ReplannerBase(current_configuration,current_path,max_time,solver)
 {
   const std::type_info& ti1 = typeid(RRT);
   const std::type_info& ti2 = typeid(*solver);
@@ -44,64 +44,94 @@ ReplannerToGoal::ReplannerToGoal(Eigen::VectorXd& current_configuration,
     solver_vector_.push_back(sv);
   }
 
-  connecting_path_vector_   .resize(number_of_parallel_plannings_,nullptr);
-  directly_connected_vector_.resize(number_of_parallel_plannings_);
+  connecting_path_vector_.resize(number_of_parallel_plannings_,nullptr);
 }
 
-
-
-bool ReplannerToGoal::asyncComputeConnectingPath(const Eigen::VectorXd path1_node_conf,
-                                                 const Eigen::VectorXd path2_node_conf,
-                                                 const double diff_subpath_cost,
-                                                 const int index)
+bool MPRRT::asyncComputeConnectingPath(const Eigen::VectorXd path1_node_conf,
+                                       const Eigen::VectorXd path2_node_conf,
+                                       const double current_solution_cost,
+                                       const int index)
 {
-  NodePtr path1_node = std::make_shared<Node>(path1_node_conf);
-  NodePtr path2_node = std::make_shared<Node>(path2_node_conf);
+  ros::WallTime tic = ros::WallTime::now();
 
-  PathPtr connecting_path = nullptr;
-  bool directly_connected = false;
   TreeSolverPtr solver = solver_vector_.at(index);
 
-  bool success = computeConnectingPath(path1_node,
-                                       path2_node,
-                                       diff_subpath_cost,
-                                       connecting_path,
-                                       directly_connected,
-                                       solver);
+  double best_cost = std::numeric_limits<double>::infinity();
+  PathPtr best_solution = nullptr;
+  bool success = false;
+  int iter = 0;
+  double time;
+
+  do
+  {
+    iter++;
+
+    NodePtr path1_node = std::make_shared<Node>(path1_node_conf);
+    NodePtr path2_node = std::make_shared<Node>(path2_node_conf);
+
+    PathPtr connecting_path = nullptr;
+    bool directly_connected = false;
+
+    time = max_time_-(ros::WallTime::now()-tic).toSec();
+
+    bool solved = computeConnectingPath(path1_node,path2_node,current_solution_cost,time,
+                                        connecting_path,directly_connected,solver);
+
+    if(solved)
+    {
+      success = true;
+
+      double new_cost = connecting_path->cost();
+      if(new_cost<best_cost)
+      {
+        best_solution = connecting_path;
+        best_cost = new_cost;
+      }
+    }
+  } while((0.98*max_time_-(ros::WallTime::now()-tic).toSec())>0.0 && ros::ok());
 
   mtx_.lock();
-  connecting_path_vector_.at(index) = connecting_path;
-  directly_connected_vector_.at(index) = directly_connected;
-
-  node_to_delete_.push_back(path1_node);
-  node_to_delete_.push_back(path2_node);
+  connecting_path_vector_.at(index) = best_solution;
   mtx_.unlock();
 
   double cost;
   success?
-        (cost = connecting_path->cost()):
+        (cost = best_solution->cost()):
         (cost = -1);
 
   if(verbose_)
-    ROS_INFO_STREAM("\n--- THREAD REASUME ---\nthread n: "<<index<<"\nsuccess: "<<success<<"\ndirectly connected: "<<directly_connected<<"\nconnecting path cost: "<< cost);
+    ROS_INFO_STREAM("\n--- THREAD REASUME ---\nthread n: "<<index<<"\nsuccess: "<<success<<"\nconnecting path cost: "<< cost<<"\nn iter: "<<iter<<" time: "<<(ros::WallTime::now()-tic).toSec());
 
   return success;
 }
 
-bool ReplannerToGoal::connect2goal(const NodePtr& node)
+bool MPRRT::connect2goal(const NodePtr& node)
 {
   success_ = false;
+  bool solved = false;
   std::vector<std::shared_future<bool>> futures;
+
+  double current_cost = current_path_->getCostFromConf(node->getConfiguration());
+
+  if(current_cost <= 1.05*(node->getConfiguration()-goal_node_->getConfiguration()).norm())
+  {
+    success_ = false;
+    return success_;
+  }
+
+  if(verbose_)
+  {
+    if(current_cost == std::numeric_limits<double>::infinity())
+      ROS_WARN("COST INF");
+  }
 
   for(unsigned int i=0; i<number_of_parallel_plannings_;i++)
   {
     int index = i;
-    double cost = std::numeric_limits<double>::infinity();
-
     futures.push_back(std::async(std::launch::async,
-                                 &ReplannerToGoal::asyncComputeConnectingPath,
+                                 &MPRRT::asyncComputeConnectingPath,
                                  this,node->getConfiguration(),
-                                 goal_node_->getConfiguration(),cost,index));
+                                 goal_node_->getConfiguration(),current_cost,index));
   }
 
   std::vector<double> marker_color;
@@ -112,12 +142,11 @@ bool ReplannerToGoal::connect2goal(const NodePtr& node)
 
   for(unsigned int i=0; i<number_of_parallel_plannings_;i++)
   {
-    bool solver_has_solved = futures.at(i).get();
-    if(solver_has_solved)
+    if(futures.at(i).get())
     {
       assert(connecting_path_vector_.at(i));
 
-      success_ = true;
+      solved = true;
       double i_cost = connecting_path_vector_.at(i)->cost();
 
       if(i_cost<best_cost)
@@ -134,16 +163,27 @@ bool ReplannerToGoal::connect2goal(const NodePtr& node)
     }
   }
 
-  if(success_)
+  if(solved)
   {
     std::vector<ConnectionPtr>  connecting_path_conn = connecting_path_vector_.at(idx_best_sol)->getConnections();
-
     PathPtr new_path = concatWithNewPathToGoal(connecting_path_conn, node);
-
     replanned_path_ = new_path;
+    double replanned_path_cost = replanned_path_->cost();
 
-    if(verbose_)
-      ROS_INFO_STREAM("Solution found! -> cost: " << new_path->cost());
+    assert(current_path_->findConnection(replanned_path_->getConnections().front()->getParent()->getConfiguration()) != nullptr);
+
+    if(replanned_path_cost<current_cost)
+    {
+      success_ = true;
+      if(verbose_)
+        ROS_INFO_STREAM("Solution found! -> cost: " << replanned_path_cost);
+    }
+    else
+    {
+      success_ = false;
+      if(verbose_)
+        ROS_INFO_STREAM("Solution found but cost ("<<replanned_path_cost<<") is not better than the current cost (" << current_cost<<")");
+    }
   }
   else
   {
@@ -151,15 +191,11 @@ bool ReplannerToGoal::connect2goal(const NodePtr& node)
       ROS_ERROR("New path not found!");
   }
 
-  //Regardless if you have found a solution or not, delete the fake nodes
-  for(const NodePtr& n:node_to_delete_)
-    n->disconnect();
-
   return success_;
 }
 
-PathPtr ReplannerToGoal::concatWithNewPathToGoal(const std::vector<ConnectionPtr>& connecting_path_conn,
-                                                 const NodePtr& path1_node)
+PathPtr MPRRT::concatWithNewPathToGoal(const std::vector<ConnectionPtr>& connecting_path_conn,
+                                       const NodePtr& path1_node)
 {
   std::vector<ConnectionPtr> new_connecting_path_conn;
   NodePtr path2_node = std::make_shared<Node>(current_path_->getWaypoints().back());
@@ -201,21 +237,22 @@ PathPtr ReplannerToGoal::concatWithNewPathToGoal(const std::vector<ConnectionPtr
   return std::make_shared<Path>(new_connecting_path_conn, metrics_, checker_);
 }
 
-bool ReplannerToGoal::computeConnectingPath(const NodePtr &path1_node_fake,
-                                            const NodePtr &path2_node_fake,
-                                            const double &diff_subpath_cost,
-                                            PathPtr &connecting_path,
-                                            bool &directly_connected,
-                                            TreeSolverPtr& solver)
+bool MPRRT::computeConnectingPath(const NodePtr &path1_node_fake,
+                                  const NodePtr &path2_node_fake,
+                                  const double &current_solution_cost,
+                                  const double max_time,
+                                  PathPtr &connecting_path,
+                                  bool &directly_connected,
+                                  TreeSolverPtr& solver)
 {
-  SamplerPtr sampler = std::make_shared<InformedSampler>(path1_node_fake->getConfiguration(), path2_node_fake->getConfiguration(), lb_, ub_,diff_subpath_cost);
+  SamplerPtr sampler = std::make_shared<InformedSampler>(path1_node_fake->getConfiguration(), path2_node_fake->getConfiguration(), lb_, ub_,current_solution_cost);
 
   solver->setSampler(sampler);
   solver->resetProblem();
   solver->addStart(path1_node_fake);
 
   ros::WallTime tic_solver = ros::WallTime::now();
-  solver->addGoal(path2_node_fake,max_time_);
+  solver->addGoal(path2_node_fake,max_time);
   ros::WallTime toc_solver = ros::WallTime::now();
 
   directly_connected = solver->solved();
@@ -228,14 +265,14 @@ bool ReplannerToGoal::computeConnectingPath(const NodePtr &path1_node_fake,
   }
   else
   {
-    double solver_time = max_time_-(toc_solver-tic_solver).toSec();
+    double solver_time = max_time-(toc_solver-tic_solver).toSec();
     solver_has_solved = solver->solve(connecting_path,10000,solver_time);
   }
 
   return solver_has_solved;
 }
 
-bool ReplannerToGoal::replan()
+bool MPRRT::replan()
 {
   //Update the scene for all the planning threads
   moveit_msgs::PlanningScene scene_msg;
@@ -245,18 +282,15 @@ bool ReplannerToGoal::replan()
     solver->getChecker()->setPlanningSceneMsg(scene_msg);
 
   //Replan
-  if(current_path_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
-  {
-    ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,false);
+  ConnectionPtr conn = current_path_->findConnection(current_configuration_);
+  NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,false);
 
-    connect2goal(node_replan);
-  }
-  else //replan not needed
-  {
-    success_ = false;
+  assert(current_path_->findConnection(node_replan->getConfiguration()) != nullptr);
+
+  success_ = connect2goal(node_replan);
+
+  if(not success_)
     replanned_path_ = current_path_;
-  }
 
   return success_;
 }

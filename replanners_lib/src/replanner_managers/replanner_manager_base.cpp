@@ -1,4 +1,4 @@
-﻿#include "replanners_lib/replanner_managers/replanner_manager_base.h"
+#include "replanners_lib/replanner_managers/replanner_manager_base.h"
 
 namespace pathplan
 {
@@ -82,8 +82,9 @@ void ReplannerManagerBase::attributeInitialization()
   real_time_                       = 0.0  ;
   t_                               = 0.0  ;
   dt_                              = 1.0/trj_exec_thread_frequency_;
-  replan_offset_                   = (dt_replan_-dt_)*K_OFFSET     ;
+  replan_offset_                   = dt_replan_*K_OFFSET           ;
   t_replan_                        = t_+replan_offset_             ;
+  //  replan_offset_                   = (dt_replan_-dt_)*K_OFFSET     ;
   //  replanning_thread_frequency_     = 1/dt_replan_              ;
   replanning_thread_frequency_     = 100                           ;
   global_override_                 = 1.0                           ;
@@ -375,6 +376,17 @@ void ReplannerManagerBase::replanningThread()
         replanner_mtx_.lock();
         trj_mtx_.lock();
 
+        //ELIMINA
+        double a1 = current_path_shared_->curvilinearAbscissaOfPoint(current_configuration_);
+        double a2 = current_path_shared_->curvilinearAbscissaOfPoint(replanner_->getCurrentConf());
+
+        if(a1>a2)
+        {
+          ROS_WARN_STREAM("CURRENT CONF ABSC: "<<a1<<" REPL ABSC: "<<a2);
+          ROS_WARN_STREAM("tempo trascorso: "<<(ros::WallTime::now()-tic).toSec()<<" diff temp: "<<replan_offset_);
+        }
+        // //
+
         startReplannedPathFromNewCurrentConf(current_configuration_);
 
         current_path_replanning_ = replanner_->getReplannedPath();
@@ -397,7 +409,8 @@ void ReplannerManagerBase::replanningThread()
 
         t_=0;
         n_conn_ = 0;
-        t_replan_=t_+(replan_offset_*scaling_);
+        t_replan_=t_+replan_offset_;
+        //t_replan_=t_+(replan_offset_*scaling_);
         n_conn_replan = 0;
 
         trj_mtx_.unlock();
@@ -613,7 +626,8 @@ void ReplannerManagerBase::trajectoryExecutionThread()
                         (scaling_ = scaling_from_param_);
 
     t_+= scaling_*dt_;
-    t_replan_ = t_+(replan_offset_*scaling_); //controlla e vedi se modificare anche il tempo massimo di replanning
+    t_replan_ = t_+replan_offset_;
+    //t_replan_ = t_+(replan_offset_*scaling_); //controlla e vedi se modificare anche il tempo massimo di replanning
 
     paths_mtx_.lock();
     path2project_on = current_path_shared_->clone();

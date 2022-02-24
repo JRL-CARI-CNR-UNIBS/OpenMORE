@@ -4,7 +4,7 @@
 #include <moveit/robot_state/robot_state.h>
 #include <object_loader_msgs/AddObjects.h>
 #include <object_loader_msgs/RemoveObjects.h>
-#include <replanners_lib/replanners/replanner_to_goal.h>
+#include <replanners_lib/replanners/MPRRT.h>
 #include <replanners_lib/replanners/DRRTStar.h>
 #include <replanners_lib/replanners/DRRT.h>
 #include <replanners_lib/replanners/anytimeDRRT.h>
@@ -204,9 +204,9 @@ int main(int argc, char **argv)
 
     // //////////////////////////////////////////DEFINING THE REPLANNER//////////////////////////////////////////////
     pathplan::ReplannerBasePtr replanner = NULL;
-    if(replanner_type == "replanner_to_goal")
+    if(replanner_type == "MPRRT")
     {
-      replanner = std::make_shared<pathplan::ReplannerToGoal>(current_configuration,current_path,max_time,solver,5);
+      replanner = std::make_shared<pathplan::MPRRT>(current_configuration,current_path,max_time,solver,5);
     }
     else if(replanner_type ==  "DRRT*")
     {

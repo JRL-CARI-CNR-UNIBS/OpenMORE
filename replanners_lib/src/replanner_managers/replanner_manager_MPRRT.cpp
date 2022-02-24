@@ -1,9 +1,9 @@
-﻿#include "replanners_lib/replanner_managers/replanner_manager_to_goal.h"
+﻿#include "replanners_lib/replanner_managers/replanner_manager_MPRRT.h"
 
 namespace pathplan
 {
 
-ReplannerManagerToGoal::ReplannerManagerToGoal(const PathPtr &current_path,
+ReplannerManagerMPRRT::ReplannerManagerMPRRT(const PathPtr &current_path,
                                                const TreeSolverPtr &solver,
                                                const ros::NodeHandle &nh):ReplannerManagerBase(current_path,solver,nh)
 {
@@ -15,7 +15,7 @@ ReplannerManagerToGoal::ReplannerManagerToGoal(const PathPtr &current_path,
   additionalParams();
 }
 
-void ReplannerManagerToGoal::additionalParams()
+void ReplannerManagerMPRRT::additionalParams()
 {
   if(!nh_.getParam("/to_goal/n_threads_replan",n_threads_replan_))
   {
@@ -32,7 +32,7 @@ void ReplannerManagerToGoal::additionalParams()
   }
 }
 
-void ReplannerManagerToGoal::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
+void ReplannerManagerMPRRT::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
 {
   std::vector<pathplan::ConnectionPtr> path_connections;
   PathPtr replanned_path = replanner_->getReplannedPath();
@@ -74,9 +74,7 @@ void ReplannerManagerToGoal::startReplannedPathFromNewCurrentConf(const Eigen::V
     ConnectionPtr conn = replanned_path->findConnection(configuration,idx_current_conf_on_replanned);
 
     if(conn)
-    {
       path_connections = replanned_path->getSubpathFromConf(configuration,true)->getConnections();
-    }
     else
     {
       path_conf2replanned = current_path->getSubpathToConf(configuration,true);
@@ -121,15 +119,15 @@ void ReplannerManagerToGoal::startReplannedPathFromNewCurrentConf(const Eigen::V
   replanned_path->setConnections(path_connections);
 }
 
-bool ReplannerManagerToGoal::haveToReplan(const bool path_obstructed)
+bool ReplannerManagerMPRRT::haveToReplan(const bool path_obstructed)
 {
-  return replanIfObstructed(path_obstructed);
+  return alwaysReplan();
 }
 
-void ReplannerManagerToGoal::initReplanner()
+void ReplannerManagerMPRRT::initReplanner()
 {
   double time_for_repl = 0.9*dt_replan_;
-  replanner_ = std::make_shared<pathplan::ReplannerToGoal>(configuration_replan_, current_path_replanning_, time_for_repl, solver_,n_threads_replan_);
+  replanner_ = std::make_shared<pathplan::MPRRT>(configuration_replan_, current_path_replanning_, time_for_repl, solver_,n_threads_replan_);
 }
 
 }

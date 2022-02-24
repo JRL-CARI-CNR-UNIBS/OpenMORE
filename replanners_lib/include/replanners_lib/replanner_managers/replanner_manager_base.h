@@ -18,7 +18,7 @@
 
 namespace pathplan
 {
-#define K_OFFSET 1.5
+#define K_OFFSET 1.2
 class ReplannerManagerBase;
 typedef std::shared_ptr<ReplannerManagerBase> ReplannerManagerBasePtr;
 
@@ -165,7 +165,6 @@ public:
   virtual bool run();
   virtual bool start();
   virtual bool startWithoutReplanning();
-
 };
 
 }

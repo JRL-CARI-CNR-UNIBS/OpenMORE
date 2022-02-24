@@ -1,15 +1,15 @@
-#ifndef REPLANNER_MANAGER_TO_GOAL_H__
-#define REPLANNER_MANAGER_TO_GOAL_H__
+#ifndef REPLANNER_MANAGER_MPRRT_H__
+#define REPLANNER_MANAGER_MPRRT_H__
 
 #include <replanners_lib/replanner_managers/replanner_manager_base.h>
-#include <replanners_lib/replanners/replanner_to_goal.h>
+#include <replanners_lib/replanners/MPRRT.h>
 
 namespace pathplan
 {
-class ReplannerManagerToGoal;
-typedef std::shared_ptr<ReplannerManagerToGoal> ReplannerManagerToGoalPtr;
+class ReplannerManagerMPRRT;
+typedef std::shared_ptr<ReplannerManagerMPRRT> ReplannerManagerMPRRTPtr;
 
-class ReplannerManagerToGoal: public ReplannerManagerBase
+class ReplannerManagerMPRRT: public ReplannerManagerBase
 {
 protected:
   int n_threads_replan_;
@@ -21,7 +21,7 @@ protected:
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  ReplannerManagerToGoal(const PathPtr &current_path,
+  ReplannerManagerMPRRT(const PathPtr &current_path,
                          const TreeSolverPtr &solver,
                          const ros::NodeHandle &nh);
 
@@ -30,4 +30,4 @@ public:
 
 }
 
-#endif // REPLANNER_MANAGER_TO_GOAL_H__
+#endif // REPLANNER_MANAGER_MPRRT_H__

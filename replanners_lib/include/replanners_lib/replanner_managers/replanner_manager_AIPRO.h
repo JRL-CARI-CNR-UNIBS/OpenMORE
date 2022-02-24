@@ -3,6 +3,7 @@
 
 #include <replanners_lib/replanner_managers/replanner_manager_base.h>
 #include <replanners_lib/replanners/AIPRO.h>
+#include <future>
 
 namespace pathplan
 {
@@ -17,6 +18,8 @@ protected:
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> other_paths_shared_;
 
+  bool checkPathTask(const PathPtr& path);
+  void checkOtherPaths();
   void fromParam() override;
   void updatePathCost() override;
   void attributeInitialization() override;

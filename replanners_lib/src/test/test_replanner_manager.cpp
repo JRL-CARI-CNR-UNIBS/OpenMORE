@@ -2,7 +2,7 @@
 #include <graph_core/parallel_moveit_collision_checker.h>
 #include <graph_replanning/trajectory.h>
 #include <moveit/robot_state/robot_state.h>
-#include <replanners_lib/replanner_managers/replanner_manager_to_goal.h>
+#include <replanners_lib/replanner_managers/replanner_manager_MPRRT.h>
 #include <replanners_lib/replanner_managers/replanner_manager_DRRTStar.h>
 #include <replanners_lib/replanner_managers/replanner_manager_DRRT.h>
 #include <replanners_lib/replanner_managers/replanner_manager_anytimeDRRT.h>
@@ -111,7 +111,7 @@ int main(int argc, char **argv)
 
   if(replanner_type == "replanner_to_goal")
   {
-    replanner_manager = std::make_shared<pathplan::ReplannerManagerToGoal>(current_path,solver,nh);
+    replanner_manager = std::make_shared<pathplan::ReplannerManagerMPRRT>(current_path,solver,nh);
   }
   else if(replanner_type ==  "DRRT*")
   {

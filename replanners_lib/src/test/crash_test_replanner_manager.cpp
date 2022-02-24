@@ -2,7 +2,7 @@
 #include <moveit/robot_state/robot_state.h>
 #include<replanners_lib/replanner_managers/replanner_manager_anytimeDRRT.h>
 #include<replanners_lib/replanner_managers/replanner_manager_DRRTStar.h>
-#include<replanners_lib/replanner_managers/replanner_manager_to_goal.h>
+#include<replanners_lib/replanner_managers/replanner_manager_MPRRT.h>
 
 
 int main(int argc, char **argv)
@@ -172,9 +172,9 @@ int main(int argc, char **argv)
 
     // //////////////////////////////////////////DEFINING THE REPLANNER//////////////////////////////////////////////
     pathplan::ReplannerManagerBasePtr replanner_manager = nullptr;
-    if(replanner_type == "replanner_to_goal")
+    if(replanner_type == "MPRRT")
     {
-      replanner_manager = std::make_shared<pathplan::ReplannerManagerToGoal>(current_path,solver,nh);
+      replanner_manager = std::make_shared<pathplan::ReplannerManagerMPRRT>(current_path,solver,nh);
     }
     else if(replanner_type ==  "DRRT*")
     {

@@ -1,5 +1,5 @@
 # Replanner strategy:
-# - replanner_to_goal
+# - MPRRT
 # - DRRT*
 # - DRRT
 # - anytimeDRRT

@@ -26,7 +26,7 @@ include_directories(
   )
 add_library(${PROJECT_NAME}
 src/replanners/replanner_base.cpp
-src/replanners/replanner_to_goal.cpp
+src/replanners/MPRRT.cpp
 src/replanners/DRRTStar.cpp
 src/replanners/DRRT.cpp
 src/replanners/anytimeDRRT.cpp
@@ -36,7 +36,7 @@ src/replanner_managers/replanner_manager_DRRTStar.cpp
 src/replanner_managers/replanner_manager_DRRT.cpp
 src/replanner_managers/replanner_manager_AIPRO.cpp
 src/replanner_managers/replanner_manager_anytimeDRRT.cpp
-src/replanner_managers/replanner_manager_to_goal.cpp
+src/replanner_managers/replanner_manager_MPRRT.cpp
 )
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
@@ -54,13 +54,6 @@ ${catkin_LIBRARIES}
 add_executable(test_replanner_managers src/test/test_replanner_manager.cpp)
 add_dependencies(test_replanner_managers ${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(test_replanner_managers
-${PROJECT_NAME}
-${catkin_LIBRARIES}
-)
-
-add_executable(test_new_start src/test/test_new_start.cpp)
-add_dependencies(test_new_start ${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(test_new_start
 ${PROJECT_NAME}
 ${catkin_LIBRARIES}
 )
