@@ -119,6 +119,7 @@ void ReplannerManagerMPRRT::startReplannedPathFromNewCurrentConf(const Eigen::Ve
   }
 
   replanned_path->setConnections(path_connections);
+  replanned_path->simplify(0.01);
 }
 
 bool ReplannerManagerMPRRT::haveToReplan(const bool path_obstructed)

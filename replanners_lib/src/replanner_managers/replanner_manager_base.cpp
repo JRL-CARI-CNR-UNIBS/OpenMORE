@@ -244,7 +244,7 @@ void ReplannerManagerBase::replanningThread()
   Eigen::VectorXd goal_conf = replanner_->getCurrentPath()->getConnections().back()->getChild()->getConfiguration();
 
   PathPtr path2project_on;
-  Eigen::VectorXd projection;
+  Eigen::VectorXd projection, current_configuration;
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
   ros::WallTime tic_rep,toc_rep;
 
@@ -263,6 +263,8 @@ void ReplannerManagerBase::replanningThread()
     for(unsigned int i=0; i<pnt_replan_.positions.size();i++)
       point2project(i) = pnt_replan_.positions.at(i);
 
+    current_configuration = current_configuration_;
+
     t1 = t_; //elimina
     t_rep = t_replan_; //elimina
     abs_curr = current_path_shared_->curvilinearAbscissaOfPoint(current_configuration_);
@@ -280,8 +282,8 @@ void ReplannerManagerBase::replanningThread()
       paths_mtx_.lock();
       past_configuration_replan = configuration_replan_;
 
-      path2project_on = current_path_shared_->clone();
-      //path2project_on = replanner_->getCurrentPath()->clone();
+//      path2project_on = current_path_shared_->clone();
+      path2project_on = current_path_shared_->getSubpathFromConf(current_configuration,true);
 
       paths_mtx_.unlock();
       replanner_mtx_.unlock();
@@ -416,7 +418,7 @@ void ReplannerManagerBase::replanningThread()
         interpolator_.setTrajectory(tmp_trj_msg);
         interpolator_.setSplineOrder(1);
 
-        t_=0;
+        t_=0.0;
         n_conn_ = 0;
         t_replan_=t_+replan_offset_;
         //t_replan_=t_+(replan_offset_*scaling_);
