@@ -114,6 +114,9 @@ bool AnytimeDynamicRRT::replan()
   NodePtr node_replan;
   if(cost_from_conf == std::numeric_limits<double>::infinity())
   {
+    if(verbose_)
+      ROS_WARN("Current path obstructed");
+
     std::vector<NodePtr> path_nodes = current_path_->getNodes();  //save nodes pointers (the same pointers stored in the tree)
     assert(path_nodes.front() == current_path_->getTree()->getRoot());
 
@@ -180,5 +183,4 @@ bool AnytimeDynamicRRT::replan()
 
   return success_;
 }
-
 }

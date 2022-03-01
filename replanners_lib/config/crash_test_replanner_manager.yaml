@@ -5,11 +5,11 @@
 # - anytimeDRRT
 # - AIPRO
 
-replanner_type: "MPRRT"
+replanner_type: "DRRT"
 group_name: "cartesian_arm"
 start_configuration: [0.2,0.2,0.2]
 stop_configuration:  [0.8,0.8,0.8]
-max_distance: 0.1
+max_distance: 0.5
 extend: false
 utopia_tolerance: 0.05
 dt_replan: 0.2

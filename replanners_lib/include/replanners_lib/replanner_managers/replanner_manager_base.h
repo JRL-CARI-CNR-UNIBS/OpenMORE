@@ -18,7 +18,7 @@
 
 namespace pathplan
 {
-#define K_OFFSET 1.2
+#define K_OFFSET 1.1
 class ReplannerManagerBase;
 typedef std::shared_ptr<ReplannerManagerBase> ReplannerManagerBasePtr;
 
@@ -104,7 +104,8 @@ protected:
   void subscribeTopicsAndServices();
   virtual bool replan();
   virtual void fromParam();
-  virtual void updatePathCost();
+  virtual void syncPathCost();
+  virtual void updatePathCost(const PathPtr& current_path_updated_copy);
   virtual void attributeInitialization();
   virtual void replanningThread();
   virtual void collisionCheckThread();

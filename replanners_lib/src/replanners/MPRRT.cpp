@@ -122,7 +122,7 @@ bool MPRRT::connect2goal(const NodePtr& node)
   if(verbose_)
   {
     if(current_cost == std::numeric_limits<double>::infinity())
-      ROS_WARN("COST INF");
+      ROS_WARN("Current path obstructed");
   }
 
   for(unsigned int i=0; i<number_of_parallel_plannings_;i++)
@@ -294,5 +294,4 @@ bool MPRRT::replan()
 
   return success_;
 }
-
 }

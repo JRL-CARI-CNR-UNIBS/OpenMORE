@@ -33,7 +33,12 @@ void ReplannerManagerAIPRO::attributeInitialization()
   ReplannerManagerBase::attributeInitialization();
 
   first_replanning_ = true;
+  current_path_cost_update_ready_ = false;
+  other_paths_cost_update_ready_  = false;
 
+  updating_cost_pause_ = collision_checker_thread_frequency_/100;
+
+  other_paths_mtx_.lock();
   for(const PathPtr& p:other_paths_)
   {
     PathPtr other_path = p->clone();
@@ -42,6 +47,7 @@ void ReplannerManagerAIPRO::attributeInitialization()
     other_path->setChecker(checker_cc_);
     p->setChecker(checker_replanning_);
   }
+  other_paths_mtx_.unlock();
 
   replan_offset_ = (dt_replan_relaxed_-dt_)*K_OFFSET;
   t_replan_ = t_+replan_offset_;
@@ -73,7 +79,7 @@ bool ReplannerManagerAIPRO::replan()
     {
       first_replanning_ = false;
 
-      paths_mtx_.lock();
+      other_paths_mtx_.lock();
       //other_paths_.push_back(replanner_->getCurrentPath());
 
       PathPtr current_path = replanner_->getCurrentPath();
@@ -91,7 +97,7 @@ bool ReplannerManagerAIPRO::replan()
       assert((message, size_other_paths_rep == size_other_paths));
       // ///////////////
 
-      paths_mtx_.unlock();
+      other_paths_mtx_.unlock();
     }
   }
 
@@ -108,10 +114,14 @@ bool ReplannerManagerAIPRO::haveToReplan(const bool path_obstructed)
   return alwaysReplan();
 }
 
-void ReplannerManagerAIPRO::updatePathCost()
+void ReplannerManagerAIPRO::syncPathCost()
 {
-  ReplannerManagerBase::updatePathCost();
+  while(current_path_cost_update_ready_ || other_paths_cost_update_ready_) //wait until both cost of current path and costs of other paths are updated
+    ros::Duration(updating_cost_pause_).sleep();
 
+  ReplannerManagerBase::syncPathCost();
+
+  other_paths_mtx_.lock();
   for(unsigned int i=0;i<other_paths_shared_.size();i++)
   {
     std::vector<ConnectionPtr> other_path_conn        = other_paths_       .at(i)->getConnections();
@@ -122,6 +132,7 @@ void ReplannerManagerAIPRO::updatePathCost()
 
     other_paths_.at(i)->cost(); //update path cost
   }
+  other_paths_mtx_.unlock();
 }
 
 void ReplannerManagerAIPRO::initReplanner()
@@ -145,7 +156,7 @@ void ReplannerManagerAIPRO::checkOtherPaths()
   std::vector<PathPtr> other_paths_copy;
   std::vector<CollisionCheckerPtr> checkers;
 
-  paths_mtx_.lock();
+  other_paths_mtx_.lock();
   for(const PathPtr& p:other_paths_shared_)
   {
     PathPtr path_copy = p->clone();
@@ -155,7 +166,7 @@ void ReplannerManagerAIPRO::checkOtherPaths()
     checkers.push_back(checker);
     other_paths_copy.push_back(path_copy);
   }
-  paths_mtx_.unlock();
+  other_paths_mtx_.unlock();
 
   int other_path_size = other_paths_copy.size();
 
@@ -174,7 +185,7 @@ void ReplannerManagerAIPRO::checkOtherPaths()
     }
     scene_mtx_.unlock();
 
-    paths_mtx_.lock();
+    other_paths_mtx_.lock();
     if(other_path_size<other_paths_shared_.size())  //if the previous current path has been added update the vector of copied paths
     {
       assert(other_path_size == (other_paths_shared_.size()-1));
@@ -188,7 +199,7 @@ void ReplannerManagerAIPRO::checkOtherPaths()
 
       other_path_size = other_paths_copy.size();
     }
-    paths_mtx_.unlock();
+    other_paths_mtx_.unlock();
 
     std::vector<std::shared_future<bool>> tasks;
     for(unsigned int i=0; i<other_paths_copy.size();i++)
@@ -202,20 +213,7 @@ void ReplannerManagerAIPRO::checkOtherPaths()
     for(unsigned int i=0; i<tasks.size();i++)
       tasks.at(i).wait();  //wait the end of each task
 
-    paths_mtx_.lock();
-    for(unsigned int i=0;i<other_paths_copy.size();i++)
-    {
-      std::vector<ConnectionPtr> path_conns      = other_paths_shared_.at(i)->getConnections();
-      std::vector<ConnectionPtr> path_copy_conns = other_paths_copy   .at(i)->getConnections();
-
-      assert(path_conns.size() == path_copy_conns.size());
-
-      for(unsigned int z=0;z<path_conns.size();z++)
-        path_conns.at(z)->setCost(path_copy_conns.at(z)->getCost());
-
-      other_paths_shared_.at(i)->cost();
-    }
-    paths_mtx_.unlock();
+    updateOtherPathsCost(other_paths_copy);
 
     stop_mtx_.lock();
     stop = stop_;
@@ -225,16 +223,54 @@ void ReplannerManagerAIPRO::checkOtherPaths()
   }
 }
 
-void ReplannerManagerAIPRO::collisionCheckThread()
+void ReplannerManagerAIPRO::updatePathCost(const PathPtr& current_path_updated_copy)
 {
-  //std::thread current_path_check_thread = std::thread(&ReplannerManagerBase::collisionCheckThread,this);
-  std::thread other_paths_check_thread  = std::thread(&ReplannerManagerAIPRO::checkOtherPaths,this);
+  current_path_cost_update_ready_ = true;
+  while(not other_paths_cost_update_ready_)
+    ros::Duration(updating_cost_pause_).sleep();
 
-//  if(current_path_check_thread.joinable())
-//    current_path_check_thread.join();
+  ReplannerManagerBase::updatePathCost(current_path_updated_copy);
+  current_path_cost_update_ready_ = false;
+}
+
+void ReplannerManagerAIPRO::updateOtherPathsCost(const std::vector<PathPtr>& other_paths_updated_copy)
+{
+  other_paths_cost_update_ready_ = true;
+  while(not current_path_cost_update_ready_)
+    ros::Duration(updating_cost_pause_).sleep();
+
+  other_paths_mtx_.lock();
+  for(unsigned int i=0;i<other_paths_updated_copy.size();i++)
+  {
+    std::vector<ConnectionPtr> path_conns      = other_paths_shared_     .at(i)->getConnections();
+    std::vector<ConnectionPtr> path_copy_conns = other_paths_updated_copy.at(i)->getConnections();
+
+    assert(path_conns.size() == path_copy_conns.size());
+
+    for(unsigned int z=0;z<path_conns.size();z++)
+      path_conns.at(z)->setCost(path_copy_conns.at(z)->getCost());
+
+    other_paths_shared_.at(i)->cost();
+  }
+  other_paths_mtx_.unlock();
+
+  other_paths_cost_update_ready_ = false;
+}
+
+void ReplannerManagerAIPRO::checkCurrentPath()  //CHIEDI
+{
+  ReplannerManagerBase::collisionCheckThread();
+}
+
+void ReplannerManagerAIPRO::collisionCheckThread()
+{ 
+  std::thread current_path_check_thread = std::thread(&ReplannerManagerAIPRO::checkCurrentPath,this);
+  std::thread other_paths_check_thread  = std::thread(&ReplannerManagerAIPRO::checkOtherPaths ,this);
+
+  if(current_path_check_thread.joinable())
+    current_path_check_thread.join();
 
   if(other_paths_check_thread.joinable())
     other_paths_check_thread.join();
 }
-
 }

@@ -105,6 +105,11 @@ public:
   void setChecker(const CollisionCheckerPtr &checker)
   {
     checker_ = checker;
+    solver_->setChecker(checker);
+    current_path_->setChecker(checker);
+
+    if(replanned_path_)
+      replanned_path_->setChecker(checker);
   }
 
   void setDisp(const DisplayPtr &disp)

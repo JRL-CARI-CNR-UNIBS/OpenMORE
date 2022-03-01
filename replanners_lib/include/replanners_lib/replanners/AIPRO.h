@@ -74,6 +74,18 @@ public:
         const TreeSolverPtr &solver,
         std::vector<PathPtr> &other_paths);
 
+  void setChecker(const CollisionCheckerPtr &checker)
+  {
+    checker_ = checker;
+    solver_->setChecker(checker);
+    current_path_->setChecker(checker);
+
+    if(replanned_path_)
+      replanned_path_->setChecker(checker);
+
+    for(const PathPtr& p:other_paths_)
+      p->setChecker(checker);
+  }
 
   std::vector<PathPtr> getReplannedPathVector()
   {

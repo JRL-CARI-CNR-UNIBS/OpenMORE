@@ -14,14 +14,21 @@ class ReplannerManagerAIPRO: public ReplannerManagerBase
 {
 protected:
   bool first_replanning_;
+  bool current_path_cost_update_ready_;
+  bool other_paths_cost_update_ready_;
+  double updating_cost_pause_;
   double dt_replan_relaxed_;
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> other_paths_shared_;
+  std::mutex other_paths_mtx_;
 
   bool checkPathTask(const PathPtr& path);
+  void checkCurrentPath();
   void checkOtherPaths();
   void fromParam() override;
-  void updatePathCost() override;
+  void syncPathCost() override;
+  void updatePathCost(const PathPtr& current_path_updated_copy) override;
+  void updateOtherPathsCost(const std::vector<PathPtr>& other_paths_updated_copy);
   void attributeInitialization() override;
   void collisionCheckThread() override;
   bool replan() override;
