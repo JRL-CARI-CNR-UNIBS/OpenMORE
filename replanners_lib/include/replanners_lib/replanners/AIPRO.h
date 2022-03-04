@@ -92,6 +92,11 @@ public:
     return replanned_paths_vector_;
   }
 
+  NetPtr getNet()
+  {
+    return net_;
+  }
+
   std::vector<PathPtr> getOtherPaths()
   {
     return other_paths_;
@@ -134,17 +139,12 @@ public:
     success_ = false;
   }
 
-  void setOtherPaths(std::vector<PathPtr> &other_paths)
+  void setOtherPaths(std::vector<PathPtr> &other_paths, bool mergeTree = true)
   {
     other_paths_.clear();
 
     for(PathPtr& path:other_paths)
-    {
-      if(!mergePathToTree(path))
-        assert(0);
-
-      other_paths_.push_back(path);
-    }
+      addOtherPath(path,mergeTree);
 
     admissible_other_paths_ = other_paths_;
     success_ = false;
@@ -156,10 +156,13 @@ public:
     success_ = false;
   }
 
-  void addOtherPath(PathPtr& path)
+  void addOtherPath(PathPtr& path, bool mergeTree = true)
   {
-    if(not mergePathToTree(path))
-      assert(0);
+    if(mergeTree)
+    {
+      if(not mergePathToTree(path))
+        assert(0);
+    }
 
     other_paths_.push_back(path);
   }

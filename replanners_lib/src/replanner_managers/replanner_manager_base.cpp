@@ -78,6 +78,7 @@ void ReplannerManagerBase::attributeInitialization()
   stop_                            = false;
   current_path_sync_needed_        = false;
   n_conn_                          = 0    ;
+  abscissa_current_configuration_  = 0.0  ;
   scaling_                         = 1.0  ;
   real_time_                       = 0.0  ;
   t_                               = 0.0  ;
@@ -377,7 +378,6 @@ void ReplannerManagerBase::replanningThread()
 
         success = replanner_->getSuccess();
         assert((success && replanner_->getReplannedPath()->isValid()) || not success);
-
       }
 
       if(replanning_duration>=dt_replan_/0.9 && display_timing_warning_)
@@ -385,9 +385,13 @@ void ReplannerManagerBase::replanningThread()
       if(display_replanning_success_)
         ROS_INFO_STREAM("Success: "<< success <<" in "<< replanning_duration <<" seconds");
 
+      ROS_INFO("PRIMA DI STOP");
+
       stop_mtx_.lock();
       bool stop = stop_;
       stop_mtx_.unlock();
+
+      ROS_INFO("PRIMA DI PATH_CHANGED ");
 
       if(path_changed && (not stop))
       {
@@ -416,12 +420,16 @@ void ReplannerManagerBase::replanningThread()
 
         t_=0.0;
         n_conn_ = 0;
+        abscissa_current_configuration_ = 0.0;
         t_replan_=t_+replan_offset_;
         //t_replan_=t_+(replan_offset_*scaling_);
 
         trj_mtx_.unlock();
         replanner_mtx_.unlock();
       }
+
+      ROS_INFO("DOPO DI PATH_CHANGED ");
+
 
       ros::WallTime toc=ros::WallTime::now();
       double duration = (toc-tic).toSec();
@@ -603,6 +611,7 @@ double ReplannerManagerBase::readScalingTopics()
 
 void ReplannerManagerBase::trajectoryExecutionThread()
 {
+  double past_abscissa;
   PathPtr path2project_on;
   Eigen::VectorXd goal_conf = current_path_shared_->getConnections().back()->getChild()->getConfiguration();
   Eigen::VectorXd past_current_configuration = current_configuration_;
@@ -644,8 +653,10 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     for(unsigned int i=0; i<pnt_.positions.size();i++)
       point2project(i) = pnt_.positions.at(i);
 
+    past_abscissa = abscissa_current_configuration_;
     past_current_configuration = current_configuration_;
-    current_configuration_ = path2project_on->projectOnClosestConnectionKeepingPastPrj(point2project,past_current_configuration,n_conn_);
+    current_configuration_ = path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_current_configuration,abscissa_current_configuration_,past_abscissa,n_conn_);
+    //current_configuration_ = path2project_on->projectOnClosestConnectionKeepingPastPrj(point2project,past_current_configuration,n_conn_);
 
     trj_mtx_.unlock();
 

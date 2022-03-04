@@ -203,7 +203,7 @@ int main(int argc, char **argv)
     }
 
     // //////////////////////////////////////////DEFINING THE REPLANNER//////////////////////////////////////////////
-    pathplan::ReplannerBasePtr replanner = NULL;
+    pathplan::ReplannerBasePtr replanner = nullptr;
     if(replanner_type == "MPRRT")
     {
       replanner = std::make_shared<pathplan::MPRRT>(current_configuration,current_path,max_time,solver,5);

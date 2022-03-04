@@ -6,6 +6,7 @@ ReplannerManagerAIPRO::ReplannerManagerAIPRO(const PathPtr &current_path,
                                              const TreeSolverPtr &solver,
                                              const ros::NodeHandle &nh):ReplannerManagerBase(current_path,solver,nh)
 {
+  ReplannerManagerAIPRO::additionalParam();
 }
 
 ReplannerManagerAIPRO::ReplannerManagerAIPRO(const PathPtr &current_path,
@@ -16,15 +17,19 @@ ReplannerManagerAIPRO::ReplannerManagerAIPRO(const PathPtr &current_path,
   setOtherPaths(other_paths);
 }
 
-void ReplannerManagerAIPRO::fromParam()
+void ReplannerManagerAIPRO::additionalParam()
 {
-  ReplannerManagerBase::fromParam();
-
   //Additional parameters
-  if(!nh_.getParam("dt_replan_replaxed",dt_replan_relaxed_))
+  if(!nh_.getParam("/aipro/dt_replan_replaxed",dt_replan_relaxed_))
   {
-    ROS_ERROR("dt_replan_relaxed not set, set 150% of dt_replan");
+    ROS_ERROR("/aipro/dt_replan_relaxed not set, set 150% of dt_replan");
     dt_replan_relaxed_ = 1.5*dt_replan_;
+  }
+
+  if(!nh_.getParam("/aipro/verbosity_level",verbosity_level_))
+  {
+    ROS_ERROR("/aipro/verbosity_level not set, set 0");
+    verbosity_level_ = 0;
   }
 }
 
@@ -32,9 +37,27 @@ void ReplannerManagerAIPRO::attributeInitialization()
 {
   ReplannerManagerBase::attributeInitialization();
 
+  AIPROPtr replanner = std::static_pointer_cast<AIPRO>(replanner_);
+  switch(verbosity_level_)
+  {
+  case 0:
+    replanner->setVerbosity(false);
+    break;
+  case 1:
+    replanner->setInformedOnlineReplanningVerbose(true);
+    replanner->setPathSwitchVerbose(false);
+    break;
+  case 2:
+    replanner->setInformedOnlineReplanningVerbose(true);
+    replanner->setPathSwitchVerbose(true);
+    break;
+  }
+
   first_replanning_ = true;
   current_path_cost_update_ready_ = false;
   other_paths_cost_update_ready_  = false;
+
+  old_current_node_ = nullptr;
 
   updating_cost_pause_ = collision_checker_thread_frequency_/100;
 
@@ -70,43 +93,60 @@ bool ReplannerManagerAIPRO::replan()
   double cost = replanner_->getCurrentPath()->getCostFromConf(replanner_->getCurrentConf());
   cost == std::numeric_limits<double>::infinity()? replanner_->setMaxTime(0.9*dt_replan_):
                                                    replanner_->setMaxTime(0.9*dt_replan_relaxed_);
+  bool path_changed = replanner_->replan();
 
-  bool success = replanner_->replan();
-
-  if(success)
+  if(replanner_->getSuccess() && first_replanning_)  //add the initial path to the other paths
   {
-    if(first_replanning_)  //add the initial path to the other paths
-    {
-      first_replanning_ = false;
+    first_replanning_ = false;
+    other_paths_mtx_.lock();
 
-      other_paths_mtx_.lock();
-      //other_paths_.push_back(replanner_->getCurrentPath());
+    PathPtr current_path = replanner_->getCurrentPath();
+    PathPtr another_path = current_path->clone();
+    another_path->setChecker(checker_cc_);
+    other_paths_shared_.push_back(another_path);
 
-      PathPtr current_path = replanner_->getCurrentPath();
-      PathPtr another_path = current_path->clone();
-      another_path->setChecker(checker_cc_);
-      other_paths_shared_.push_back(another_path);
+    AIPROPtr replanner = std::static_pointer_cast<AIPRO>(replanner_);
+    replanner->addOtherPath(current_path, false);
 
-      AIPROPtr replanner = std::static_pointer_cast<AIPRO>(replanner_);
-      replanner->addOtherPath(current_path);
+    // ////ELIMINA//////
+    int size_other_paths_rep = pnt_replan_.positions.size();
+    int size_other_paths = pnt_replan_.positions.size();
+    std::string message = "size rep other paths: "+std::to_string(size_other_paths_rep)+" size other paths: "+std::to_string(size_other_paths);
+    assert((message, size_other_paths_rep == size_other_paths));
+    // ///////////////
 
-      // ////ELIMINA//////
-      int size_other_paths_rep = pnt_replan_.positions.size();
-      int size_other_paths = pnt_replan_.positions.size();
-      std::string message = "size rep other paths: "+std::to_string(size_other_paths_rep)+" size other paths: "+std::to_string(size_other_paths);
-      assert((message, size_other_paths_rep == size_other_paths));
-      // ///////////////
-
-      other_paths_mtx_.unlock();
-    }
+    other_paths_mtx_.unlock();
   }
 
-  return success;
+  return path_changed;
 }
 
 void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
 {
-  return;
+  ROS_INFO("PRIMA DI START NEW CONF");
+
+  AIPROPtr replanner = std::static_pointer_cast<AIPRO>(replanner_);
+
+  PathPtr current_path = replanner->getCurrentPath();
+  PathPtr replanned_path = replanner->getReplannedPath();
+  NetPtr net = replanner->getNet();
+
+  if(old_current_node_)
+    current_path->removeNode(old_current_node_,{});
+
+  NodePtr current_node;
+  ConnectionPtr conn = current_path->findConnection(configuration);
+
+  assert(conn->isValid());
+  current_node = current_path->addNodeAtCurrentConfig(configuration,conn,true);
+
+  std::multimap<double,std::vector<ConnectionPtr>> new_conns_map = net->getConnectionBetweenNodes(current_node,replanner->getGoal());
+
+  replanned_path->setConnections(new_conns_map.begin()->second);
+
+  old_current_node_ = current_node;
+
+  ROS_INFO("DOPO DI START NEW CONF");
 }
 
 bool ReplannerManagerAIPRO::haveToReplan(const bool path_obstructed)
@@ -116,13 +156,14 @@ bool ReplannerManagerAIPRO::haveToReplan(const bool path_obstructed)
 
 void ReplannerManagerAIPRO::syncPathCost()
 {
-  while(current_path_cost_update_ready_ || other_paths_cost_update_ready_) //wait until both cost of current path and costs of other paths are updated
-    ros::Duration(updating_cost_pause_).sleep();
+  //  while(current_path_cost_update_ready_ || other_paths_cost_update_ready_) //wait until both cost of current path and costs of other paths are updated
+  //    ros::Duration(updating_cost_pause_).sleep();
 
   ReplannerManagerBase::syncPathCost();
 
   other_paths_mtx_.lock();
-  for(unsigned int i=0;i<other_paths_shared_.size();i++)
+  int other_paths_size = std::min(other_paths_.size(),other_paths_shared_.size());
+  for(unsigned int i=0;i<other_paths_size;i++)
   {
     std::vector<ConnectionPtr> other_path_conn        = other_paths_       .at(i)->getConnections();
     std::vector<ConnectionPtr> other_path_shared_conn = other_paths_shared_.at(i)->getConnections();
@@ -182,6 +223,12 @@ void ReplannerManagerAIPRO::checkOtherPaths()
     if(!plannning_scene_client_.call(ps_srv))
     {
       ROS_ERROR("call to srv not ok");
+
+      stop_mtx_.lock();
+      stop_ = true;
+      stop_mtx_.unlock();
+
+      break;
     }
     scene_mtx_.unlock();
 
@@ -225,19 +272,30 @@ void ReplannerManagerAIPRO::checkOtherPaths()
 
 void ReplannerManagerAIPRO::updatePathCost(const PathPtr& current_path_updated_copy)
 {
-  current_path_cost_update_ready_ = true;
-  while(not other_paths_cost_update_ready_)
-    ros::Duration(updating_cost_pause_).sleep();
+  //  current_path_cost_update_ready_ = true;
+  //  while(not other_paths_cost_update_ready_)
+  //    ros::Duration(updating_cost_pause_).sleep();
 
-  ReplannerManagerBase::updatePathCost(current_path_updated_copy);
+  paths_mtx_.lock();
+  if(not current_path_sync_needed_)  //if changed, it is useless checking current_path_copy
+  {
+    std::vector<ConnectionPtr> current_path_conns      = current_path_shared_     ->getConnections();
+    std::vector<ConnectionPtr> current_path_copy_conns = current_path_updated_copy->getConnections();
+    for(unsigned int z=0;z<current_path_conns.size();z++)
+      current_path_conns.at(z)->setCost(current_path_copy_conns.at(z)->getCost());
+
+    current_path_shared_->cost();
+  }
+  paths_mtx_.unlock();
+
   current_path_cost_update_ready_ = false;
 }
 
 void ReplannerManagerAIPRO::updateOtherPathsCost(const std::vector<PathPtr>& other_paths_updated_copy)
 {
-  other_paths_cost_update_ready_ = true;
-  while(not current_path_cost_update_ready_)
-    ros::Duration(updating_cost_pause_).sleep();
+  //  other_paths_cost_update_ready_ = true;
+  //  while(not current_path_cost_update_ready_)
+  //    ros::Duration(updating_cost_pause_).sleep();
 
   other_paths_mtx_.lock();
   for(unsigned int i=0;i<other_paths_updated_copy.size();i++)
@@ -257,7 +315,7 @@ void ReplannerManagerAIPRO::updateOtherPathsCost(const std::vector<PathPtr>& oth
   other_paths_cost_update_ready_ = false;
 }
 
-void ReplannerManagerAIPRO::checkCurrentPath()  //CHIEDI
+void ReplannerManagerAIPRO::checkCurrentPath()
 {
   ReplannerManagerBase::collisionCheckThread();
 }
@@ -273,4 +331,71 @@ void ReplannerManagerAIPRO::collisionCheckThread()
   if(other_paths_check_thread.joinable())
     other_paths_check_thread.join();
 }
+
+void ReplannerManagerAIPRO::displayCurrentPath()
+{
+  ReplannerManagerBase::displayThread();
+}
+
+void ReplannerManagerAIPRO::displayOtherPaths()
+{
+  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
+
+  std::vector<PathPtr> other_paths;
+  std::vector<double> marker_color = {1.0,0.5,0.3,1.0};
+  std::vector<double> marker_scale = {0.01,0.01,0.01};
+
+  disp->changeNodeSize(marker_scale);
+
+  double display_thread_frequency = 0.75*trj_exec_thread_frequency_;
+  ros::Rate lp(display_thread_frequency);
+
+  stop_mtx_.lock();
+  bool stop = stop_;
+  stop_mtx_.unlock();
+
+  while((not stop) && ros::ok())
+  {
+    other_paths.clear();
+
+    other_paths_mtx_.lock();
+    for(const PathPtr& p:other_paths_shared_)
+      other_paths.push_back(p->clone());
+    other_paths_mtx_.unlock();
+
+    int path_id = 20000;
+    int wp_id = 25000;
+
+    //disp->changeConnectionSize(marker_scale);
+
+    for(const PathPtr& p:other_paths)
+    {
+      disp->displayPathAndWaypoints(p,path_id,wp_id,"pathplan",marker_color);
+
+      path_id +=1;
+      wp_id +=1000;
+    }
+
+    //disp->defaultConnectionSize();
+
+    stop_mtx_.lock();
+    stop = stop_;
+    stop_mtx_.unlock();
+
+    lp.sleep();
+  }
+}
+
+void ReplannerManagerAIPRO::displayThread()
+{
+  std::thread current_path_display_thread = std::thread(&ReplannerManagerAIPRO::displayCurrentPath,this);
+  std::thread other_paths_display_thread  = std::thread(&ReplannerManagerAIPRO::displayOtherPaths ,this);
+
+  if(current_path_display_thread.joinable())
+    current_path_display_thread.join();
+
+  if(other_paths_display_thread.joinable())
+    other_paths_display_thread.join();
+}
+
 }

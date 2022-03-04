@@ -47,16 +47,17 @@ protected:
 
   int n_conn_;
 
-  double real_time_                  ;
-  double t_                          ;
-  double dt_                         ;
-  double replan_offset_              ;
-  double t_replan_                   ;
-  double replanning_thread_frequency_;
-  double scaling_from_param_         ;
-  double checker_resol_              ;
-  double goal_tol_                   ;
-  double scaling_                    ;
+  double real_time_                     ;
+  double t_                             ;
+  double dt_                            ;
+  double replan_offset_                 ;
+  double t_replan_                      ;
+  double replanning_thread_frequency_   ;
+  double scaling_from_param_            ;
+  double checker_resol_                 ;
+  double goal_tol_                      ;
+  double scaling_                       ;
+  double abscissa_current_configuration_;
 
   ReplannerBasePtr                          replanner_               ;
   Eigen::VectorXd                           current_configuration_   ;
@@ -109,12 +110,10 @@ protected:
   virtual void attributeInitialization();
   virtual void replanningThread();
   virtual void collisionCheckThread();
-  void displayThread();
+  virtual void displayThread();
   void spawnObjects();
   void trajectoryExecutionThread();
   double readScalingTopics();
-  std::vector<ConnectionPtr> connectCurrentConfToTree();
-  bool detachAddedBranch(std::vector<NodePtr>& nodes, std::vector<double>& costs);
 
   virtual void initReplanner()=0         ;
   virtual bool haveToReplan(const bool path_obstructed)=0;
@@ -161,8 +160,8 @@ public:
 
   virtual void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)=0;
 
-  bool stop();
-  bool cancel();
+  virtual bool stop();
+  virtual bool cancel();
   virtual bool run();
   virtual bool start();
   virtual bool startWithoutReplanning();

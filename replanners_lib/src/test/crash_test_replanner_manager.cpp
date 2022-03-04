@@ -3,7 +3,7 @@
 #include<replanners_lib/replanner_managers/replanner_manager_anytimeDRRT.h>
 #include<replanners_lib/replanner_managers/replanner_manager_DRRTStar.h>
 #include<replanners_lib/replanner_managers/replanner_manager_MPRRT.h>
-
+#include<replanners_lib/replanner_managers/replanner_manager_AIPRO.h>
 
 int main(int argc, char **argv)
 {
@@ -14,8 +14,6 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
 
   ros::ServiceClient ps_client=nh.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
-  ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::AddObjects>("add_object_to_scene");
-  ros::ServiceClient remove_obj=nh.serviceClient<object_loader_msgs::RemoveObjects>("remove_object_from_scene");
 
   //  ////////////////////////////////////////// GETTING ROS PARAM ///////////////////////////////////////////////
   int n_iter = 1;
@@ -167,26 +165,48 @@ int main(int argc, char **argv)
       continue;
     }
 
-    std::vector<pathplan::PathPtr> all_paths;
-    all_paths.push_back(current_path);
-
     // //////////////////////////////////////////DEFINING THE REPLANNER//////////////////////////////////////////////
     pathplan::ReplannerManagerBasePtr replanner_manager = nullptr;
     if(replanner_type == "MPRRT")
     {
-      replanner_manager = std::make_shared<pathplan::ReplannerManagerMPRRT>(current_path,solver,nh);
+      replanner_manager.reset(new pathplan::ReplannerManagerMPRRT(current_path,solver,nh));
     }
     else if(replanner_type ==  "DRRT*")
     {
-      replanner_manager =  std::make_shared<pathplan::ReplannerManagerDRRTStar>(current_path,solver,nh);
+      replanner_manager.reset(new pathplan::ReplannerManagerDRRTStar(current_path,solver,nh));
     }
     else if(replanner_type == "DRRT")
     {
-      replanner_manager =  std::make_shared<pathplan::ReplannerManagerDRRT>(current_path,solver,nh);
+      replanner_manager.reset(new pathplan::ReplannerManagerDRRT(current_path,solver,nh));
     }
     else if(replanner_type == "anytimeDRRT")
     {
-      replanner_manager =  std::make_shared<pathplan::ReplannerManagerAnytimeDRRT>(current_path,solver,nh);
+      replanner_manager.reset(new pathplan::ReplannerManagerAnytimeDRRT(current_path,solver,nh));
+    }
+    else if(replanner_type == "AIPRO")
+    {
+      int n_other_paths;
+      if (!nh.getParam("/aipro/n_other_paths",n_other_paths))
+      {
+        ROS_ERROR("n_other_paths not set, set 1");
+        n_other_paths = 1;
+      }
+
+      std::vector<pathplan::PathPtr> other_paths;
+      for(unsigned int i=0;i<n_other_paths;i++)
+      {
+        pathplan::RRTPtr solver2 = std::make_shared<pathplan::RRT>(metrics,checker,sampler);
+        pathplan::PathPtr path = trajectory.computePath(start_conf,goal_conf,solver2,true);
+
+        if(path)
+        {
+          other_paths.push_back(path);
+          if(!path->getTree())
+            assert(0);
+        }
+      }
+
+      replanner_manager.reset(new pathplan::ReplannerManagerAIPRO(current_path,solver,nh,other_paths));
     }
     else
     {
