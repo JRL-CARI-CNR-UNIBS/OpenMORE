@@ -66,7 +66,6 @@ protected:
   CollisionCheckerPtr                       checker_replanning_      ;
   TrajectoryPtr                             trajectory_              ;
   NodePtr                                   path_start_              ;
-  NodePtr                                   root_for_detach_         ;
   planning_scene::PlanningScenePtr          planning_scn_cc_         ;
   planning_scene::PlanningScenePtr          planning_scn_replanning_ ;
   trajectory_processing::SplineInterpolator interpolator_            ;
@@ -75,6 +74,7 @@ protected:
   trajectory_msgs::JointTrajectoryPoint     pnt_replan_              ;
   sensor_msgs::JointState                   new_joint_state_unscaled_;
   sensor_msgs::JointState                   new_joint_state_         ;
+  moveit_msgs::PlanningScene                planning_scene_          ;
 
   std::thread display_thread_;
   std::thread spawn_obj_thread_;
@@ -86,7 +86,6 @@ protected:
   std::mutex paths_mtx_;
   std::mutex scene_mtx_;
   std::mutex replanner_mtx_;
-  std::mutex stop_mtx_;
   std::mutex ovr_mtx_;
 
   std::vector<std::string>                                                        scaling_topics_names_ ;

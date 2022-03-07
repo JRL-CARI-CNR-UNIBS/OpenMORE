@@ -31,4 +31,4 @@ to_goal:
 aipro:
   n_other_paths: 2
   dt_replan_replaxed: 0.21
-  verbosity_level: 1
+  verbosity_level: 0

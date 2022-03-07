@@ -101,10 +101,14 @@ void ReplannerManagerBase::attributeInitialization()
   moveit_msgs::GetPlanningScene ps_srv;
   if (!plannning_scene_client_.call(ps_srv))
     ROS_ERROR("call to srv not ok");
-  if (!planning_scn_cc_->setPlanningSceneMsg(ps_srv.response.scene))
+
+  planning_scene_ = ps_srv.response.scene;
+
+  if (!planning_scn_cc_        ->setPlanningSceneMsg(planning_scene_))
     ROS_ERROR("unable to update planning scene");
-  if (!planning_scn_replanning_->setPlanningSceneMsg(ps_srv.response.scene))
+  if (!planning_scn_replanning_->setPlanningSceneMsg(planning_scene_))
     ROS_ERROR("unable to update planning scene");
+
 
   robot_state::RobotState state(planning_scn_cc_->getCurrentState());
   const robot_state::JointModelGroup* joint_model_group = state.getJointModelGroup(group_name_);
@@ -223,12 +227,17 @@ void ReplannerManagerBase::subscribeTopicsAndServices()
 
 void ReplannerManagerBase::syncPathCost()
 {
-  std::vector<ConnectionPtr> path_replanning_conns = current_path_replanning_->getConnections();
-  std::vector<ConnectionPtr> current_path_conns    = current_path_shared_    ->getConnections();
-  for(unsigned int i=0;i<path_replanning_conns.size();i++)
-    path_replanning_conns.at(i)->setCost(current_path_conns.at(i)->getCost());
+  paths_mtx_.lock();
+  if(not current_path_sync_needed_)
+  {
+    std::vector<ConnectionPtr> path_replanning_conns = current_path_replanning_->getConnections();
+    std::vector<ConnectionPtr> current_path_conns    = current_path_shared_    ->getConnections();
+    for(unsigned int i=0;i<path_replanning_conns.size();i++)
+      path_replanning_conns.at(i)->setCost(current_path_conns.at(i)->getCost());
 
-  current_path_replanning_->cost(); //update path cost
+    current_path_replanning_->cost(); //update path cost
+  }
+  paths_mtx_.unlock();
 }
 
 void ReplannerManagerBase::updatePathCost(const PathPtr& current_path_updated_copy)
@@ -262,9 +271,7 @@ void ReplannerManagerBase::replanningThread()
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
   ros::WallTime tic_rep,toc_rep;
 
-  stop_mtx_.lock();
   bool stop = stop_;
-  stop_mtx_.unlock();
 
   while((not stop) && ros::ok())
   {
@@ -280,22 +287,21 @@ void ReplannerManagerBase::replanningThread()
 
     if((point2project-goal_conf).norm()>goal_tol_)
     {
-      scene_mtx_.lock();
-      moveit_msgs::PlanningScene scn;
-      planning_scn_cc_->getPlanningSceneMsg(scn);
-      checker_replanning_->setPlanningSceneMsg(scn);
-      scene_mtx_.unlock();
+      //      scene_mtx_.lock();
+      //      ROS_INFO("REP PRIMA UPDATE SCENE");
+      //      checker_replanning_->setPlanningSceneMsg(planning_scene_);
+      //      ROS_INFO("REP DOPO UPDATE SCENE");
+      //      scene_mtx_.unlock();
 
-      replanner_mtx_.lock();
+      //      replanner_mtx_.lock();
       paths_mtx_.lock();
       past_configuration_replan = configuration_replan_;
-
       path2project_on = current_path_shared_->clone();
-      path2project_on->setChecker(checker_replanning_);
-      path2project_on = path2project_on->getSubpathFromConf(current_configuration,true);
+      //      path2project_on->setChecker(checker_replanning_);
+      //      path2project_on = path2project_on->getSubpathFromConf(current_configuration,true);
 
       paths_mtx_.unlock();
-      replanner_mtx_.unlock();
+      //      replanner_mtx_.unlock();
 
       projection = path2project_on->projectOnClosestConnection(point2project);
 
@@ -303,34 +309,15 @@ void ReplannerManagerBase::replanningThread()
       configuration_replan_ = projection;
       replanner_mtx_.unlock();
 
-      paths_mtx_.lock(); //replanningThread should work with the original current path, so its copy is used for collision check and then the cost is updated here
-      if(not current_path_sync_needed_)
-      {
-        //        ROS_WARN("Check conformity"); //elimina
+      scene_mtx_.lock();
+      ROS_INFO("REP PRIMA SYNC");
+      syncPathCost();
+      ROS_INFO("REP DOPO SYNC");
+      ROS_INFO("REP PRIMA UPDATE SCENE");
+      checker_replanning_->setPlanningSceneMsg(planning_scene_);
+      ROS_INFO("REP DOPO UPDATE SCENE");
+      scene_mtx_.unlock();
 
-        //ELIMINA
-        if(current_path_replanning_->getConnections().size() != current_path_shared_->getConnections().size())
-        {
-          ROS_INFO_STREAM("current path replanning size: "<<current_path_replanning_->getConnections().size()<<" current path shared size: "<<current_path_shared_->getConnections().size());
-
-          for(const ConnectionPtr& conn:current_path_replanning_->getConnections())
-          {
-            ROS_INFO_STREAM("r parent: "<<conn->getParent()->getConfiguration().transpose());
-            ROS_INFO_STREAM("r child : "<<conn->getChild()->getConfiguration().transpose());
-          }
-
-          for(const ConnectionPtr& conn:current_path_shared_->getConnections())
-          {
-            ROS_INFO_STREAM("s parent: "<<conn->getParent()->getConfiguration().transpose());
-            ROS_INFO_STREAM("s child : "<<conn->getChild()->getConfiguration().transpose());
-          }
-
-          assert(0);
-        }
-
-        syncPathCost();
-      }
-      paths_mtx_.unlock();
 
       replanner_mtx_.lock();
       if(not (current_path_replanning_->findConnection(configuration_replan_)))
@@ -364,11 +351,9 @@ void ReplannerManagerBase::replanningThread()
 
       if(haveToReplan(path_obstructed))
       {
-        //        for(const ConnectionPtr& conn:current_path_replanning_->getConnections()) //ELIMINA
-        //        {
-        //          ROS_INFO_STREAM("p: "<<conn->getParent()->getConfiguration().transpose());
-        //          ROS_INFO_STREAM("c: "<<conn->getChild() ->getConfiguration().transpose());
-        //        }
+
+        int n_size = current_path_replanning_->getConnections().size(); //elimina
+        std::vector<Eigen::VectorXd> wp = current_path_replanning_->getWaypoints();
 
         tic_rep=ros::WallTime::now();
         path_changed = replan(); //path may have changed even though replanning was unsuccessful
@@ -376,8 +361,24 @@ void ReplannerManagerBase::replanningThread()
 
         replanning_duration = (toc_rep-tic_rep).toSec();
 
+        int n_size2 = current_path_replanning_->getConnections().size(); //elimina
+        std::vector<Eigen::VectorXd> wp2 = current_path_replanning_->getWaypoints();
+
+
+        if((not path_changed) && (n_size != n_size2)) //elimina
+        {
+          ROS_INFO_STREAM("path changed: "<<path_changed<<" nsize1: "<<n_size<<" nsize2: "<<n_size2);
+
+          for(const Eigen::VectorXd& w:wp)
+            ROS_INFO_STREAM("wp1: "<<w.transpose());
+
+          for(const Eigen::VectorXd& w:wp2)
+            ROS_INFO_STREAM("wp2: "<<w.transpose());
+
+          assert(0);
+        }
+
         success = replanner_->getSuccess();
-        assert((success && replanner_->getReplannedPath()->isValid()) || not success);
       }
 
       if(replanning_duration>=dt_replan_/0.9 && display_timing_warning_)
@@ -385,13 +386,7 @@ void ReplannerManagerBase::replanningThread()
       if(display_replanning_success_)
         ROS_INFO_STREAM("Success: "<< success <<" in "<< replanning_duration <<" seconds");
 
-      ROS_INFO("PRIMA DI STOP");
-
-      stop_mtx_.lock();
       bool stop = stop_;
-      stop_mtx_.unlock();
-
-      ROS_INFO("PRIMA DI PATH_CHANGED ");
 
       if(path_changed && (not stop))
       {
@@ -407,8 +402,6 @@ void ReplannerManagerBase::replanningThread()
         current_path_shared_ = current_path_replanning_->clone();
         current_path_shared_->setChecker(checker_cc_);
         current_path_sync_needed_ = true;
-
-        //        ROS_WARN("current path just changed"); //elimina
         paths_mtx_.unlock();
 
         moveit_msgs::RobotTrajectory tmp_trj_msg;
@@ -428,9 +421,6 @@ void ReplannerManagerBase::replanningThread()
         replanner_mtx_.unlock();
       }
 
-      ROS_INFO("DOPO DI PATH_CHANGED ");
-
-
       ros::WallTime toc=ros::WallTime::now();
       double duration = (toc-tic).toSec();
 
@@ -441,9 +431,7 @@ void ReplannerManagerBase::replanningThread()
       }
     }
 
-    stop_mtx_.lock();
     stop = stop_;
-    stop_mtx_.unlock();
 
     lp.sleep();
   }
@@ -458,9 +446,7 @@ void ReplannerManagerBase::collisionCheckThread()
   current_path_copy->setChecker(checker_cc_);
   moveit_msgs::GetPlanningScene ps_srv;
 
-  stop_mtx_.lock();
   bool stop = stop_;
-  stop_mtx_.unlock();
 
   while ((not stop) && ros::ok())
   {
@@ -469,14 +455,12 @@ void ReplannerManagerBase::collisionCheckThread()
 
     scene_mtx_.lock();
     ros::WallTime tic1 = ros::WallTime::now();
-    if (!plannning_scene_client_.call(ps_srv))
+    if(!plannning_scene_client_.call(ps_srv))
     {
       ROS_ERROR("call to srv not ok");
 
-      stop_mtx_.lock();
       stop_ = true;
       stop = true;
-      stop_mtx_.unlock();
 
       break;
     }
@@ -495,7 +479,6 @@ void ReplannerManagerBase::collisionCheckThread()
       current_path_copy = current_path_shared_->clone();
       current_path_copy->setChecker(checker_cc_);
       current_path_sync_needed_ = false;
-      //      ROS_WARN("CC syncronized with current path "); //elimina
     }
     paths_mtx_.unlock();
 
@@ -506,7 +489,10 @@ void ReplannerManagerBase::collisionCheckThread()
     duration_check = (ros::WallTime::now()-tic1).toSec();
 
     tic1 = ros::WallTime::now();
+    scene_mtx_.lock();
     updatePathCost(current_path_copy);
+    planning_scene_ = ps_srv.response.scene;
+    scene_mtx_.unlock(); //sync path cost with scene msg
     duration_update_cost_info = (ros::WallTime::now()-tic1).toSec();
 
     ros::WallTime toc=ros::WallTime::now();
@@ -517,9 +503,7 @@ void ReplannerManagerBase::collisionCheckThread()
       ROS_WARN("Collision checking thread time expired: total duration-> %f, duration_check-> %f duration_pln_scn_srv-> %f, duration_copy_path-> %f, duration_update_cost_info-> %f",duration,duration_check,duration_pln_scn_srv,duration_copy_path,duration_update_cost_info);
     }
 
-    stop_mtx_.lock();
     stop = stop_;
-    stop_mtx_.unlock();
 
     lp.sleep();
   }
@@ -542,9 +526,7 @@ bool ReplannerManagerBase::stop()
 
 bool ReplannerManagerBase::cancel()
 {
-  stop_mtx_.lock();
   stop_ = true ;
-  stop_mtx_.unlock();
 
   return stop();
 }
@@ -620,9 +602,7 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
   ros::Rate lp(trj_exec_thread_frequency_);
 
-  stop_mtx_.lock()  ;
   bool stop = stop_ ;
-  stop_mtx_.unlock();
 
   while((not stop) && ros::ok())
   {
@@ -662,9 +642,7 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
     if((point2project-goal_conf).norm()<goal_tol_)
     {
-      stop_mtx_.lock()  ;
       stop_     = true  ;
-      stop_mtx_.unlock();
     }
 
     new_joint_state_unscaled_.position     = pnt_unscaled.positions ;
@@ -682,16 +660,12 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     if(duration>(1/trj_exec_thread_frequency_) && display_timing_warning_)
       ROS_WARN("Trj execution thread time expired: duration-> %f",duration);
 
-    stop_mtx_.lock();
     stop = stop_;
-    stop_mtx_.unlock();
 
     lp.sleep();
   }
 
-  stop_mtx_.lock();
   stop_ = true;
-  stop_mtx_.unlock();
 
   ROS_ERROR("STOP");
 }
@@ -712,9 +686,7 @@ void ReplannerManagerBase::displayThread()
   double display_thread_frequency = 0.75*trj_exec_thread_frequency_;
   ros::Rate lp(display_thread_frequency);
 
-  stop_mtx_.lock();
   bool stop = stop_;
-  stop_mtx_.unlock();
 
   while((not stop) && ros::ok())
   {
@@ -765,9 +737,7 @@ void ReplannerManagerBase::displayThread()
 
     disp->defaultNodeSize();
 
-    stop_mtx_.lock();
     stop = stop_;
-    stop_mtx_.unlock();
 
     lp.sleep();
   }
@@ -786,9 +756,7 @@ void ReplannerManagerBase::spawnObjects()
 
   std::string last_link = planning_scn_cc_->getRobotModel()->getJointModelGroup(group_name_)->getLinkModelNames().back();
 
-  stop_mtx_.lock();
   bool stop = stop_;
-  stop_mtx_.unlock();
 
   CollisionCheckerPtr checker = checker_cc_->clone();
 
@@ -883,10 +851,8 @@ void ReplannerManagerBase::spawnObjects()
       {
         ROS_ERROR("call to srv not ok");
 
-        stop_mtx_.lock();
         stop_ = true;
         stop = true;
-        stop_mtx_.unlock();
 
         break;
       }
@@ -908,9 +874,7 @@ void ReplannerManagerBase::spawnObjects()
       object_spawned = true;
     }
 
-    stop_mtx_.lock();
     stop = stop_;
-    stop_mtx_.unlock();
 
     lp.sleep();
   }

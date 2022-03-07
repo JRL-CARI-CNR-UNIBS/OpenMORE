@@ -14,8 +14,8 @@ class ReplannerManagerAIPRO: public ReplannerManagerBase
 {
 protected:
   bool first_replanning_;
-  bool current_path_cost_update_ready_;
-  bool other_paths_cost_update_ready_;
+  bool current_path_cost_update_ready_; //elimina
+  bool other_paths_cost_update_ready_;  //elimina
   int verbosity_level_;
   double updating_cost_pause_;
   double dt_replan_relaxed_;
@@ -25,14 +25,11 @@ protected:
   std::mutex other_paths_mtx_;
 
   bool checkPathTask(const PathPtr& path);
-  void checkCurrentPath();
-  void checkOtherPaths();
   void displayCurrentPath();
   void displayOtherPaths();
   void additionalParam();
   void syncPathCost() override;
-  void updatePathCost(const PathPtr& current_path_updated_copy) override;
-  void updateOtherPathsCost(const std::vector<PathPtr>& other_paths_updated_copy);
+  void updatePathsCost(const PathPtr& current_path_updated_copy, const std::vector<PathPtr>& other_paths_updated_copy);
   void attributeInitialization() override;
   void collisionCheckThread() override;
   void displayThread() override;
