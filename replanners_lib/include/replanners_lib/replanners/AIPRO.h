@@ -42,6 +42,7 @@ protected:
 
   int pathSwitch_path_id_;
 
+  bool is_a_new_node_;
   bool an_obstacle_;
   bool informedOnlineReplanning_disp_;
   bool pathSwitch_disp_;
@@ -52,13 +53,13 @@ protected:
   std::vector<node_and_path> sortNodesOnDistance(const NodePtr& node);
   std::vector<NodePtr> startNodes(const std::vector<ConnectionPtr>& subpath1_conn);
   PathPtr getSubpath1(const ConnectionPtr& current_conn, NodePtr& current_node);
-  PathPtr bestExistingSolution(const PathPtr& subpath1);
+  PathPtr bestExistingSolution(const PathPtr& current_solution);
   double maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle);
   void optimizePath(PathPtr &connecting_path, const double &max_time);
   bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node, const double &diff_subpath_cost, const PathPtr &current_solution, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &quickly_solved);
   void simplifyAdmissibleOtherPaths(const PathPtr& current_solution_path, const NodePtr &start_node, const std::vector<PathPtr>& reset_other_paths);
   bool mergePathToTree(PathPtr& path);
-
+  bool stealSubtree(const NodePtr& node);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -73,19 +74,6 @@ public:
         const double& max_time,
         const TreeSolverPtr &solver,
         std::vector<PathPtr> &other_paths);
-
-  void setChecker(const CollisionCheckerPtr &checker)
-  {
-    checker_ = checker;
-    solver_->setChecker(checker);
-    current_path_->setChecker(checker);
-
-    if(replanned_path_)
-      replanned_path_->setChecker(checker);
-
-    for(const PathPtr& p:other_paths_)
-      p->setChecker(checker);
-  }
 
   std::vector<PathPtr> getReplannedPathVector()
   {
@@ -156,6 +144,13 @@ public:
     success_ = false;
   }
 
+  void setChecker(const CollisionCheckerPtr& checker) override
+  {
+    ReplannerBase::setChecker(checker);
+    for(const PathPtr& p:other_paths_)
+      p->setChecker(checker);
+  }
+
   void addOtherPath(PathPtr& path, bool mergeTree = true)
   {
     if(mergeTree)
@@ -171,6 +166,8 @@ public:
   {
     return shared_from_this();
   }
+
+  void clearInvalidConnections();
 
   bool simplifyReplannedPath(const double& distance);
   bool pathSwitch(const PathPtr& current_path, const NodePtr& path1_node, PathPtr &new_path);

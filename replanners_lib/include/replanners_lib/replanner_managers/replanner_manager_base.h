@@ -41,8 +41,12 @@ protected:
   bool spawn_objs_                ;
   bool read_safe_scaling_         ;
   bool replanner_verbosity_       ;
+  bool display_replan_config_     ;
+  bool display_current_config_    ;
   bool display_timing_warning_    ;
+  bool display_replan_trj_point_  ;
   bool current_path_sync_needed_  ;
+  bool display_current_trj_point_ ;
   bool display_replanning_success_;
 
   int n_conn_;
@@ -54,7 +58,7 @@ protected:
   double t_replan_                      ;
   double replanning_thread_frequency_   ;
   double scaling_from_param_            ;
-  double checker_resol_                 ;
+  double checker_resolution_            ;
   double goal_tol_                      ;
   double scaling_                       ;
   double abscissa_current_configuration_;
@@ -74,7 +78,7 @@ protected:
   trajectory_msgs::JointTrajectoryPoint     pnt_replan_              ;
   sensor_msgs::JointState                   new_joint_state_unscaled_;
   sensor_msgs::JointState                   new_joint_state_         ;
-  moveit_msgs::PlanningScene                planning_scene_          ;
+  moveit_msgs::PlanningScene                planning_scene_msg_      ;
 
   std::thread display_thread_;
   std::thread spawn_obj_thread_;

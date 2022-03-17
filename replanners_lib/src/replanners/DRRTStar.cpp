@@ -25,11 +25,11 @@ DynamicRRTStar::DynamicRRTStar(Eigen::VectorXd& current_configuration,
 
 bool DynamicRRTStar::nodeBehindObs(NodePtr& node_behind)
 {
-  for(int i=current_path_->getConnections().size()-1; i>=0; i--)
+  for(int i=current_path_->getConnectionsSize()-1; i>=0; i--)
   {
     if(current_path_->getConnections().at(i)->getCost() == std::numeric_limits<double>::infinity())
     {
-      (i<current_path_->getConnections().size()-1)?
+      (i<current_path_->getConnectionsSize()-1)?
             (node_behind=current_path_->getConnections().at(i+1)->getChild()):
             (node_behind=current_path_->getConnections().at(i)->getChild());
 
@@ -163,10 +163,12 @@ bool DynamicRRTStar::replan()
     if(verbose_)
       ROS_WARN("Current path obstructed");
 
+    std::vector<NodePtr> nodes = current_path_->getNodes();
+
     NodePtr root = current_path_->getTree()->getRoot();
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
 
-    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
+    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true,is_a_new_node_);
 
     if(verbose_)
       ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
@@ -192,8 +194,7 @@ bool DynamicRRTStar::replan()
       }
       assert(((root != node_replan) && (current_path_->getTree()->getRoot() != node_replan)) || (root == node_replan));
 
-      std::vector<NodePtr> void_list;
-      if(current_path_->removeNode(node_replan,void_list)) //if added node is removed the path is not changed, otherwise it is changed
+      if(current_path_->removeNode(node_replan,nodes)) //if added node is removed the path is not changed, otherwise it is changed
       {
         if(verbose_)
           ROS_INFO("Node replan removed");

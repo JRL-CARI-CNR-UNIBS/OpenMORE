@@ -131,7 +131,7 @@ bool AnytimeDynamicRRT::replan()
     assert(root == path_nodes.front());
 
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-    node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
+    node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true,is_a_new_node_);
 
     if(verbose_)
       ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);

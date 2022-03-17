@@ -1,4 +1,18 @@
-# Replanner strategy:
+#TEST CONFIGURATIONS:
+n_iter: 500
+
+#PLANNING CONFIGURATIONS:
+group_name: "cartesian_arm"
+start_configuration: [0.2,0.2,0.2]
+stop_configuration:  [0.8,0.8,0.8]
+utopia_tolerance: 0.05
+extend: false
+max_distance: 0.5
+checker_resolution: 0.01
+
+#REPLANNER CONFIGURTIONS:
+
+# Available replanners:
 # - MPRRT
 # - DRRT*
 # - DRRT
@@ -6,29 +20,26 @@
 # - AIPRO
 
 replanner_type: "AIPRO"
-group_name: "cartesian_arm"
-start_configuration: [0.2,0.2,0.2]
-stop_configuration:  [0.8,0.8,0.8]
-max_distance: 0.5
-extend: false
-utopia_tolerance: 0.05
 dt_replan: 0.2
-n_iter: 500
-display: false
-rj_execution_thread_frequency: 500
+trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 spawn_objs: true
-display_timing_warning: true
-display_replanning_success: true
 scaling: 0.5
 read_real_joints_values_: false
-checker_resolution: 0.01
-replanner_verbosity: true
 
 to_goal:
   n_threads_replan: 5
 
 aipro:
   n_other_paths: 2
-  dt_replan_replaxed: 0.21
-  verbosity_level: 0
+  dt_replan_replaxed: 0.20
+  verbosity_level: 1
+
+# VERBOSITY:
+replanner_verbosity: true
+display_timing_warning: true
+display_replanning_success: true
+display_replan_trj_point: true
+display_replan_config: true
+display_current_trj_point: true
+display_current_config: true

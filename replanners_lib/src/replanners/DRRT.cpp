@@ -295,7 +295,7 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
           replanned_path_->setTree(trimmed_tree_);
 
           // SOLUZIONE MOMENTANEA
-          for(unsigned int i=0;i<replanned_path_->getConnections().size();i++)
+          for(unsigned int i=0;i<replanned_path_->getConnectionsSize();i++)
           {
             if(replanned_path_->getConnections().at(i)->norm() <1e-06)
             {
@@ -371,7 +371,7 @@ bool DynamicRRT::replan()
     checkTreeNodes(current_path_->getTree()); //elimina
 
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true);
+    NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true,is_a_new_node_);
 
     checkTreeNodes(current_path_->getTree()); //elimina
 

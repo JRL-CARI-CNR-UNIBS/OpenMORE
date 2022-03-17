@@ -16,7 +16,7 @@ configuration_msgs
 )
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES replanners_lib
+  LIBRARIES ${PROJECT_NAME}
   CATKIN_DEPENDS graph_core graph_replanning roscpp object_loader_msgs moveit_planning_helper geometry_msgs configuration_msgs
   DEPENDS
   )
@@ -39,10 +39,7 @@ src/replanner_managers/replanner_manager_anytimeDRRT.cpp
 src/replanner_managers/replanner_manager_MPRRT.cpp
 )
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-target_link_libraries(${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
 add_executable(test_replanners src/test/test_replanner.cpp)
 add_dependencies(test_replanners ${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

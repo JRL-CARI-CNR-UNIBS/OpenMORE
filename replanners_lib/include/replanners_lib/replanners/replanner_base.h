@@ -37,6 +37,7 @@ protected:
   DisplayPtr disp_;
   NodePtr goal_node_;
 
+  bool is_a_new_node_;
   bool success_;
   bool verbose_;
   double max_time_;
@@ -102,7 +103,7 @@ public:
     return solver_;
   }
 
-  void setChecker(const CollisionCheckerPtr &checker)
+  virtual void setChecker(const CollisionCheckerPtr &checker)
   {
     checker_ = checker;
     solver_->setChecker(checker);
@@ -120,6 +121,11 @@ public:
   DisplayPtr getDisp()
   {
     return disp_;
+  }
+
+  bool replanNodeIsANewNode()
+  {
+    return is_a_new_node_;
   }
 
   bool getSuccess()

@@ -283,7 +283,7 @@ bool MPRRT::replan()
 
   //Replan
   ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-  NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,false);
+  NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,false,is_a_new_node_);
 
   assert(current_path_->findConnection(node_replan->getConfiguration()) != nullptr);
 

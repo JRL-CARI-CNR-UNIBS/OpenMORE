@@ -14,12 +14,11 @@ class ReplannerManagerAIPRO: public ReplannerManagerBase
 {
 protected:
   bool first_replanning_;
-  bool current_path_cost_update_ready_; //elimina
-  bool other_paths_cost_update_ready_;  //elimina
   int verbosity_level_;
   double updating_cost_pause_;
   double dt_replan_relaxed_;
   NodePtr old_current_node_;
+  PathPtr initial_path_;
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> other_paths_shared_;
   std::mutex other_paths_mtx_;
