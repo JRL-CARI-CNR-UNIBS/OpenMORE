@@ -32,6 +32,7 @@ protected:
   std::vector<PathPtr> admissible_other_paths_;
   std::vector<PathPtr> replanned_paths_vector_;
   std::vector<invalid_connection> invalid_connections_;
+  std::vector<ConnectionPtr> checked_connections_;
 
   double time_first_sol_;
   double time_replanning_;

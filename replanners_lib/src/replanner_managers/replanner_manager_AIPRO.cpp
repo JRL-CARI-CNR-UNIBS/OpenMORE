@@ -233,6 +233,10 @@ void ReplannerManagerAIPRO::initReplanner()
 {
   double time_for_repl = 0.9*dt_replan_;
   replanner_ = std::make_shared<pathplan::AIPRO>(configuration_replan_, current_path_replanning_, time_for_repl, solver_,other_paths_);
+
+  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_); //elimina
+  replanner_->setDisp(disp);
+
 }
 
 bool ReplannerManagerAIPRO::checkPathTask(const PathPtr& path)
