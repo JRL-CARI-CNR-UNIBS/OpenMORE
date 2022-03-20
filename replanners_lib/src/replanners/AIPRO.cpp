@@ -10,6 +10,8 @@ AIPRO::AIPRO(const Eigen::VectorXd& current_configuration,
   tree_ = current_path_->getTree();
   net_ = std::make_shared<Net>(tree_);
 
+  copyTreeRoot();
+
   available_time_ =  std::numeric_limits<double>::infinity();
   pathSwitch_cycle_time_mean_ = std::numeric_limits<double>::infinity();
   time_percentage_variability_ = TIME_PERCENTAGE_VARIABILITY;
@@ -32,25 +34,48 @@ AIPRO::AIPRO(const Eigen::VectorXd& current_configuration,
   setOtherPaths(other_paths);
 }
 
+void AIPRO::copyTreeRoot()
+{
+  //Net stops working when encounters the tree root, so doesn't allow to find a replanned path which pass through the start
+  //So, a copy of the root (=start) is created and all the paths will start from this node and not from the root.
+  fake_root_ = tree_->getRoot();
+  assert(tree_->getRoot() == current_path_->getConnections().front()->getParent());
+  NodePtr new_tree_root =std::make_shared<Node>(fake_root_->getConfiguration());
+
+  ConnectionPtr conn = std::make_shared<Connection>(fake_root_,new_tree_root,false);
+  conn->setCost(0.0);
+  conn->add();
+
+  tree_->addNode(new_tree_root);
+  if(not tree_->changeRoot(new_tree_root))
+  {
+    ROS_ERROR("The root can be moved to its copy");
+    assert(0);
+  }
+}
+
 
 bool AIPRO::mergePathToTree(PathPtr &path)
 {
   TreePtr path_tree = path->getTree();
   NodePtr path_goal = path->getConnections().back()->getChild();
 
-  if(tree_ == path_tree)
-    return true;
-
   for(const ConnectionPtr& conn:path->getConnections())
     assert(not conn->isNet());
 
-  assert(goal_node_->parent_connections_.size() == 1); //elimina
+  if(tree_ == path_tree)
+    return true;
+
+  assert(goal_node_->parent_connections_.size() == 1);
 
   //Merging the root
   if(not tree_)
   {
     if(path_tree)
+    {
       tree_ = path_tree;
+      copyTreeRoot();
+    }
     else
     {
       std::vector<ConnectionPtr> conns;
@@ -66,17 +91,19 @@ bool AIPRO::mergePathToTree(PathPtr &path)
 
       tree_ = std::make_shared<Tree>(path->getNodes().front(),max_dist,checker_,metrics_);
       tree_->addBranch(path->getConnections());
+      copyTreeRoot();
     }
 
-    NodePtr path_start = current_path_->getConnections().front()->getParent();
-    if(tree_->getRoot()->getConfiguration() == path_start->getConfiguration())
+    NodePtr fake_tree_root = fake_root_;
+    NodePtr current_path_start = current_path_->getConnections().front()->getParent();
+    if(fake_tree_root->getConfiguration() == current_path_start->getConfiguration())
     {
-      if(tree_->getRoot() != path_start)
+      if(fake_tree_root != current_path_start)
       {
         ConnectionPtr conn_child = current_path_->getConnections().front();
         assert(not conn_child->isNet());
 
-        ConnectionPtr conn = std::make_shared<Connection>(tree_->getRoot(),conn_child->getChild());
+        ConnectionPtr conn = std::make_shared<Connection>(fake_tree_root,conn_child->getChild());
         conn->setCost(conn_child->getCost());
         conn->add();
 
@@ -103,29 +130,35 @@ bool AIPRO::mergePathToTree(PathPtr &path)
   }
   else
   {
-    NodePtr tree_root = tree_->getRoot();
+    NodePtr fake_tree_root = fake_root_;
     NodePtr path_start = path->getConnections().front()->getParent();
-    if(tree_root->getConfiguration() == path_start->getConfiguration())
+    if(fake_tree_root->getConfiguration() == path_start->getConfiguration())
     {
-      if(tree_root != path_start)
+      if(fake_tree_root != path_start)
       {
         std::vector<ConnectionPtr> connections;
         if(path_tree)
         {
           assert(path_start == path_tree->getRoot());
 
-          path_tree->addNode(tree_root);
+          ROS_INFO("QUA0");
+          path_tree->addNode(fake_tree_root);
           path_tree->changeRoot(path_goal);
+
+          NodePtr root = tree_->getRoot();
+          tree_->changeRoot(fake_root_);
+
+          ROS_INFO("QUA1");
 
           ConnectionPtr conn;
           NodePtr child, parent;
           std::vector<ConnectionPtr> child_connections = path_start->child_connections_;
           for(const ConnectionPtr& child_conn:child_connections)
           {
-            assert(!child_conn->isNet());
+            assert(not child_conn->isNet());
 
             child = child_conn->getChild();
-            conn = std::make_shared<Connection>(tree_root,child);
+            conn = std::make_shared<Connection>(fake_tree_root,child);
             conn->setCost(child_conn->getCost());
             conn->add();
           }
@@ -133,16 +166,24 @@ bool AIPRO::mergePathToTree(PathPtr &path)
           std::vector<ConnectionPtr> parent_connections = path_start->parent_connections_;
           for(const ConnectionPtr& parent_conn:parent_connections)
           {
-            assert(!parent_conn->isNet());
+            assert(not parent_conn->isNet());
 
             parent = parent_conn->getParent();
-            conn = std::make_shared<Connection>(parent,tree_root);
+            conn = std::make_shared<Connection>(parent,fake_tree_root);
             conn->setCost(parent_conn->getCost());
             conn->add();
           }
+          ROS_INFO("QUA2");
 
-          if(not path_tree->changeRoot(tree_root))
+          ROS_WARN_STREAM("root "<<tree_->getRoot()<<" "<<*tree_->getRoot());
+          ROS_WARN_STREAM("fake root "<<fake_root_<<" "<<*fake_root_);
+
+
+          if(not path_tree->changeRoot(fake_root_))
             assert(0);
+
+          tree_->changeRoot(root);
+          ROS_INFO("QUA3");
 
           path_tree->removeNode(path_start);
 
@@ -151,9 +192,9 @@ bool AIPRO::mergePathToTree(PathPtr &path)
         else
         {
           ConnectionPtr conn_child = path->getConnections().front();
-          assert(!conn_child->isNet());
+          assert(not conn_child->isNet());
 
-          ConnectionPtr conn = std::make_shared<Connection>(tree_->getRoot(),conn_child->getChild());
+          ConnectionPtr conn = std::make_shared<Connection>(fake_root_,conn_child->getChild());
           conn->setCost(conn_child->getCost());
           conn->add();
 
@@ -166,8 +207,13 @@ bool AIPRO::mergePathToTree(PathPtr &path)
         path->setConnections(connections);
       }
 
-      path_tree? tree_->addTree(path_tree):
-                 tree_->addBranch(path->getConnections());
+      if(path_tree)
+      {
+        tree_->addTree(path_tree);
+        path_tree = tree_;
+      }
+      else
+        tree_->addBranch(path->getConnections());
 
       current_path_->setTree(tree_);
       path->setTree(tree_);
@@ -183,7 +229,7 @@ bool AIPRO::mergePathToTree(PathPtr &path)
   std::vector<ConnectionPtr> path_conns = path->getConnections();
   ConnectionPtr conn2delete = path->getConnections().back();
 
-  assert(goal_node_->parent_connections_.size() == 1);  //elimina
+  assert(goal_node_->parent_connections_.size() == 1);
 
   ConnectionPtr new_goal_conn;
   (goal_node_->parent_connections_.empty())?
@@ -201,7 +247,7 @@ bool AIPRO::mergePathToTree(PathPtr &path)
   tree_->removeNode(path_goal);
   net_->setTree(tree_);
 
-  assert(goal_node_->parent_connections_.size() == 1);  //elimina
+  assert(goal_node_->parent_connections_.size() == 1);
 
   return true;
 }
@@ -306,7 +352,7 @@ std::vector<node_and_path> AIPRO::sortNodesOnDistance(const NodePtr& start_node)
     node_and_path_map.insert(std::pair<double,node_and_path>(distance,n_p));
   }
 
-  for(const std::pair<double,node_and_path>& p: node_and_path_map)
+  for(const std::pair<double,node_and_path> &p: node_and_path_map)
     ordered_goals.push_back(p.second);
 
   return ordered_goals;
@@ -376,7 +422,7 @@ PathPtr AIPRO::bestExistingSolution(const PathPtr& current_solution)
 
     int id;
     int n_sol = 0;
-    for(const std::pair<double,std::vector<ConnectionPtr>>& solution_pair:tmp_map)
+    for(const std::pair<double,std::vector<ConnectionPtr>> &solution_pair:tmp_map)
     {
       PathPtr disp_path = std::make_shared<Path>(solution_pair.second,metrics_,checker_);
 
@@ -401,7 +447,7 @@ PathPtr AIPRO::bestExistingSolution(const PathPtr& current_solution)
     //      paths_connections.insert(paths_connections.end(),p->getConnectionsConst().begin(),p->getConnectionsConst().end());
 
     bool free;
-    for(const std::pair<double,std::vector<ConnectionPtr>>& solution_pair:tmp_map)
+    for(const std::pair<double,std::vector<ConnectionPtr>> &solution_pair:tmp_map)
     {
       if(solution_pair.first<best_cost)
       {
@@ -717,6 +763,9 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
       ROS_INFO_STREAM("root "<<tree_->getRoot());
       ROS_INFO_STREAM(*tree_->getRoot());
 
+      ROS_INFO_STREAM("fake root "<<fake_root_);
+      ROS_INFO_STREAM(*fake_root_);
+
       assert(0);
     }
   }
@@ -799,7 +848,7 @@ bool AIPRO::pathSwitch(const PathPtr &current_path,
       std::multimap<double,std::vector<ConnectionPtr>> path2_subpath_map = net_->getConnectionBetweenNodes(path2_node,goal_node_);
 
       bool free = true;
-      for(const std::pair<double,std::vector<ConnectionPtr>>& candidate_path2_subpath:path2_subpath_map)
+      for(const std::pair<double,std::vector<ConnectionPtr>> &candidate_path2_subpath:path2_subpath_map)
       {
         for(const ConnectionPtr& conn: candidate_path2_subpath.second)
         {
@@ -943,7 +992,6 @@ bool AIPRO::pathSwitch(const PathPtr &current_path,
 
                     ROS_INFO_STREAM("CONN: "<<conn->getCost()<<" | "<<conn->getParent()->getConfiguration().transpose()<<"-->"<<conn->getChild()->getConfiguration().transpose());
                   }
-
 
                   assert(0);
 
@@ -1301,7 +1349,6 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
   std::vector<double> marker_color = {1.0,1.0,0.0,1.0};
   std::vector<double> marker_scale(3,0.01);
   int replanned_path_id;
-  int node_id;
   /*/////////////////////////////////////////*/
 
   std::vector<PathPtr> replanned_paths_vector, reset_other_paths;
@@ -1372,11 +1419,7 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
   assert(replanned_path->getTree() == tree_);
 
   if(informedOnlineReplanning_verbose_)
-  {
     ROS_INFO_STREAM("Cost of the best existing solution: "<<replanned_path_cost);
-    //    for(const Eigen::VectorXd& wp:replanned_path->getWaypoints()) //elimina
-    //      ROS_INFO_STREAM("r wp: "<<wp.transpose());
-  }
 
   if(informedOnlineReplanning_disp_)
   {
@@ -1388,18 +1431,18 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
 
   std::vector<NodePtr> start_node_vector = startNodes(replanned_path->getConnectionsConst());
 
-//  if((start_node_vector.size() == 1) && (start_node_vector.front() == current_node))
-//  {
-//    bool subtree_stolen = stealSubtree(current_node);
+  //  if((start_node_vector.size() == 1) && (start_node_vector.front() == current_node))
+  //  {
+  //    bool subtree_stolen = stealSubtree(current_node);
 
-//    if(informedOnlineReplanning_verbose_)
-//    {
-//      if(subtree_stolen)
-//        ROS_WARN("Subtree stolen from a near node and attached to the current node");
-//      else
-//        ROS_WARN("Subtree not stolen from a near node ");
-//    }
-//  }
+  //    if(informedOnlineReplanning_verbose_)
+  //    {
+  //      if(subtree_stolen)
+  //        ROS_WARN("Subtree stolen from a near node and attached to the current node");
+  //      else
+  //        ROS_WARN("Subtree not stolen from a near node ");
+  //    }
+  //  }
 
   int j = start_node_vector.size()-1;
   NodePtr start_node_for_pathSwitch;
@@ -1417,7 +1460,7 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
     if(informedOnlineReplanning_disp_)
     {
       disp_->changeNodeSize(marker_scale_sphere);
-      node_id = disp_->displayNode(start_node_for_pathSwitch,"pathplan",marker_color_sphere_analizing);
+      disp_->displayNode(start_node_for_pathSwitch,"pathplan",marker_color_sphere_analizing);
       disp_->defaultNodeSize();
     }
 
@@ -1636,7 +1679,7 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
         ROS_WARN_STREAM("cost rep: "<<replanned_path_->cost()<<" net path cost: "<<p->cost());
 
         //printa tutte le soluzioni
-        for(const std::pair<double,std::vector<ConnectionPtr>>& sol:new_conns_map)
+        for(const std::pair<double,std::vector<ConnectionPtr>> &sol:new_conns_map)
         {
           PathPtr p = std::make_shared<Path>(sol.second,metrics_,checker_);
           ROS_INFO_STREAM("sol cost: "<<p->cost());

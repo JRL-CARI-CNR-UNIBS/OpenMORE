@@ -109,6 +109,7 @@ protected:
   virtual bool replan();
   virtual void fromParam();
   virtual void syncPathCost();
+  virtual void updateSharedPath();
   virtual void updatePathCost(const PathPtr& current_path_updated_copy);
   virtual void attributeInitialization();
   virtual void replanningThread();

@@ -28,6 +28,7 @@ protected:
 
   NetPtr net_;
   TreePtr tree_;
+  NodePtr fake_root_;
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> admissible_other_paths_;
   std::vector<PathPtr> replanned_paths_vector_;
@@ -121,12 +122,19 @@ public:
   void setCurrentPath(const PathPtr& path) override
   {
     current_path_ = path;
+
+    bool is_a_new_tree = (tree_ != current_path_->getTree());
     tree_ = current_path_->getTree();
+    if(is_a_new_tree)
+      copyTreeRoot();
+
     net_->setTree(tree_);
     admissible_other_paths_ = other_paths_;
     goal_node_ = current_path_->getConnections().back()->getChild();
     success_ = false;
   }
+
+  void copyTreeRoot();
 
   void setOtherPaths(std::vector<PathPtr> &other_paths, bool mergeTree = true)
   {

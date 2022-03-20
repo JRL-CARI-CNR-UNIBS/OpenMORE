@@ -234,6 +234,14 @@ void ReplannerManagerBase::subscribeTopicsAndServices()
   }
 }
 
+void ReplannerManagerBase::updateSharedPath()
+{
+  current_path_shared_ = current_path_replanning_->clone();
+  current_path_shared_->setChecker(checker_cc_);
+  current_path_sync_needed_ = true;
+  ROS_WARN("current path shared changed");
+}
+
 void ReplannerManagerBase::syncPathCost()
 {
   paths_mtx_.lock();
@@ -274,32 +282,12 @@ void ReplannerManagerBase::syncPathCost()
   current_path_replanning_->cost(); //update path cost
   ROS_INFO_STREAM("current path cost: "<<current_path_replanning_->cost()); //elimina
   paths_mtx_.unlock();
-
-//  if(not current_path_sync_needed_)
-//  {
-//    std::vector<ConnectionPtr> path_replanning_conns = current_path_replanning_->getConnections();
-//    std::vector<ConnectionPtr> current_path_conns    = current_path_shared_    ->getConnections();
-//    for(unsigned int i=0;i<path_replanning_conns.size();i++)
-//      path_replanning_conns.at(i)->setCost(current_path_conns.at(i)->getCost());
-
-//    current_path_replanning_->cost(); //update path cost
-
-//    ROS_INFO_STREAM("curr path cost: "<<current_path_replanning_->cost());
-//  }
-//  else
-//  {
-//    ROS_ERROR_STREAM("current path cost not updated (theorically)");
-//    current_path_replanning_->isValid(checker_replanning_); //elimina
-//    current_path_replanning_->cost();
-//  }
-
-//  paths_mtx_.unlock();
 }
 
 void ReplannerManagerBase::updatePathCost(const PathPtr& current_path_updated_copy)
 {
   paths_mtx_.lock();
-  if(not current_path_sync_needed_)  //if changed, it is useless checking current_path_copy
+  if(not current_path_sync_needed_)
   {
     std::vector<ConnectionPtr> current_path_conns      = current_path_shared_     ->getConnections();
     std::vector<ConnectionPtr> current_path_copy_conns = current_path_updated_copy->getConnections();
@@ -443,10 +431,7 @@ void ReplannerManagerBase::replanningThread()
         replanner_->setCurrentPath(current_path_replanning_);
 
         paths_mtx_.lock();
-        current_path_shared_ = current_path_replanning_->clone();
-        current_path_shared_->setChecker(checker_cc_);
-        current_path_sync_needed_ = true;
-        ROS_WARN("current path shared changed");
+        updateSharedPath();
         paths_mtx_.unlock();
 
         moveit_msgs::RobotTrajectory tmp_trj_msg;

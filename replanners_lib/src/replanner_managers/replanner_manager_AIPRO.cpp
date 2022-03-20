@@ -63,9 +63,10 @@ void ReplannerManagerAIPRO::attributeInitialization()
 
   first_replanning_ = true;
   old_current_node_ = nullptr;
-  updating_cost_pause_ = collision_checker_thread_frequency_/100;
 
   initial_path_ = current_path_replanning_;
+
+  other_paths_sync_needed_.clear();
   for(const PathPtr& p:other_paths_)
   {
     PathPtr other_path = p->clone();
@@ -73,6 +74,8 @@ void ReplannerManagerAIPRO::attributeInitialization()
 
     other_path->setChecker(checker_cc_);
     p->setChecker(checker_replanning_);
+
+    other_paths_sync_needed_.push_back(false);
   }
 
   replan_offset_ = (dt_replan_relaxed_-dt_)*K_OFFSET;
@@ -109,6 +112,7 @@ bool ReplannerManagerAIPRO::replan()
     PathPtr another_path = initial_path_->clone();
     another_path->setChecker(checker_cc_);
     other_paths_shared_.push_back(another_path);
+    other_paths_sync_needed_.push_back(false);
 
     AIPROPtr replanner = std::static_pointer_cast<AIPRO>(replanner_);
     replanner->addOtherPath(initial_path_, false);
@@ -179,6 +183,36 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
 bool ReplannerManagerAIPRO::haveToReplan(const bool path_obstructed)
 {  
   return alwaysReplan();
+}
+
+void ReplannerManagerAIPRO::updateSharedPath()
+{
+  ReplannerManagerBase::updateSharedPath();
+
+  other_paths_mtx_.lock();
+  for(unsigned int i=0;i<other_paths_shared_.size();i++)
+  {
+    bool sync_needed = false;
+    if(other_paths_shared_.at(i)->getConnections().size()==other_paths_.at(i)->getConnections().size())
+    {
+      for(unsigned int j=0;j<other_paths_shared_.at(i)->getConnections().size();j++)
+      {
+        if(other_paths_shared_.at(i)->getConnections().at(j)->getParent()->getConfiguration() != other_paths_.at(i)->getConnections().at(j)->getParent()->getConfiguration())
+        {
+          sync_needed = true;
+          break;
+        }
+      }
+
+      if(other_paths_shared_.at(i)->getConnections().back()->getChild()->getConfiguration() != other_paths_shared_.at(i)->getConnections().back()->getChild()->getConfiguration())
+        sync_needed = true;
+    }
+    else
+      sync_needed = true;
+
+    other_paths_sync_needed_.at(i) = sync_needed;
+  }
+  other_paths_mtx_.unlock();
 }
 
 void ReplannerManagerAIPRO::syncPathCost()
@@ -292,21 +326,12 @@ void ReplannerManagerAIPRO::collisionCheckThread()
 
       other_path_size = other_paths_copy.size();
     }
-
-    for(unsigned int i=0;i<other_path_size;i++)  //sync other_paths_shared with its copy
-    {
-      if(other_paths_copy.at(i)->getConnectionsSize() != other_paths_shared_.at(i)->getConnectionsSize())
-      {
-        other_paths_copy.at(i) == other_paths_shared_.at(i)->clone();
-        other_paths_copy.at(i)->setChecker(checkers.at(i));
-      }
-    }
     other_paths_mtx_.unlock();
 
     scene_mtx_.lock();
     ros::WallTime tic1 = ros::WallTime::now();
     ROS_INFO_STREAM("CC PRIMA UPDATE SCENE: "<<checker_cc_);
-    if(!plannning_scene_client_.call(ps_srv))
+    if(not plannning_scene_client_.call(ps_srv))
     {
       ROS_ERROR("call to srv not ok");
 
@@ -336,6 +361,18 @@ void ReplannerManagerAIPRO::collisionCheckThread()
       current_path_copy->setChecker(checker_cc_);
       current_path_sync_needed_ = false;
     }
+
+    other_paths_mtx_.lock();
+    for(unsigned int i=0;i<other_paths_shared_.size();i++)  //sync other_paths_shared with its copy
+    {
+      if(other_paths_sync_needed_.at(i))
+      {
+        other_paths_copy.at(i) = other_paths_shared_.at(i)->clone();
+        other_paths_copy.at(i)->setChecker(checkers.at(i));
+        other_paths_sync_needed_.at(i) = false;
+      }
+    }
+    other_paths_mtx_.unlock();
     paths_mtx_.unlock();
 
     duration_copy_path = (ros::WallTime::now()-tic1).toSec();
@@ -408,26 +445,33 @@ void ReplannerManagerAIPRO::updatePathsCost(const PathPtr& current_path_updated_
   other_paths_mtx_.lock();
   for(unsigned int i=0;i<other_paths_updated_copy.size();i++)
   {
-    std::vector<ConnectionPtr> path_conns      = other_paths_shared_     .at(i)->getConnections();
-    std::vector<ConnectionPtr> path_copy_conns = other_paths_updated_copy.at(i)->getConnections();
-
-    if(path_conns.size() != path_copy_conns.size())
+    if(not other_paths_sync_needed_.at(i))
     {
-      for(const Eigen::VectorXd& wp:other_paths_shared_.at(i)->getWaypoints())
-        ROS_INFO_STREAM("wp shared n "<<i<<" : "<<wp.transpose());
+      std::vector<ConnectionPtr> path_conns      = other_paths_shared_     .at(i)->getConnections();
+      std::vector<ConnectionPtr> path_copy_conns = other_paths_updated_copy.at(i)->getConnections();
 
-      for(const Eigen::VectorXd& wp:other_paths_updated_copy.at(i)->getWaypoints())
-        ROS_INFO_STREAM("wp copy n "<<i<<" : "<<wp.transpose());
-      assert(0);
+      if(path_conns.size() != path_copy_conns.size()) //elimina
+      {
+        for(const Eigen::VectorXd& wp:other_paths_shared_.at(i)->getWaypoints())
+          ROS_INFO_STREAM("wp shared n "<<i<<" : "<<wp.transpose());
+
+        for(const Eigen::VectorXd& wp:other_paths_updated_copy.at(i)->getWaypoints())
+          ROS_INFO_STREAM("wp copy n "<<i<<" : "<<wp.transpose());
+        assert(0);
+      }
+
+      assert(path_conns.size() == path_copy_conns.size());
+
+      for(unsigned int j=0;j<path_conns.size();j++)
+        path_conns.at(j)->setCost(path_copy_conns.at(j)->getCost());
+
+      other_paths_shared_.at(i)->cost();
+      ROS_INFO_STREAM("path "<<i<<" cost: "<<other_paths_shared_.at(i)->cost());
     }
-
-    assert(path_conns.size() == path_copy_conns.size());
-
-    for(unsigned int j=0;j<path_conns.size();j++)
-      path_conns.at(j)->setCost(path_copy_conns.at(j)->getCost());
-
-    other_paths_shared_.at(i)->cost();
-    ROS_INFO_STREAM("path "<<i<<" cost: "<<other_paths_shared_.at(i)->cost());
+    else
+    {
+      ROS_ERROR_STREAM("PATH "<<i<<" COST NOT UPDATE DUE TO SYNC NEEDED IN CC THREAD");
+    }
   }
   other_paths_mtx_.unlock();
   paths_mtx_.unlock();  //here to sync the cost of all paths

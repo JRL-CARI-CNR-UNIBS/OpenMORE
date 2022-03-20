@@ -25,6 +25,7 @@ trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 spawn_objs: true
 scaling: 0.5
+read_safe_scaling: false
 read_real_joints_values_: false
 
 to_goal:
@@ -33,7 +34,7 @@ to_goal:
 aipro:
   n_other_paths: 2
   dt_replan_replaxed: 0.20
-  verbosity_level: 1
+  verbosity_level: 2
 
 # VERBOSITY:
 replanner_verbosity: true
