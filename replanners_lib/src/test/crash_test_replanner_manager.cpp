@@ -220,7 +220,7 @@ int main(int argc, char **argv)
     start_conf = start_conf+delta;
     goal_conf = goal_conf-delta;
 
-//    std::system("clear"); //clear terminal
+    std::system("clear"); //clear terminal
   }
 
   return 0;

@@ -28,7 +28,7 @@ protected:
 
   NetPtr net_;
   TreePtr tree_;
-  NodePtr fake_root_;
+  NodePtr paths_start_;
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> admissible_other_paths_;
   std::vector<PathPtr> replanned_paths_vector_;
@@ -56,12 +56,16 @@ protected:
   std::vector<NodePtr> startNodes(const std::vector<ConnectionPtr>& subpath1_conn);
   PathPtr getSubpath1(const ConnectionPtr& current_conn, NodePtr& current_node);
   PathPtr bestExistingSolution(const PathPtr& current_solution);
+  bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost);
+  bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost, unsigned int &number_of_candidates);
   double maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle);
   void optimizePath(PathPtr &connecting_path, const double &max_time);
   bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node, const double &diff_subpath_cost, const PathPtr &current_solution, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &quickly_solved);
   void simplifyAdmissibleOtherPaths(const PathPtr& current_solution_path, const NodePtr &start_node, const std::vector<PathPtr>& reset_other_paths);
   bool mergePathToTree(PathPtr& path);
   bool stealSubtree(const NodePtr& node);
+  void initCheckedConnections();
+  void clearInvalidConnections();
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -175,8 +179,6 @@ public:
   {
     return shared_from_this();
   }
-
-  void clearInvalidConnections();
 
   bool simplifyReplannedPath(const double& distance);
   bool pathSwitch(const PathPtr& current_path, const NodePtr& path1_node, PathPtr &new_path);
