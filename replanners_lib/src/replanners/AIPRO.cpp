@@ -609,6 +609,27 @@ bool AIPRO::simplifyReplannedPath(const double& distance)
   return simplified;
 }
 
+void AIPRO::makeTreeSolution(const PathPtr& net_solution, const std::vector<NodePtr>& black_nodes)
+{
+  std::vector<ConnectionPtr> connections = net_solution->getConnections();
+  connections.pop_back(); //the last connection must remain a net connection
+
+  NodePtr node;
+  for(ConnectionPtr& conn:connections)
+  {
+    if(conn->isNet())
+    {
+      node = conn->getChild();
+      assert(std::find(black_nodes.begin(),black_nodes.end(),node)>=black_nodes.end());
+
+      node->parent_connections_.front()->convertToNetConnection();
+      conn->convertToConnection();
+
+      assert(node->parent_connections_.size() == 1);
+    }
+  }
+}
+
 bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2_node, const double& diff_subpath_cost, const PathPtr& current_solution, const ros::WallTime& tic, const ros::WallTime& tic_cycle, PathPtr& connecting_path, bool& quickly_solved)
 {
   connecting_path = nullptr;
@@ -677,8 +698,10 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
 
     assert(already_existing_solution_cost == connecting_path->cost());
 
+    makeTreeSolution(connecting_path,black_list);
+
     if(pathSwitch_verbose_)
-      ROS_INFO("A solution with cost %f has been found in the subtree!",already_existing_solution_cost);
+      ROS_INFO("A solution with cost %f has been found in the subtree! Making it a Tree solution..",already_existing_solution_cost);
 
     if(pathSwitch_disp_)
     {
@@ -738,6 +761,7 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
     ROS_INFO_STREAM("Searching for a direct connection...max time: "<<solver_time);
 
   NodePtr path2_node_fake = std::make_shared<Node>(path2_node->getConfiguration());
+  ROS_INFO_STREAM("PATH2_NODE_FAKE: "<<path2_node_fake->getConfiguration().transpose()<<" "<<path2_node_fake);
   ros::WallTime tic_directConnection = ros::WallTime::now();
   solver_->addGoal(path2_node_fake,solver_time);
   ros::WallTime toc_directConnection = ros::WallTime::now();
@@ -808,7 +832,15 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
       conns.insert(conns.end(),path2_node->parent_connections_.begin(),path2_node->parent_connections_.end());
       for(const ConnectionPtr& conn: conns)
       {
-        assert(conn->getParent() != last_conn->getParent());
+        if(not (conn->getParent() != last_conn->getParent()))
+        {
+          ROS_INFO_STREAM("conn\n"<<*conn);
+          ROS_INFO_STREAM("last conn\n"<<*last_conn);
+          ROS_INFO_STREAM("CONN PARENT PTR"<<conn->getParent());
+          ROS_INFO_STREAM("LAST CONN PARENT PTR"<<last_conn->getParent());
+
+          assert(0);
+        }
       }
       //
 
@@ -937,11 +969,11 @@ bool AIPRO::pathSwitch(const PathPtr &current_path,
     /* Search for a better path2_subpath from path2_node*/
     if(path2_node != goal_node_)
     {
-      //CONSIDERARE IL PATH2 MIGLIORE IN TERMINI DI NORM E NON DI COSTO?
-
       path2_subpath      = path2->getSubpathFromNode(path2_node);
       path2_subpath_conn = path2_subpath->getConnections();
       path2_subpath_cost = path2_subpath->cost();
+
+      ROS_INFO_STREAM("path1_node: "<<path1_node->getConfiguration().transpose()<<" "<<path1_node<<" path2_node: "<<path2_node->getConfiguration().transpose()<<" "<<path2_node);//elimina
 
       double better_path2_subpath_cost;
       std::vector<ConnectionPtr> better_path2_subpath_conn;
@@ -1361,7 +1393,7 @@ PathPtr AIPRO::getSubpath1(const ConnectionPtr& current_conn, NodePtr& current_n
 
 void AIPRO::initCheckedConnections()
 {
-  if(not checked_connections_.empty())
+  if(not  checked_connections_.empty())
   {
     for(ConnectionPtr& checked_conn:checked_connections_)
       checked_conn->setRecentlyChecked(false);
@@ -1809,7 +1841,7 @@ bool AIPRO::replan()
   success_ = informedOnlineReplanning(max_time);
 
   bool path_changed = true;  //curent_node added
-  if(not success_)
+  if(not success_ && is_a_new_node_)
   {
     if(current_path_->removeNode(current_node,nodes))
       path_changed = false;

@@ -43,6 +43,8 @@ void ReplannerManagerAIPRO::attributeInitialization()
   {
     if(verbosity_level_>2)
       verbosity_level_ = 2;
+    else if(verbosity_level_<0)
+      verbosity_level_ = 0;
 
     switch(verbosity_level_)
     {
@@ -92,8 +94,6 @@ void ReplannerManagerAIPRO::attributeInitialization()
     point2project(i) = pnt_replan_.positions.at(i);
 
   configuration_replan_ = current_path_shared_->projectOnClosestConnection(point2project);
-
-  ROS_INFO_STREAM("CHECKER REPL: "<<checker_replanning_); //elimina
 }
 
 bool ReplannerManagerAIPRO::replan()
@@ -150,9 +150,12 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
     ROS_INFO_STREAM("old curr conf: "<<old_current_node_->getConfiguration().transpose()<<" removed: "<<removed);
   }
 
+  bool is_a_new_node;
   NodePtr current_node;
   ConnectionPtr conn = current_path->findConnection(configuration);
-  current_node = current_path->addNodeAtCurrentConfig(configuration,conn,true);
+  current_node = current_path->addNodeAtCurrentConfig(configuration,conn,true,is_a_new_node);
+
+  ROS_INFO_STREAM("In start from new conf\n"<<*current_node<<"IS A NEW NODE "<<is_a_new_node); // elimina
 
   if(replanner->replanNodeIsANewNode())
   {
@@ -167,19 +170,6 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
     ROS_INFO_STREAM("current path shared conn: "<<*conn);
 
   old_current_node_ = current_node;
-
-  other_paths_mtx_.lock();
-  for(unsigned int i=0;i<other_paths.size();i++)
-  {
-    if(other_paths.at(i)->getConnectionsSize() != other_paths_connections_size.at(i)) //if one of the other paths and current path are overlayed, when a node is added to current path also the other path is changed
-    {
-      CollisionCheckerPtr checker = other_paths.at(i)->getChecker();
-      other_paths_shared_.at(i) = other_paths.at(i)->clone();
-      other_paths_shared_.at(i)->setChecker(checker);
-      other_paths_sync_needed_.at(i) = true;
-    }
-  }
-  other_paths_mtx_.unlock();
 }
 
 bool ReplannerManagerAIPRO::haveToReplan(const bool path_obstructed)
@@ -200,7 +190,7 @@ void ReplannerManagerAIPRO::updateSharedPath()
       ROS_INFO_STREAM("PATH N: "<<i);
       for(unsigned int j=0;j<other_paths_shared_.at(i)->getConnections().size();j++)
       {
-        ROS_INFO_STREAM("shared parent: "<<other_paths_shared_.at(i)->getConnections().at(j)->getParent()->getConfiguration().transpose()<<" other parent "<<other_paths_.at(i)->getConnections().at(j)->getParent()->getConfiguration());
+        ROS_INFO_STREAM("shared parent: "<<other_paths_shared_.at(i)->getConnections().at(j)->getParent()->getConfiguration().transpose()<<" other parent "<<other_paths_.at(i)->getConnections().at(j)->getParent()->getConfiguration().transpose());
         if(other_paths_shared_.at(i)->getConnections().at(j)->getParent()->getConfiguration() != other_paths_.at(i)->getConnections().at(j)->getParent()->getConfiguration())
         {
           sync_needed = true;
@@ -214,9 +204,21 @@ void ReplannerManagerAIPRO::updateSharedPath()
         sync_needed = true;
     }
     else
+    {
       sync_needed = true;
+      ROS_WARN("OTHER path n %f shared changed",i);
+    }
 
     other_paths_sync_needed_.at(i) = sync_needed;
+
+    if(sync_needed)
+    {
+      CollisionCheckerPtr checker = other_paths_shared_.at(i)->getChecker();
+      other_paths_shared_.at(i) = other_paths_.at(i)->clone();
+      other_paths_shared_.at(i)->setChecker(checker);
+
+      ROS_WARN("other path shared %f changed",i);
+    }
   }
   other_paths_mtx_.unlock();
 }
