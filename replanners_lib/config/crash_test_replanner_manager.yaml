@@ -10,7 +10,7 @@ extend: false
 max_distance: 0.5
 checker_resolution: 0.01
 
-#REPLANNER CONFIGURTIONS:
+#REPLANNER CONFIGURATIONS:
 
 # Available replanners:
 # - MPRRT

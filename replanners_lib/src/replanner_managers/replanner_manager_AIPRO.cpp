@@ -278,7 +278,6 @@ void ReplannerManagerAIPRO::initReplanner()
 
   pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_); //elimina
   replanner_->setDisp(disp);
-
 }
 
 bool ReplannerManagerAIPRO::checkPathTask(const PathPtr& path)

@@ -66,7 +66,7 @@ protected:
   bool stealSubtree(const NodePtr& node);
   void initCheckedConnections();
   void clearInvalidConnections();
-  void makeTreeSolution(const PathPtr& net_solution, const std::vector<NodePtr>& black_nodes);
+  void convertToSubtreeSolution(const PathPtr& net_solution, const std::vector<NodePtr>& black_nodes);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
