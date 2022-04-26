@@ -713,6 +713,8 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
   if(pathSwitch_verbose_)
     ROS_INFO("In the subtree exist %u paths to path2_node",already_existing_solutions_map.size());
 
+  int old_n_c = already_existing_solutions_map.size(); //elimnina
+
   unsigned int number_of_candidates = 0;
   double already_existing_solution_cost;
   std::vector<ConnectionPtr> already_existing_solution_conn;
@@ -844,6 +846,33 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
     std::multimap<double,std::vector<ConnectionPtr>> connecting_paths_map = net->getConnectionBetweenNodes(path1_node,path2_node_fake,black_list);
 
     assert(connecting_paths_map.size()>0);
+
+    //elimina
+    std::multimap<double,std::vector<ConnectionPtr>> connecting_paths_map1 = net->getConnectionBetweenNodes(path1_node,path2_node,black_list);
+    if(connecting_paths_map1.size()>old_n_c)
+    {
+      bool ass = true;
+      ROS_ERROR_STREAM("dim: "<<connecting_paths_map1.size());
+      for(const std::pair<double,std::vector<ConnectionPtr>> &solution_pair:connecting_paths_map1)
+      {
+        ROS_INFO("------");
+        for(const ConnectionPtr& conn:solution_pair.second)
+        {
+          ROS_INFO_STREAM(*conn<<" "<<conn);
+          if(conn->getCost() == std::numeric_limits<double>::infinity())
+          {
+            ass = false;
+          }
+        }
+      }
+      ROS_ERROR("rep conns");
+      for(const ConnectionPtr& conn:connecting_path->getConnectionsConst())
+        ROS_INFO_STREAM(*conn<<" "<<conn);
+
+
+      assert(not ass);
+    }
+    //
 
     if(findValidSolution(connecting_paths_map,diff_subpath_cost,connecting_path_conn,connecting_path_cost,number_of_candidates))
     {
@@ -1808,6 +1837,7 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
       for(const ConnectionPtr & conn:replanned_path_->getConnections()) //elimina
         ROS_INFO_STREAM("rep conn: "<<*conn<< " "<<conn);
 
+      NodePtr node_different;
       bool equal = true;
       std::multimap<double,std::vector<ConnectionPtr>> new_conns_map = net_->getConnectionBetweenNodes(current_node,goal_node_);
       for(const ConnectionPtr & conn:new_conns_map.begin()->second) //elimina
@@ -1815,7 +1845,10 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
         ROS_INFO_STREAM("net conn: "<<*conn<<" "<<conn);
 
         if(not (std::find(replanned_path_->getConnectionsConst().begin(),replanned_path_->getConnectionsConst().end(),conn)<replanned_path_->getConnectionsConst().end()))
+        {
           equal = false;
+          node_different =conn->getChild();
+        }
       }
 
       if(not equal)
@@ -1832,6 +1865,14 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
 
         disp_->displayPath(p);
         disp_->displayPathAndWaypoints(replanned_path_,"pathplan",{0.0,0.0,1.0,1.0});
+
+        ROS_INFO_STREAM("NODE DIFFERENT: "<<*node_different<<" "<<node_different);
+        for(const ConnectionPtr& conn:node_different->parent_connections_)
+          ROS_INFO_STREAM("parent conn: "<<*conn<<" "<<conn);
+
+        for(const ConnectionPtr& conn:node_different->net_parent_connections_)
+          ROS_INFO_STREAM("net parent conn: "<<*conn<<" "<<conn);
+
         assert(0);
       }
     }
@@ -1881,8 +1922,11 @@ bool AIPRO::replan()
   bool path_changed = true;  //curent_node added
   if(not success_ && is_a_new_node_)
   {
+    ROS_INFO_STREAM("replan node before removing\n"<<current_node); //elimina
     if(current_path_->removeNode(current_node,nodes))
       path_changed = false;
+
+    ROS_INFO_STREAM("replan node after removing\n"<<current_node<<"\nremoved: "<<(not path_changed)); //elimina
   }
   return path_changed;
 }

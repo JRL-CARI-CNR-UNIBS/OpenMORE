@@ -17,6 +17,7 @@ protected:
   int verbosity_level_;
   double dt_replan_relaxed_;
   NodePtr old_current_node_;
+  ConnectionPtr old_connection_;
   PathPtr initial_path_;
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> other_paths_shared_;

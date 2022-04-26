@@ -20,7 +20,7 @@ checker_resolution: 0.01
 # - AIPRO
 
 replanner_type: "AIPRO"
-dt_replan: 0.2
+dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 spawn_objs: true
@@ -33,7 +33,7 @@ to_goal:
 
 aipro:
   n_other_paths: 2
-  dt_replan_replaxed: 0.20
+  dt_replan_relaxed: 0.20
   verbosity_level: 2
 
 # VERBOSITY:
