@@ -54,7 +54,7 @@ protected:
   std::vector<PathPtr> addAdmissibleCurrentPath(const int &idx_current_conn, PathPtr& admissible_current_path);
   std::vector<node_and_path> sortNodesOnDistance(const NodePtr& node);
   std::vector<NodePtr> startNodes(const std::vector<ConnectionPtr>& subpath1_conn);
-  PathPtr getSubpath1(const ConnectionPtr& current_conn, NodePtr& current_node);
+  PathPtr getSubpath1(NodePtr& current_node);
   PathPtr bestExistingSolution(const PathPtr& current_solution);
   bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost);
   bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost, unsigned int &number_of_candidates);

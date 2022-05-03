@@ -273,8 +273,7 @@ void ReplannerManagerBase::syncPathCost()
     }
     else
     {
-      ROS_ERROR_STREAM("current path not sync (but yes)");
-      current_path_replanning_->isValid();//elimina
+      ROS_ERROR_STREAM("current path not sync");
       break;
     }
   }

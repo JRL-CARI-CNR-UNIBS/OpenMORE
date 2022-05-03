@@ -99,8 +99,8 @@ void ReplannerManagerAIPRO::attributeInitialization()
 bool ReplannerManagerAIPRO::replan()
 {
   double cost = replanner_->getCurrentPath()->getCostFromConf(replanner_->getCurrentConf());
-  cost == std::numeric_limits<double>::infinity()? replanner_->setMaxTime(0.9*dt_replan_):
-                                                   replanner_->setMaxTime(0.9*dt_replan_relaxed_);
+  (cost == std::numeric_limits<double>::infinity())? (replanner_->setMaxTime(0.9*dt_replan_)):
+                                                     (replanner_->setMaxTime(0.9*dt_replan_relaxed_));
   bool path_changed = replanner_->replan();
 
   if(replanner_->getSuccess() && first_replanning_)  //add the initial path to the other paths
@@ -109,14 +109,15 @@ bool ReplannerManagerAIPRO::replan()
     other_paths_mtx_.lock();
 
     assert(replanner_->getCurrentPath() == initial_path_);
+
     PathPtr another_path = initial_path_->clone();
     another_path->setChecker(checker_cc_);
+
     other_paths_shared_.push_back(another_path);
     other_paths_sync_needed_.push_back(false);
-    ROS_WARN("INITIAL PATH ADDED TO SET OF PATHS");
 
     AIPROPtr replanner = std::static_pointer_cast<AIPRO>(replanner_);
-    replanner->addOtherPath(initial_path_, false);
+    replanner->addOtherPath(initial_path_,false);
 
     assert(another_path->getConnectionsSize() == initial_path_->getConnectionsSize());
 
