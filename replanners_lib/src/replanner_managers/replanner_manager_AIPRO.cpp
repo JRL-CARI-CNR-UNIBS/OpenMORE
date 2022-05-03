@@ -142,8 +142,6 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
 
   if(old_current_node_)
   {
-    ROS_INFO("DELETING OLD CURRENT NODE..."); //SARA SEMPRE NON RIMOSSO PERCHE' E' L'INIZIO DEL CURRENT PATH!
-
     if((old_current_node_->parent_connections_.size()+old_current_node_->net_parent_connections_.size()) == 1)
     {
       if((old_current_node_->child_connections_.size()+old_current_node_->net_child_connections_.size()) == 1)
@@ -151,83 +149,34 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
         /* Remove the old node detaching it from the tree, restore the old connection and set it as initial
          * connection of current path to be able to insert the new current node */
 
-        ROS_INFO_STREAM("old current node: "<<*old_current_node_);
-        ROS_INFO_STREAM("old current node parent: "<<old_current_node_->getParents().front()->getConfiguration().transpose()<<" "<<old_current_node_->getParents().front());
-        ROS_INFO_STREAM("old current node child: "<<old_current_node_->getChildren().front()->getConfiguration().transpose()<<" "<<old_current_node_->getChildren().front());
-        ROS_INFO_STREAM("old conn: "<<*old_connection_<<" "<<old_connection_);
-        ROS_INFO_STREAM("old conn parent "<<*(old_connection_->getParent())<<old_connection_->getParent());
-        ROS_INFO_STREAM("old conn child "<<*(old_connection_->getChild())<<old_connection_->getChild());
-        ROS_INFO_STREAM("first conn path: "<<current_path->getConnections().front());
-
-//        for(const NodePtr n:old_connection_->getChild()->getParents())
-//          ROS_INFO_STREAM("child parent: "<<n->getConfiguration().transpose()<<" "<<n);
-
-        pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
-        disp->displayNode(old_current_node_);
-        disp->displayConnection(old_connection_);
-
-        ConnectionPtr parent_conn, child_conn;
+        ConnectionPtr parent_conn;
         (old_current_node_->parent_connections_.size()>0)? (parent_conn = old_current_node_->parent_connections_.front()):
                                                            (parent_conn = old_current_node_->net_parent_connections_.front());
-//        (old_current_node_->child_connections_.size()>0)? (child_conn = old_current_node_->child_connections_.front()):
-//                                                          (child_conn = old_current_node_->net_child_connections_.front());
 
-        if(parent_conn->isParallel(child_conn))
-        {
-          assert(tree->isInTree(old_current_node_->getParents().front()) && tree->isInTree(old_current_node_->getChildren().front()));
+        assert(tree->isInTree(parent_conn->getParent()));
 
-          ConnectionPtr restored_conn = std::make_shared<Connection>(old_current_node_->getParents().front(),old_current_node_->getChildren().front(),child_conn->isNet());
-          restored_conn->setCost(parent_conn->getCost()+child_conn->getCost());
-          restored_conn->add();
+        std::vector<ConnectionPtr> new_conns = current_path->getConnections();
+        new_conns.insert(new_conns.begin(),parent_conn);
+        current_path->setConnections(new_conns);
 
-          current_path->getTree()->removeNode(old_current_node_);
-
-          std::vector<ConnectionPtr> new_conns = current_path->getConnections();
-          new_conns.front() = restored_conn;
-          current_path->setConnections(new_conns);
-
-          ROS_wARN("---");
-          ROS_INFO_STREAM("old current node: "<<*old_current_node_);
-          ROS_INFO_STREAM("old current node parent: "<<old_current_node_->getParents().front()->getConfiguration().transpose()<<" "<<old_current_node_->getParents().front());
-          ROS_INFO_STREAM("old current node child: "<<old_current_node_->getChildren().front()->getConfiguration().transpose()<<" "<<old_current_node_->getChildren().front());
-          ROS_INFO_STREAM("old conn: "<<*old_connection_<<" "<<old_connection_);
-          ROS_INFO_STREAM("old conn parent "<<*(old_connection_->getParent())<<old_connection_->getParent());
-          ROS_INFO_STREAM("old conn child "<<*(old_connection_->getChild())<<old_connection_->getChild());
-          ROS_INFO_STREAM("first conn path: "<<current_path->getConnections().front());
-
-          ROS_INFO_STREAM("old curr conf: "<<old_current_node_->getConfiguration().transpose()<<" removed!");
-        }
-        else
-          ROS_INFO_STREAM("old curr conf: "<<old_current_node_->getConfiguration().transpose()<<" NOT removed!");
+        if(not current_path->removeNode(old_current_node_,{}))
+          ROS_ERROR("OLD CURRENT NODE NOT REMOVED!");
       }
-      else
-        ROS_INFO_STREAM("old curr conf: "<<old_current_node_->getConfiguration().transpose()<<" can't be removed!");
     }
-    else
-      ROS_INFO_STREAM("old curr conf: "<<old_current_node_->getConfiguration().transpose()<<" can't removed!");
   }
 
-  ROS_INFO_STREAM("BEFORE: "<<*current_path); //elimina
-
   bool is_a_new_node;
-  NodePtr current_node;
-  //  ConnectionPtr conn = current_path->findConnection(configuration);
-  old_connection_ = current_path->findConnection(configuration);
-  current_node = current_path->addNodeAtCurrentConfig(configuration,old_connection_,true,is_a_new_node);
-
-  ROS_INFO_STREAM("AFTER: "<<*current_path); //elimina
+  ConnectionPtr conn = current_path->findConnection(configuration);
+  NodePtr current_node = current_path->addNodeAtCurrentConfig(configuration,conn,true,is_a_new_node);
 
   (is_a_new_node)?
         (old_current_node_ = current_node):
         (old_current_node_ = nullptr);
 
-  ROS_WARN_STREAM("In start from new conf\n"<<*current_node<<"IS A NEW NODE "<<is_a_new_node); // elimina
-
   if(replanner->replanNodeIsANewNode())
   {
-    ROS_INFO("DELETING REPLANNING NODE...");
-    bool removed = current_path->removeNode(node_replan,{});
-    ROS_INFO_STREAM("replan conf: "<<node_replan->getConfiguration().transpose()<<" removed: "<<removed);
+    if(not current_path->removeNode(node_replan,{}))
+      ROS_ERROR("REPLAN NODE NOT REMOVED!");
   }
 
   std::multimap<double,std::vector<ConnectionPtr>> new_conns_map = net->getConnectionBetweenNodes(current_node,replanner->getGoal());
