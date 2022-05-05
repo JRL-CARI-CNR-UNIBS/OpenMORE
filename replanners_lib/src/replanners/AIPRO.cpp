@@ -1050,11 +1050,11 @@ bool AIPRO::pathSwitch(const PathPtr &current_path,
           }
         }
 
-//        if(not straight_path)
-//        {
-//          double opt_time = maxSolverTime(tic,tic_cycle);
-//          optimizePath(connecting_path,opt_time);
-//        }
+        //        if(not straight_path)
+        //        {
+        //          double opt_time = maxSolverTime(tic,tic_cycle);
+        //          optimizePath(connecting_path,opt_time);
+        //        }
 
         double new_solution_cost = path2_subpath_cost + connecting_path->cost();
 
@@ -1805,8 +1805,28 @@ bool AIPRO::replan()
 
   std::vector<NodePtr> nodes = current_path_->getNodes();
 
-  ConnectionPtr conn = current_path_->findConnection(current_configuration_);
+  int conn_idx;
+  ConnectionPtr conn = current_path_->findConnection(current_configuration_,conn_idx);
   NodePtr current_node = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true,is_a_new_node_);
+
+  std::vector<int> sizes;
+  for(const PathPtr& p:other_paths_)
+    sizes.push_back(p->getConnectionsSize());
+
+  /* If a new node is added, add it also to the other path if conn is also a connection of one of the other paths */
+  std::vector<PathPtr> other_paths_changed;
+  if(is_a_new_node_)
+  {
+    ROS_WARN("QUA");
+    for(PathPtr &p:other_paths_)
+    {
+      if(p->splitConnection(current_path_->getConnectionsConst().at(conn_idx),
+                            current_path_->getConnectionsConst().at(conn_idx+1),conn))
+        other_paths_changed.push_back(p);
+    }
+    ROS_WARN("QUA1");
+
+  }
 
   if(verbose_)
   {
@@ -1824,13 +1844,33 @@ bool AIPRO::replan()
   {
     if(is_a_new_node_)
     {
-      ROS_INFO_STREAM("replan node before removing\n"<<current_node); //elimina
+      ROS_INFO_STREAM("replan node before removing\n"<<*current_node<<current_node); //elimina
 
       if(not current_path_->removeNode(current_node,nodes))
         path_changed = true;
+      else
+      {
+        assert(conn->getParent()->getConfiguration() == current_path_->getConnections().at(conn_idx)->getParent()->getConfiguration());
+        assert(conn->getChild ()->getConfiguration() == current_path_->getConnections().at(conn_idx)->getChild ()->getConfiguration());
 
-      ROS_INFO_STREAM("replan node after removing\n"<<current_node<<"\nremoved: "<<(not path_changed)); //elimina
+        ROS_INFO_STREAM("node to remove : "<<*current_node);
+
+        for(PathPtr& p:other_paths_changed)
+        {
+          ROS_INFO_STREAM("restore : "<<*p);
+          if(not p->restoreConnection(current_path_->getConnections().at(conn_idx),current_node))
+            assert(0);
+        }
+      }
+
+      ROS_INFO_STREAM("replan node after removing\n"<<*current_node<<current_node<<"\nremoved: "<<(not path_changed)); //elimina
     }
+  }
+
+  if(not path_changed) //elimina
+  {
+    for(unsigned int i=0;i<other_paths_.size();i++)
+      assert(sizes[i] = other_paths_[i]->getConnectionsSize());
   }
 
   return path_changed;

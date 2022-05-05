@@ -49,15 +49,7 @@ public:
                         const ros::NodeHandle &nh,
                         std::vector<PathPtr> &other_paths);
 
-  void setOtherPaths(std::vector<PathPtr>& other_paths)
-  {
-    other_paths_ = other_paths;
-    if(replanner_)
-    {
-      AIPROPtr aipro_replanner = std::static_pointer_cast<AIPRO>(replanner_);
-      aipro_replanner->setOtherPaths(other_paths);
-    }
-  }
+  void setOtherPaths(std::vector<PathPtr>& other_paths);
   void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration) override;
 };
 

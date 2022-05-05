@@ -26,7 +26,7 @@ class ReplannerManagerBase: public std::enable_shared_from_this<ReplannerManager
 {
 protected:
 
-  // To be assigned by the constructor
+  /* To be assigned by the constructor */
   double               trj_exec_thread_frequency_         ;
   double               collision_checker_thread_frequency_;
   double               dt_replan_                         ;
@@ -36,7 +36,7 @@ protected:
   TreeSolverPtr        solver_                            ;
   ros::NodeHandle      nh_                                ;
 
-  // Global variables
+  /* Global variables */
   bool stop_                      ;
   bool spawn_objs_                ;
   bool read_safe_scaling_         ;

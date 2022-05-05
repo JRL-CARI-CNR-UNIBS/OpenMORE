@@ -67,6 +67,8 @@ protected:
   void initCheckedConnections();
   void clearInvalidConnections();
   void convertToSubtreeSolution(const PathPtr& net_solution, const std::vector<NodePtr>& black_nodes);
+//  bool breakConnection(const ConnectionPtr& conn, const ConnectionPtr& conn1, const ConnectionPtr& conn2, PathPtr& path);
+//  bool restoreConnection(const ConnectionPtr& conn, const NodePtr& node2remove, PathPtr& path);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
