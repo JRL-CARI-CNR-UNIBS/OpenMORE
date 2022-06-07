@@ -7,7 +7,6 @@ set(CMAKE_BUILD_TYPE Debug)
 
 find_package(catkin REQUIRED COMPONENTS
 graph_core
-graph_replanning
 roscpp
 object_loader_msgs
 moveit_planning_helper
@@ -17,7 +16,7 @@ configuration_msgs
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS graph_core graph_replanning roscpp object_loader_msgs moveit_planning_helper geometry_msgs configuration_msgs
+  CATKIN_DEPENDS graph_core roscpp object_loader_msgs moveit_planning_helper geometry_msgs configuration_msgs
   DEPENDS
   )
 include_directories(
@@ -25,6 +24,8 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   )
 add_library(${PROJECT_NAME}
+src/moveit_utils.cpp
+src/trajectory.cpp
 src/replanners/replanner_base.cpp
 src/replanners/MPRRT.cpp
 src/replanners/DRRTStar.cpp

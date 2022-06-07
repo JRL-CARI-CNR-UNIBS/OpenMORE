@@ -23,6 +23,7 @@ protected:
   std::mutex other_paths_mtx_;
   std::vector<bool> other_paths_sync_needed_;
 
+
   bool checkPathTask(const PathPtr& path);
   void displayCurrentPath();
   void displayOtherPaths();

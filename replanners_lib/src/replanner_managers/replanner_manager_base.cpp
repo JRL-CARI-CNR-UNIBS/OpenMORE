@@ -130,8 +130,8 @@ void ReplannerManagerBase::attributeInitialization()
 
   current_path_shared_ = current_path_replanning_->clone();
 
-  checker_cc_         = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_cc_,        group_name_,5,checker_resolution_);
-  checker_replanning_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_,group_name_,5,checker_resolution_);
+  checker_cc_         = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_cc_,        group_name_,10,checker_resolution_);
+  checker_replanning_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_,group_name_,10,checker_resolution_);
   current_path_shared_    ->setChecker(checker_cc_        );
   current_path_replanning_->setChecker(checker_replanning_);
   solver_                 ->setChecker(checker_replanning_);
@@ -290,6 +290,11 @@ void ReplannerManagerBase::updatePathCost(const PathPtr& current_path_updated_co
 void ReplannerManagerBase::replanningThread()
 {
   ros::Rate lp(replanning_thread_frequency_);
+  ros::WallTime tic,tic_rep,toc_rep;
+
+  PathPtr path2project_on;
+  Eigen::VectorXd projection, current_configuration;
+  Eigen::VectorXd point2project(pnt_replan_.positions.size());
 
   bool success = false;
   bool path_changed = false;
@@ -298,14 +303,9 @@ void ReplannerManagerBase::replanningThread()
   Eigen::VectorXd past_configuration_replan = configuration_replan_;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
 
-  PathPtr path2project_on;
-  Eigen::VectorXd projection, current_configuration;
-  Eigen::VectorXd point2project(pnt_replan_.positions.size());
-  ros::WallTime tic_rep,toc_rep;
-
   while((not stop_) && ros::ok())
   {
-    ros::WallTime tic=ros::WallTime::now();
+    tic = ros::WallTime::now();
 
     trj_mtx_.lock();
     interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_);
@@ -362,12 +362,9 @@ void ReplannerManagerBase::replanningThread()
         toc_rep=ros::WallTime::now();
 
         replanning_duration = (toc_rep-tic_rep).toSec();
-
-        int n_size_after = current_path_replanning_->getConnectionsSize();
-
-        assert(((not path_changed) && (n_size_before == n_size_after)) || (path_changed));
-
         success = replanner_->getSuccess();
+
+        assert(((not path_changed) && (n_size_before == current_path_replanning_->getConnectionsSize())) || (path_changed));
       }
 
       if(replanning_duration>=dt_replan_/0.9 && display_timing_warning_)
@@ -389,12 +386,23 @@ void ReplannerManagerBase::replanningThread()
         updateSharedPath();
         paths_mtx_.unlock();
 
+        PathPtr trj_path = current_path_replanning_->clone();
+        trj_path->removeNodes(); //remove useless nodes to speed up the trj (does not affect the tree because its a cloned path)
+
         moveit_msgs::RobotTrajectory tmp_trj_msg;
-        trajectory_->setPath(current_path_replanning_);
+        trajectory_->setPath(trj_path);
         robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
         trj->getRobotTrajectoryMsg(tmp_trj_msg);
+
         interpolator_.setTrajectory(tmp_trj_msg);
         interpolator_.setSplineOrder(1);
+
+        //elimina
+        for(const double& d: pnt_.velocities)
+        {
+          ROS_ERROR_STREAM("FIRST POINT VEL: "<<d);
+        }
+        // ///
 
         t_=0.0;
         n_conn_ = 0;
@@ -421,20 +429,23 @@ void ReplannerManagerBase::replanningThread()
 
 void ReplannerManagerBase::collisionCheckThread()
 {
-  ros::Rate lp(collision_checker_thread_frequency_);
-
+  moveit_msgs::GetPlanningScene ps_srv;
   Eigen::VectorXd current_configuration_copy;
+
   PathPtr current_path_copy = current_path_shared_->clone();
   current_path_copy->setChecker(checker_cc_);
-  moveit_msgs::GetPlanningScene ps_srv;
+
+  ros::Rate lp(collision_checker_thread_frequency_);
+  ros::WallTime tic, tic1;
+
+  double duration_copy_path, duration_update_cost_info, duration_pln_scn_srv, duration_check; //ELIMINA
 
   while ((not stop_) && ros::ok())
   {
-    ros::WallTime tic = ros::WallTime::now();
-    double duration_copy_path, duration_update_cost_info, duration_pln_scn_srv, duration_check; //ELIMINA
+    tic = ros::WallTime::now();
 
     scene_mtx_.lock();
-    ros::WallTime tic1 = ros::WallTime::now();
+    tic1 = ros::WallTime::now();
     if(not plannning_scene_client_.call(ps_srv))
     {
       ROS_ERROR("call to srv not ok");
@@ -452,7 +463,7 @@ void ReplannerManagerBase::collisionCheckThread()
     current_configuration_copy = current_configuration_;
     trj_mtx_.unlock();
 
-    if(current_configuration_copy == replanner_->getGoal()->getConfiguration())
+    if((current_configuration_copy-replanner_->getGoal()->getConfiguration()).norm()<goal_tol_)
     {
       stop_ = true;
       break;
@@ -529,7 +540,7 @@ bool ReplannerManagerBase::run()
   if(spawn_objs_) spawn_obj_thread_ = std::thread(&ReplannerManagerBase::spawnObjects              ,this);
   replanning_thread_                = std::thread(&ReplannerManagerBase::replanningThread          ,this);
   col_check_thread_                 = std::thread(&ReplannerManagerBase::collisionCheckThread      ,this);
-  ros::Duration(2).sleep()                                                                               ;
+  ros::Duration(0.5).sleep()                                                                             ;
   trj_exec_thread_                  = std::thread(&ReplannerManagerBase::trajectoryExecutionThread ,this);
 
   return true;
@@ -579,17 +590,17 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   PathPtr path2project_on;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
   Eigen::VectorXd past_current_configuration = current_configuration_;
-  trajectory_msgs::JointTrajectoryPoint pnt;
-  trajectory_msgs::JointTrajectoryPoint pnt_unscaled;
 
   ros::Rate lp(trj_exec_thread_frequency_);
+  ros::WallTime tic;
 
   while((not stop_) && ros::ok())
   {
-    ros::WallTime tic = ros::WallTime::now();
+    tic = ros::WallTime::now();
     real_time_ += dt_;
 
     trj_mtx_.lock();
+
     scaling_ = 1.0;
     read_safe_scaling_? (scaling_ = readScalingTopics()):
                         (scaling_ = scaling_from_param_);
@@ -604,9 +615,6 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling_);
     interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,    1.0);
 
-    pnt          = pnt_         ;
-    pnt_unscaled = pnt_unscaled_;
-
     Eigen::VectorXd point2project(pnt_.positions.size());
     for(unsigned int i=0; i<pnt_.positions.size();i++)
       point2project(i) = pnt_.positions.at(i);
@@ -620,15 +628,15 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     if((point2project-goal_conf).norm()<goal_tol_)
       stop_ = true;
 
-    new_joint_state_unscaled_.position     = pnt_unscaled.positions ;
-    new_joint_state_unscaled_.velocity     = pnt_unscaled.velocities;
-    new_joint_state_unscaled_.header.stamp = ros::Time::now()       ;
-    new_joint_state_.position              = pnt.positions          ;
-    new_joint_state_.velocity              = pnt.velocities         ;
-    new_joint_state_.header.stamp          = ros::Time::now()       ;
+    new_joint_state_.position              = pnt_.positions          ;
+    new_joint_state_.velocity              = pnt_.velocities         ;
+    new_joint_state_.header.stamp          = ros::Time::now()        ;
+    new_joint_state_unscaled_.position     = pnt_unscaled_.positions ;
+    new_joint_state_unscaled_.velocity     = pnt_unscaled_.velocities;
+    new_joint_state_unscaled_.header.stamp = ros::Time::now()        ;
 
-    unscaled_target_pub_.publish(new_joint_state_unscaled_)         ;
-    target_pub_         .publish(new_joint_state_)                  ;
+    target_pub_         .publish(new_joint_state_)         ;
+    unscaled_target_pub_.publish(new_joint_state_unscaled_);
 
     ros::WallTime toc = ros::WallTime::now();
     double duration = (toc-tic).toSec();
@@ -639,7 +647,6 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   }
 
   stop_ = true;
-
   ROS_ERROR("STOP");
 }
 
@@ -648,16 +655,20 @@ void ReplannerManagerBase::displayThread()
   PathPtr initial_path = current_path_shared_->clone();
 
   pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
-  ros::Duration(0.5).sleep();
 
   int path_id,node_id,wp_id;
-  std::vector<double> marker_color;
   std::vector<double> marker_scale(3,0.01);
   std::vector<double> marker_scale_sphere(3,0.02);
+  std::vector<double> marker_color_initial_path   = {0.0,1.0,0.0,1.0};
+  std::vector<double> marker_color_current_path   = {1.0,1.0,0.0,1.0};
+  std::vector<double> marker_color_current_config = {1.0,0.0,1.0,1.0};
+  std::vector<double> marker_color_current_pnt    = {0.0,1.0,0.0,1.0};
+  std::vector<double> marker_color_replan_config  = {0.0,0.0,0.0,1.0};
+  std::vector<double> marker_color_replan_pnt     = {0.5,0.5,0.5,1.0};
 
   disp->clearMarkers();
 
-  double display_thread_frequency = 0.75*trj_exec_thread_frequency_;
+  double display_thread_frequency = 2*trj_exec_thread_frequency_;
   ros::Rate lp(display_thread_frequency);
 
   while((not stop_) && ros::ok())
@@ -679,44 +690,40 @@ void ReplannerManagerBase::displayThread()
     node_id = 1000;
     wp_id = 10000;
 
-    marker_color = {1.0,1.0,0.0,1.0};
     disp->changeConnectionSize(marker_scale);
-    disp->displayPathAndWaypoints(current_path,path_id,wp_id,"pathplan",marker_color);
+    disp->displayPathAndWaypoints(current_path,path_id,wp_id,"pathplan",marker_color_current_path);
 
-    marker_color =  {0.0,1.0,0.0,1.0};
-    disp->displayPathAndWaypoints(initial_path,path_id+2000,wp_id+2000,"pathplan",marker_color);
+    disp->displayPathAndWaypoints(initial_path,path_id+2000,wp_id+2000,"pathplan",marker_color_initial_path);
     disp->defaultConnectionSize();
 
     disp->changeNodeSize(marker_scale_sphere);
 
     if(display_current_config_)
-    {
-      marker_color = {1.0,0.0,1.0,1.0};
-      disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),node_id,"pathplan",marker_color);
-    }
+      disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),node_id,"pathplan",marker_color_current_config);
 
     Eigen::VectorXd point2project(pnt.positions.size());
     if(display_current_trj_point_)
     {
-      for(unsigned int i=0; i<pnt.positions.size();i++) point2project[i] = pnt.positions.at(i);
+      for(unsigned int i=0; i<pnt.positions.size();i++)
+        point2project[i] = pnt.positions.at(i);
+
       node_id +=1;
-      marker_color = {0.0,1.0,0.0,1.0};
-      disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
+      disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color_current_pnt);
     }
 
     if(display_replan_config_)
     {
       node_id +=1;
-      marker_color = {0.0,0.0,0.0,1.0};
-      disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),node_id,"pathplan",marker_color);
+      disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),node_id,"pathplan",marker_color_replan_config);
     }
 
     if(display_replan_trj_point_)
     {
-      for(unsigned int i=0; i<pnt_replan.positions.size();i++) point2project[i] = pnt_replan.positions.at(i);
+      for(unsigned int i=0; i<pnt_replan.positions.size();i++)
+        point2project[i] = pnt_replan.positions.at(i);
+
       node_id +=1;
-      marker_color = {0.5,0.5,0.5,1.0};
-      disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
+      disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color_replan_pnt);
     }
 
     disp->defaultNodeSize();

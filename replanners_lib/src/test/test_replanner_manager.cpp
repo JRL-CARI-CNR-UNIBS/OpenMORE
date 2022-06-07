@@ -1,7 +1,7 @@
 #include <ros/ros.h>
-#include <graph_core/parallel_moveit_collision_checker.h>
-#include <graph_replanning/trajectory.h>
 #include <moveit/robot_state/robot_state.h>
+#include <graph_core/parallel_moveit_collision_checker.h>
+#include <replanners_lib/trajectory.h>
 #include <replanners_lib/replanner_managers/replanner_manager_MPRRT.h>
 #include <replanners_lib/replanner_managers/replanner_manager_DRRTStar.h>
 #include <replanners_lib/replanner_managers/replanner_manager_DRRT.h>

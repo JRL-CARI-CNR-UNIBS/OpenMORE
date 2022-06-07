@@ -37,7 +37,7 @@ aipro:
   verbosity_level: 2
 
 # VERBOSITY:
-replanner_verbosity: true
+replanner_verbosity: false
 display_timing_warning: true
 display_replanning_success: true
 display_replan_trj_point: true

@@ -331,31 +331,31 @@ std::vector<node_and_path> AIPRO::sortNodesOnDistance(const NodePtr& start_node)
       n_p.node = n;
       n_p.path = p;
 
-      //elimina
-      if(std::find(nodes2check.begin(),nodes2check.end(),n)<nodes2check.end() && not (n->getConfiguration() == paths_start_->getConfiguration()))
-      {
-        ROS_INFO_STREAM("nodo multiplo: "<<*n);
+      //      elimina
+      //      if(std::find(nodes2check.begin(),nodes2check.end(),n)<nodes2check.end() && not (n->getConfiguration() == paths_start_->getConfiguration()))
+      //      {
+      //        ROS_INFO_STREAM("nodo multiplo: "<<*n);
 
-        for(unsigned int i=0;i<admissible_other_paths_.size();i++)
-        {
-          if(admissible_other_paths_.at(i) == p)
-          {
-            ROS_INFO_STREAM("il nodo appartiene al path numero: "<<i<<" e: "<<p);
-            break;
-          }
-        }
+      //        for(unsigned int i=0;i<admissible_other_paths_.size();i++)
+      //        {
+      //          if(admissible_other_paths_.at(i) == p)
+      //          {
+      //            ROS_INFO_STREAM("il nodo appartiene al path numero: "<<i<<" e: "<<p);
+      //            break;
+      //          }
+      //        }
 
-        for(unsigned int j=0;j<admissible_other_paths_.size();j++)
-        {
-          ROS_INFO_STREAM("PATH NUMBER: "<<j);
-          for(const NodePtr nn:admissible_other_paths_.at(j)->getNodes())
-            ROS_INFO_STREAM("n: "<<nn->getConfiguration().transpose()<<" "<<nn);
-        }
-        //assert(0);
-      }
-      else
-        nodes2check.push_back(n);
-      //
+      //        for(unsigned int j=0;j<admissible_other_paths_.size();j++)
+      //        {
+      //          ROS_INFO_STREAM("PATH NUMBER: "<<j);
+      //          for(const NodePtr nn:admissible_other_paths_.at(j)->getNodes())
+      //            ROS_INFO_STREAM("n: "<<nn->getConfiguration().transpose()<<" "<<nn);
+      //        }
+      //        assert(0);
+      //      }
+      //      else
+      //        nodes2check.push_back(n);
+      //      //
 
       goals.push_back(n_p);
     }
@@ -510,7 +510,6 @@ bool AIPRO::findValidSolution(const std::multimap<double,std::vector<ConnectionP
 
   return false;
 }
-
 
 PathPtr AIPRO::bestExistingSolution(const PathPtr& current_solution)
 {
@@ -752,7 +751,7 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
     ROS_INFO_STREAM("Searching for a direct connection...max time: "<<solver_time);
 
   NodePtr path2_node_fake = std::make_shared<Node>(path2_node->getConfiguration());
-  ROS_INFO_STREAM("PATH2_NODE_FAKE: "<<path2_node_fake->getConfiguration().transpose()<<" "<<path2_node_fake); //elimina
+  //  ROS_INFO_STREAM("PATH2_NODE_FAKE: "<<path2_node_fake->getConfiguration().transpose()<<" "<<path2_node_fake); //elimina
   ros::WallTime tic_directConnection = ros::WallTime::now();
   solver_->addGoal(path2_node_fake,solver_time);
   ros::WallTime toc_directConnection = ros::WallTime::now();
@@ -994,7 +993,7 @@ bool AIPRO::pathSwitch(const PathPtr &current_path,
       path2_subpath_conn = path2_subpath->getConnections();
       path2_subpath_cost = path2_subpath->cost();
 
-      ROS_INFO_STREAM("path1_node: "<<path1_node->getConfiguration().transpose()<<" "<<path1_node<<" path2_node: "<<path2_node->getConfiguration().transpose()<<" "<<path2_node);//elimina
+      //      ROS_INFO_STREAM("path1_node: "<<path1_node->getConfiguration().transpose()<<" "<<path1_node<<" path2_node: "<<path2_node->getConfiguration().transpose()<<" "<<path2_node);//elimina
 
       double better_path2_subpath_cost;
       std::vector<ConnectionPtr> better_path2_subpath_conn;
@@ -1342,6 +1341,7 @@ bool AIPRO::stealSubtree(const NodePtr& node)
 PathPtr AIPRO::getSubpath1(NodePtr& current_node)
 {
   /* If the current configuration matches a node of the current_path_ */
+  current_node = nullptr;
   std::vector<NodePtr> current_path_nodes = current_path_->getNodes();
 
   assert(Path::TOLERANCE>0);
@@ -1362,9 +1362,11 @@ PathPtr AIPRO::getSubpath1(NodePtr& current_node)
     }
   }
 
-  /* If the current configuration doesn't match any node of the current_path_, ad a node at the current configuration (it should have been already added in replan()) */
-  current_node = current_path_->addNodeAtCurrentConfig(current_configuration_,true);
-  return current_path_->getSubpathFromNode(current_node);
+  ROS_ERROR_STREAM("Current configuration ("<<current_configuration_.transpose()<<") does not match any node of the current path!");
+  ROS_ERROR_STREAM("Current path: "<<*current_path_);
+  assert(0);
+
+  return nullptr;
 }
 
 void AIPRO::initCheckedConnections()
@@ -1452,7 +1454,7 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
   }
   else
   {
-    ROS_WARN("The current configuration matches with the goal");
+    ROS_WARN("The current configuration matches with the goal OR does not match with any node of the current path!");
 
     for(const ConnectionPtr& checked_conn:checked_connections_)
       checked_conn->setRecentlyChecked(false);
@@ -1803,8 +1805,6 @@ bool AIPRO::replan()
   ros::WallTime tic = ros::WallTime::now();
   success_ = false;
 
-  std::vector<NodePtr> nodes = current_path_->getNodes();
-
   int conn_idx;
   ConnectionPtr conn = current_path_->findConnection(current_configuration_,conn_idx);
   NodePtr current_node = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true,is_a_new_node_);
@@ -1817,15 +1817,12 @@ bool AIPRO::replan()
   std::vector<PathPtr> other_paths_changed;
   if(is_a_new_node_)
   {
-    ROS_WARN("QUA");
     for(PathPtr &p:other_paths_)
     {
       if(p->splitConnection(current_path_->getConnectionsConst().at(conn_idx),
                             current_path_->getConnectionsConst().at(conn_idx+1),conn))
         other_paths_changed.push_back(p);
     }
-    ROS_WARN("QUA1");
-
   }
 
   if(verbose_)
@@ -1846,7 +1843,7 @@ bool AIPRO::replan()
     {
       ROS_INFO_STREAM("replan node before removing\n"<<*current_node<<current_node); //elimina
 
-      if(not current_path_->removeNode(current_node,nodes))
+      if(not current_path_->removeNode(current_node,{}))
         path_changed = true;
       else
       {
@@ -1857,6 +1854,7 @@ bool AIPRO::replan()
 
         for(PathPtr& p:other_paths_changed)
         {
+          ROS_WARN_STREAM("NODE REMOVED: "<<*current_node);
           ROS_INFO_STREAM("restore : "<<*p);
           if(not p->restoreConnection(current_path_->getConnections().at(conn_idx),current_node))
             assert(0);

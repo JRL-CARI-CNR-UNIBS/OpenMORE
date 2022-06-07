@@ -1,7 +1,7 @@
 #ifndef REPLANNER_MANAGER_BASE_H__
 #define REPLANNER_MANAGER_BASE_H__
 
-#include <graph_replanning/trajectory.h>
+#include <replanners_lib/trajectory.h>
 #include <moveit/robot_state/robot_state.h>
 #include <graph_core/parallel_moveit_collision_checker.h>
 #include <moveit_planning_helper/spline_interpolator.h>
