@@ -184,35 +184,9 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
             for(const NodePtr& n:p->getNodes())
               assert(n != old_current_node_);
 
-            assert(not current_path->getTree()->isInTree(old_current_node_));
+            assert(not tree->isInTree(old_current_node_));
           }
         }
-      }
-    }
-  }
-
-  if(replanner->replanNodeIsANewNode() && (node_replan->getConfiguration() != configuration))
-  {
-    ConnectionPtr restored_conn;
-    if(not current_path->removeNode(node_replan,{},restored_conn))
-      ROS_ERROR_STREAM("REPLAN NODE NOT REMOVED !"<<node_replan->getConfiguration().transpose());
-    else
-    {
-      ROS_WARN_STREAM("Node replan removed: "<<*node_replan);
-      ROS_INFO_STREAM("RESTORED CONN: "<<*restored_conn);
-
-      int i=-1;
-      for(PathPtr& p:other_paths_)
-      {
-        i++; //elimina
-        assert(p->getTree() != nullptr);
-        if(p->restoreConnection(restored_conn,node_replan))
-          ROS_WARN_STREAM("CONN RESTORED IN PATH: "<<i);
-
-        for(const NodePtr& n:p->getNodes())
-          assert(n != node_replan);
-
-        assert(not current_path->getTree()->isInTree(node_replan));
       }
     }
   }
@@ -234,11 +208,40 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
     }
   }
   else
-    old_current_node_ = current_node;
+    old_current_node_ = nullptr;
 
+//  std::multimap<double,std::vector<ConnectionPtr>> new_conns_map = net->getConnectionBetweenNodes(current_node,node_replan);
+  PathPtr tmp_subpath = current_path->getSubpathFromNode(current_node);
+  tmp_subpath = tmp_subpath->getSubpathToNode(node_replan);
+  std::vector<ConnectionPtr> new_conns = tmp_subpath->getConnections();
+  new_conns.insert(new_conns.end(),replanned_path->getConnectionsConst().begin(),replanned_path->getConnectionsConst().end());
+  replanned_path->setConnections(new_conns);
 
-  std::multimap<double,std::vector<ConnectionPtr>> new_conns_map = net->getConnectionBetweenNodes(current_node,replanner->getGoal());
-  replanned_path->setConnections(new_conns_map.begin()->second);
+  if(replanner->replanNodeIsANewNode() && (node_replan->getConfiguration() != configuration))
+  {
+    ConnectionPtr restored_conn;
+    if(not replanned_path->removeNode(node_replan,{},restored_conn))
+      ROS_ERROR_STREAM("REPLAN NODE NOT REMOVED !"<<node_replan->getConfiguration().transpose());
+    else
+    {
+      ROS_WARN_STREAM("Node replan removed: "<<*node_replan);
+      ROS_INFO_STREAM("RESTORED CONN: "<<*restored_conn);
+
+      int i=-1;
+      for(PathPtr& p:other_paths_)
+      {
+        i++; //elimina
+        assert(p->getTree() != nullptr);
+        if(p->restoreConnection(restored_conn,node_replan))
+          ROS_WARN_STREAM("CONN RESTORED IN PATH: "<<i);
+
+        for(const NodePtr& n:p->getNodes())
+          assert(n != node_replan);
+
+        assert(not tree->isInTree(node_replan));
+      }
+    }
+  }
 }
 
 bool ReplannerManagerAIPRO::haveToReplan(const bool path_obstructed)
