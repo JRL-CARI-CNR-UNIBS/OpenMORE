@@ -185,7 +185,7 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
             for(const NodePtr& n:p->getNodes())
               assert(n != old_current_node_);
 
-            assert(not current_path->getTree()->isInTree(old_current_node_));
+            assert(not tree->isInTree(old_current_node_));
           }
         }
       }
@@ -211,29 +211,12 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
   else
     old_current_node_ = nullptr;
 
-  PathPtr old_replanned_path = replanned_path->clone(); //elimina
-
-  ROS_INFO_STREAM("replan NODE: "<<*node_replan); //elimina
-  ROS_INFO_STREAM("CURRENT PATH:\n"<<*current_path);
-  ROS_INFO_STREAM("replan PATH:\n"<<*replanned_path);
-
-  std::multimap<double,std::vector<ConnectionPtr>> new_conns_map = net->getConnectionBetweenNodes(current_node,node_replan);
-  assert(new_conns_map.size()>0);
-
-  std::vector<ConnectionPtr> new_conns = new_conns_map.begin()->second;
+//  std::multimap<double,std::vector<ConnectionPtr>> new_conns_map = net->getConnectionBetweenNodes(current_node,node_replan);
+  PathPtr tmp_subpath = current_path->getSubpathFromNode(current_node);
+  tmp_subpath = tmp_subpath->getSubpathToNode(node_replan);
+  std::vector<ConnectionPtr> new_conns = tmp_subpath->getConnections();
   new_conns.insert(new_conns.end(),replanned_path->getConnectionsConst().begin(),replanned_path->getConnectionsConst().end());
   replanned_path->setConnections(new_conns);
-
-  ROS_INFO_STREAM("NEW replan PATH:\n"<<*replanned_path);
-
-  if(replanned_path->findConnection(configuration_replan_) == nullptr) //elimina
-  {
-    pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
-    disp->changeConnectionSize({0.03,0.03,0.03});
-    disp->displayPath(old_replanned_path,"pathplan",{0,0,1,1});
-    disp->displayPath(replanned_path,"pathplan",{1,0,0,1});
-    assert(0);
-  }
 
   if(replanner->replanNodeIsANewNode() && (node_replan->getConfiguration() != configuration))
   {
@@ -256,7 +239,7 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
         for(const NodePtr& n:p->getNodes())
           assert(n != node_replan);
 
-        assert(not replanned_path->getTree()->isInTree(node_replan));
+        assert(not tree->isInTree(node_replan));
       }
     }
   }
@@ -374,7 +357,7 @@ void ReplannerManagerAIPRO::syncPathCost()
 }
 
 void ReplannerManagerAIPRO::initReplanner()
-{ 
+{
   double time_for_repl = 0.9*dt_replan_;
   replanner_ = std::make_shared<pathplan::AIPRO>(configuration_replan_,current_path_replanning_,time_for_repl,solver_,other_paths_);
 
