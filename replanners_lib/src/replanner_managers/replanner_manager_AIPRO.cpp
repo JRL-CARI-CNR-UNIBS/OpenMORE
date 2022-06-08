@@ -111,6 +111,7 @@ bool ReplannerManagerAIPRO::replan()
   (cost == std::numeric_limits<double>::infinity())? (replanner_->setMaxTime(0.9*dt_replan_)):
                                                      (replanner_->setMaxTime(0.9*dt_replan_relaxed_));
 
+  ROS_INFO_STREAM("cost before: "<<cost);//elimina
   bool path_changed = replanner_->replan();
 
   if(replanner_->getSuccess() && first_replanning_)  //add the initial path to the other paths
@@ -222,7 +223,7 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
   ConnectionPtr conn = current_path->findConnection(configuration,conn_idx);
   NodePtr current_node = current_path->addNodeAtCurrentConfig(configuration,conn,true,is_a_new_node);
 
-  ROS_INFO_STREAM("CURRENT NODE: "<<*current_node<<current_node<<"\n"<<is_a_new_node);
+  ROS_INFO_STREAM("CURRENT NODE: "<<*current_node<<current_node<<"\n"<<is_a_new_node); //elimina
 
   if(is_a_new_node)
   {
@@ -236,9 +237,25 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
   else
     old_current_node_ = current_node;
 
+  PathPtr old_replanned_path = replanned_path->clone(); //elimina
 
   std::multimap<double,std::vector<ConnectionPtr>> new_conns_map = net->getConnectionBetweenNodes(current_node,replanner->getGoal());
+
+  for(const std::pair<double,std::vector<ConnectionPtr>> p:new_conns_map)
+  {
+    std::vector<ConnectionPtr> new_conns = p->second;
+  }
+
   replanned_path->setConnections(new_conns_map.begin()->second);
+
+  if(replanned_path->findConnection(configuration_replan_) == nullptr)
+  {
+    pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
+    disp->changeConnectionSize({0.03,0.03,0.03});
+    disp->displayPath(old_replanned_path,"pathplan",{0,0,1,1});
+    disp->displayPath(replanned_path,"pathplan",{1,0,0,1});
+    assert(0);
+  }
 }
 
 bool ReplannerManagerAIPRO::haveToReplan(const bool path_obstructed)
@@ -404,6 +421,19 @@ void ReplannerManagerAIPRO::collisionCheckThread()
 
     scene_mtx_.unlock();
 
+//    trj_mtx_.lock();
+//    current_configuration_copy = current_configuration_;
+//    trj_mtx_.unlock();
+    replanner_mtx_.lock();
+    current_configuration_copy = configuration_replan_;
+    replanner_mtx_.unlock();
+
+    if(current_configuration_copy == replanner_->getGoal()->getConfiguration())
+    {
+      stop_ = true;
+      break;
+    }
+
     /* Update paths if they have been changed */
     paths_mtx_.lock();
     ROS_WARN("AGGIORNO I PATH IN CC");
@@ -414,7 +444,7 @@ void ReplannerManagerAIPRO::collisionCheckThread()
       current_path_copy->setChecker(checker_cc_);
       current_path_sync_needed_ = false;
 
-      ROS_WARN_STREAM("cc current path viene clonato"<<*current_path_copy);
+      //      ROS_WARN_STREAM("cc current path viene clonato"<<*current_path_copy);
     }
 
     other_paths_mtx_.lock();
@@ -439,8 +469,8 @@ void ReplannerManagerAIPRO::collisionCheckThread()
         other_paths_copy.at(i) = other_paths_shared_.at(i)->clone();
         other_paths_copy.at(i)->setChecker(checkers.at(i));
         other_paths_sync_needed_.at(i) = false;
-        ROS_WARN("cc path %i viene clonato",i);
-        ROS_WARN_STREAM(*other_paths_copy.at(i));
+        //        ROS_WARN("cc path %i viene clonato",i);
+        //        ROS_WARN_STREAM(*other_paths_copy.at(i));
       }
     }
     ROS_WARN("PATH IN CC AGGIORNATI");
@@ -455,16 +485,6 @@ void ReplannerManagerAIPRO::collisionCheckThread()
       tasks.push_back(std::async(std::launch::async,
                                  &ReplannerManagerAIPRO::checkPathTask,
                                  this,other_paths_copy.at(i)));
-    }
-
-    trj_mtx_.lock();
-    current_configuration_copy = current_configuration_;
-    trj_mtx_.unlock();
-
-    if(current_configuration_copy == replanner_->getGoal()->getConfiguration())
-    {
-      stop_ = true;
-      break;
     }
 
     current_path_copy->isValidFromConf(current_configuration_copy,checker_cc_);

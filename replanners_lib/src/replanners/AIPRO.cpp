@@ -851,10 +851,10 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
       {
         if(not (conn->getParent() != last_conn->getParent()))
         {
-          ROS_INFO_STREAM("conn "<<*conn<<conn);
-          ROS_INFO_STREAM("last conn\n"<<*last_conn<<last_conn);
-          ROS_INFO_STREAM("CONN PARENT"<<*conn->getParent()<<conn->getParent());
-          ROS_INFO_STREAM("LAST CONN PARENT"<<*last_conn->getParent()<<last_conn->getParent());
+          ROS_INFO_STREAM("conn "<<*conn<<" "<<conn);
+          ROS_INFO_STREAM("last conn "<<*last_conn<<" "<<last_conn);
+          ROS_INFO_STREAM("CONN PARENT\n"<<*conn->getParent()<<conn->getParent());
+          ROS_INFO_STREAM("LAST CONN PARENT\n"<<*last_conn->getParent()<<last_conn->getParent());
 
           for(const ConnectionPtr& c:connecting_path_conn)
             ROS_INFO_STREAM(*c);
@@ -1805,6 +1805,15 @@ bool AIPRO::replan()
   ros::WallTime tic = ros::WallTime::now();
   success_ = false;
 
+  if(not checker_->check(current_configuration_))
+  {
+    ROS_ERROR("current replan configuration in collision!");
+    success_ = false;
+    is_a_new_node_ = false;
+
+    return false;
+  }
+
   int conn_idx;
   ConnectionPtr conn = current_path_->findConnection(current_configuration_,conn_idx);
   NodePtr current_node = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true,is_a_new_node_);
@@ -1836,7 +1845,10 @@ bool AIPRO::replan()
 
   bool path_changed = false;
   if(success_)
+  {
     path_changed = true;
+    ROS_INFO_STREAM("cost after: "<<replanned_path_->cost()); //elimina
+  }
   else
   {
     if(is_a_new_node_)

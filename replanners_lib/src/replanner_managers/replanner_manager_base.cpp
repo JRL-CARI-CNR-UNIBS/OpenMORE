@@ -358,6 +358,7 @@ void ReplannerManagerBase::replanningThread()
         int n_size_before = current_path_replanning_->getConnectionsSize();
 
         tic_rep=ros::WallTime::now();
+        ROS_INFO_STREAM("cost befff "<<current_path_replanning_->getCostFromConf(configuration_replan_)); //elimina
         path_changed = replan();      //path may have changed even though replanning was unsuccessful
         toc_rep=ros::WallTime::now();
 
@@ -387,7 +388,10 @@ void ReplannerManagerBase::replanningThread()
         paths_mtx_.unlock();
 
         PathPtr trj_path = current_path_replanning_->clone();
+        ROS_INFO_STREAM("trj_path size: "<<trj_path->getConnectionsSize());
         trj_path->removeNodes(); //remove useless nodes to speed up the trj (does not affect the tree because its a cloned path)
+        ROS_INFO_STREAM("new trj_path size: "<<trj_path->getConnectionsSize());
+        ROS_INFO_STREAM(*trj_path);
 
         moveit_msgs::RobotTrajectory tmp_trj_msg;
         trajectory_->setPath(trj_path);
@@ -621,8 +625,24 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
     past_abscissa = abscissa_current_configuration_;
     past_current_configuration = current_configuration_;
-    current_configuration_ = path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_current_configuration,abscissa_current_configuration_,past_abscissa,n_conn_);
+    current_configuration_ = path2project_on->projectOnClosestConnection(point2project);
+//    current_configuration_ = path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_current_configuration,abscissa_current_configuration_,past_abscissa,n_conn_);
 
+    if((current_configuration_-past_current_configuration).norm()>0.1)
+    {
+      current_configuration_ = past_current_configuration;
+//      Eigen::VectorXd path2project_on_start = path2project_on->getWaypoints().front();
+//      if((point2project-path2project_on_start).norm()<0.01)
+//        current_configuration_ = path2project_on_start;
+//      else
+//      {
+//        ROS_ERROR_STREAM("distance from path's start: "<<(point2project-path2project_on_start).norm());
+//        ROS_ERROR_STREAM("distance from past current conf to current conf: "<<(current_configuration_-past_current_configuration).norm());
+//        ROS_ERROR_STREAM("current conf: "<<current_configuration_.transpose()<<"\npast configuration: "<<past_current_configuration.transpose());
+//        path2project_on->projectOnClosestConnection(point2project,true);
+//        assert(0);
+//      }
+    }
     trj_mtx_.unlock();
 
     if((point2project-goal_conf).norm()<goal_tol_)
@@ -789,12 +809,12 @@ void ReplannerManagerBase::spawnObjects()
       }
       else
       {
-        obj_conn = path_copy->getConnections().at(size -1);
+        obj_conn = path_copy->getConnections().at(size-1);
         obj_parent = obj_conn->getParent();
         obj_child = obj_conn->getChild();
         obj_pos = obj_parent->getConfiguration() + 0.3*(obj_child->getConfiguration()-obj_parent->getConfiguration());
 
-        if((obj_pos-obj_child->getConfiguration()).norm()<0.08) //side of "scatola" = 0.05
+        if((obj_pos-obj_child->getConfiguration()).norm()<0.12) //side of "scatola" = 0.05
         {
           obj_pos = obj_child->getConfiguration() + 0.08*(obj_parent->getConfiguration()-obj_child->getConfiguration())/(obj_parent->getConfiguration()-obj_child->getConfiguration()).norm();
         }
