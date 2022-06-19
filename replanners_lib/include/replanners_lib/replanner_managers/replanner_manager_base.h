@@ -61,7 +61,9 @@ protected:
   double checker_resolution_            ;
   double goal_tol_                      ;
   double scaling_                       ;
+  double abscissa_replan_configuration_ ;
   double abscissa_current_configuration_;
+
 
   ReplannerBasePtr                          replanner_               ;
   Eigen::VectorXd                           current_configuration_   ;

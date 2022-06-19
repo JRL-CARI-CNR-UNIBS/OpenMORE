@@ -115,7 +115,14 @@ int main(int argc, char **argv)
   Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
 
   Eigen::VectorXd delta = (goal_conf-start_conf)/(n_iter);
-  delta[2] = 0.0;
+  delta[0] = 0.0; //move on plane x=0
+
+  pathplan::MetricsPtr metrics;
+  pathplan::CollisionCheckerPtr checker;
+  pathplan::SamplerPtr sampler;
+  pathplan::RRTPtr solver;
+  pathplan::PathPtr current_path, new_path;
+  std::vector<pathplan::PathPtr> other_paths;
 
   int id_start,id_goal;
   double distance;
@@ -148,14 +155,14 @@ int main(int argc, char **argv)
       return 1;
     }
 
-    pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
-    pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
-    pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf,goal_conf,lb,ub);
-    pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics,checker,sampler);
+    metrics = std::make_shared<pathplan::Metrics>();
+    checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
+    sampler = std::make_shared<pathplan::InformedSampler>(start_conf,goal_conf,lb,ub);
+    solver = std::make_shared<pathplan::RRT>(metrics,checker,sampler);
     solver->setMaxDistance(max_distance);
 
     std::srand(std::time(NULL));
-    pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
+    current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
 
     if(!current_path)
     {
@@ -192,21 +199,22 @@ int main(int argc, char **argv)
         n_other_paths = 1;
       }
 
-      std::vector<pathplan::PathPtr> other_paths;
       for(unsigned int i=0;i<n_other_paths;i++)
       {
-        pathplan::RRTPtr solver2 = std::make_shared<pathplan::RRT>(metrics,checker,sampler);
-        pathplan::PathPtr path = trajectory.computePath(start_conf,goal_conf,solver2,true);
+        solver = std::make_shared<pathplan::RRT>(metrics,checker,sampler);
+        new_path = trajectory.computePath(start_conf,goal_conf,solver,true);
 
-        if(path)
+        other_paths.clear();
+        if(new_path)
         {
-          other_paths.push_back(path);
-          if(!path->getTree())
+          other_paths.push_back(new_path);
+          if(!new_path->getTree())
             assert(0);
         }
       }
 
-      replanner_manager.reset(new pathplan::ReplannerManagerAIPRO(current_path,solver,nh,other_paths));
+//      replanner_manager.reset(new pathplan::ReplannerManagerAIPRO(current_path,solver,nh,other_paths));
+      replanner_manager = std::make_shared<pathplan::ReplannerManagerAIPRO>(current_path,solver,nh,other_paths);
     }
     else
     {

@@ -1,5 +1,5 @@
 #TEST CONFIGURATIONS:
-n_iter: 500
+n_iter: 2
 
 #PLANNING CONFIGURATIONS:
 group_name: "cartesian_arm"
@@ -19,7 +19,7 @@ checker_resolution: 0.01
 # - anytimeDRRT
 # - AIPRO
 
-replanner_type: "AIPRO"
+replanner_type: "MPRRT"
 dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30

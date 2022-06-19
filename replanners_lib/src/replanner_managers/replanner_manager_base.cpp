@@ -96,6 +96,7 @@ void ReplannerManagerBase::attributeInitialization()
   current_path_sync_needed_        = false;
   n_conn_                          = 0    ;
   abscissa_current_configuration_  = 0.0  ;
+  abscissa_replan_configuration_   = 0.0  ;
   scaling_                         = 1.0  ;
   real_time_                       = 0.0  ;
   t_                               = 0.0  ;
@@ -292,6 +293,7 @@ void ReplannerManagerBase::replanningThread()
   ros::Rate lp(replanning_thread_frequency_);
   ros::WallTime tic,tic_rep,toc_rep;
 
+  double abscissa;
   PathPtr path2project_on;
   Eigen::VectorXd projection, current_configuration;
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
@@ -323,9 +325,11 @@ void ReplannerManagerBase::replanningThread()
       paths_mtx_.unlock();
 
       projection = path2project_on->projectOnClosestConnection(point2project);
+      abscissa = path2project_on->curvilinearAbscissaOfPoint(projection);
 
       replanner_mtx_.lock();
       configuration_replan_ = projection;
+      abscissa_replan_configuration_ = abscissa;
       replanner_mtx_.unlock();
 
       scene_mtx_.lock();
@@ -411,6 +415,7 @@ void ReplannerManagerBase::replanningThread()
         t_=0.0;
         n_conn_ = 0;
         abscissa_current_configuration_ = 0.0;
+        abscissa_replan_configuration_  = 0.0;
         t_replan_=t_+replan_offset_;
 
         trj_mtx_.unlock();
@@ -590,8 +595,9 @@ double ReplannerManagerBase::readScalingTopics()
 
 void ReplannerManagerBase::trajectoryExecutionThread()
 {
-  double past_abscissa;
   PathPtr path2project_on;
+  Eigen::VectorXd configuration_replan;
+  double past_abscissa, abscissa_replan_configuration;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
   Eigen::VectorXd past_current_configuration = current_configuration_;
 
@@ -602,6 +608,11 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   {
     tic = ros::WallTime::now();
     real_time_ += dt_;
+
+    replanner_mtx_.lock();
+    configuration_replan = configuration_replan_;
+    abscissa_replan_configuration = abscissa_replan_configuration_;
+    replanner_mtx_.unlock();
 
     trj_mtx_.lock();
 
@@ -628,21 +639,16 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     current_configuration_ = path2project_on->projectOnClosestConnection(point2project);
 //    current_configuration_ = path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_current_configuration,abscissa_current_configuration_,past_abscissa,n_conn_);
 
-    if((current_configuration_-past_current_configuration).norm()>0.1)
+    ROS_INFO_STREAM("current abscissa: "<<abscissa_current_configuration_<<" replan abscissa: "<<abscissa_replan_configuration<<" delta curr pos: "<<(current_configuration_-past_current_configuration).norm());
+
+    abscissa_current_configuration_ = path2project_on->curvilinearAbscissaOfPoint(current_configuration_);
+    if(abscissa_current_configuration_>abscissa_replan_configuration) //the current confgiruation must not surpass that of replanning
     {
-      current_configuration_ = past_current_configuration;
-//      Eigen::VectorXd path2project_on_start = path2project_on->getWaypoints().front();
-//      if((point2project-path2project_on_start).norm()<0.01)
-//        current_configuration_ = path2project_on_start;
-//      else
-//      {
-//        ROS_ERROR_STREAM("distance from path's start: "<<(point2project-path2project_on_start).norm());
-//        ROS_ERROR_STREAM("distance from past current conf to current conf: "<<(current_configuration_-past_current_configuration).norm());
-//        ROS_ERROR_STREAM("current conf: "<<current_configuration_.transpose()<<"\npast configuration: "<<past_current_configuration.transpose());
-//        path2project_on->projectOnClosestConnection(point2project,true);
-//        assert(0);
-//      }
+      current_configuration_ = configuration_replan;
+      abscissa_current_configuration_ = abscissa_replan_configuration;
+      ROS_WARN("Abscissa alignment!");
     }
+
     trj_mtx_.unlock();
 
     if((point2project-goal_conf).norm()<goal_tol_)

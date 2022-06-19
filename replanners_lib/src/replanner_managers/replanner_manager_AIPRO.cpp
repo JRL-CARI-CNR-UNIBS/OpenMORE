@@ -146,14 +146,20 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
 {
   AIPROPtr replanner = std::static_pointer_cast<AIPRO>(replanner_);
 
-  NetPtr  net            = replanner->getNet();
   PathPtr current_path   = replanner->getCurrentPath();
   PathPtr replanned_path = replanner->getReplannedPath();
   NodePtr node_replan    = replanned_path->getConnections().front()->getParent();
 
   TreePtr tree = current_path->getTree();
 
-  if(old_current_node_ && (old_current_node_->getConfiguration() != configuration))
+  ROS_INFO_STREAM("current path: "<<*current_path);
+
+  if(current_path->findConnection(configuration) == nullptr) //ELIMNA
+  {
+    assert(0);
+  }
+
+  if(old_current_node_ && (old_current_node_->getConfiguration() != configuration) && old_current_node_ != node_replan)
   {
     if((old_current_node_->parent_connections_.size()+old_current_node_->net_parent_connections_.size()) == 1)
     {
@@ -177,6 +183,8 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
           ROS_ERROR_STREAM("OLD CURRENT NODE NOT REMOVED!"<<old_current_node_->getConfiguration().transpose());
         else
         {
+          ROS_INFO_STREAM("current path: "<<*current_path); //elimina
+
           ROS_WARN_STREAM(" OLD current node removed: "<<*old_current_node_);
           for(PathPtr& p:other_paths_)
           {
@@ -197,7 +205,12 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
   ConnectionPtr conn = current_path->findConnection(configuration,conn_idx);
   NodePtr current_node = current_path->addNodeAtCurrentConfig(configuration,conn,true,is_a_new_node);
 
-  ROS_INFO_STREAM("CURRENT NODE: "<<*current_node<<current_node<<"\n"<<is_a_new_node); //elimina
+  double abs_current_node, abs_node_replan;
+  abs_current_node = current_path->curvilinearAbscissaOfPoint(configuration);
+  abs_node_replan  = current_path->curvilinearAbscissaOfPoint(node_replan->getConfiguration());
+
+  ROS_INFO_STREAM("CURRENT NODE: "<<*current_node<<current_node<<"\n"<<is_a_new_node<<"\n abs: "<<abs_current_node); //elimina
+  ROS_INFO_STREAM("REPLAN NODE"<<*node_replan<<node_replan<<"\n abs: "<<abs_node_replan); //elimina
 
   if(is_a_new_node)
   {
@@ -211,12 +224,71 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
   else
     old_current_node_ = nullptr;
 
-//  std::multimap<double,std::vector<ConnectionPtr>> new_conns_map = net->getConnectionBetweenNodes(current_node,node_replan);
-  PathPtr tmp_subpath = current_path->getSubpathFromNode(current_node);
-  tmp_subpath = tmp_subpath->getSubpathToNode(node_replan);
-  std::vector<ConnectionPtr> new_conns = tmp_subpath->getConnections();
-  new_conns.insert(new_conns.end(),replanned_path->getConnectionsConst().begin(),replanned_path->getConnectionsConst().end());
-  replanned_path->setConnections(new_conns);
+  ROS_INFO_STREAM("current path: "<<*current_path); //elimina
+
+  if(not replanner->getSuccess())
+  {
+    //elimina
+    std::vector<NodePtr> nodes1, nodes2;
+    nodes1 = current_path->getSubpathFromNode(node_replan)->getNodes();
+    nodes2 = replanned_path->getNodes();
+
+    if(nodes1.size() != nodes2.size())
+    {
+      ROS_ERROR("numero nodi diverso");
+      ROS_INFO_STREAM("nodi sul subpath di current path");
+      for(const NodePtr& n:nodes1)
+        ROS_INFO_STREAM(n->getConfiguration().transpose()<<" "<<n);
+
+      ROS_INFO_STREAM("nodi sul replanned path");
+      for(const NodePtr& n:nodes2)
+        ROS_INFO_STREAM(n->getConfiguration().transpose()<<" "<<n);
+
+      assert(0);
+    }
+
+    if(nodes1 != nodes2)
+    {
+      ROS_ERROR("nodi diversi");
+      ROS_INFO_STREAM("nodi sul subpath di current path");
+      for(const NodePtr& n:nodes1)
+        ROS_INFO_STREAM(n->getConfiguration().transpose()<<" "<<n);
+
+      ROS_INFO_STREAM("nodi sul replanned path");
+      for(const NodePtr& n:nodes2)
+        ROS_INFO_STREAM(n->getConfiguration().transpose()<<" "<<n);
+
+      assert(0);
+    }
+    //
+
+    replanned_path->setConnections(current_path->getSubpathFromNode(current_node)->getConnections());
+  }
+  else
+  {
+    std::vector<NodePtr> nodes = current_path->getNodes();
+
+    std::vector<NodePtr>::iterator it_current_node = std::find(nodes.begin(),nodes.end(),current_node);
+    std::vector<NodePtr>::iterator it_node_replan = std::find(nodes.begin(),nodes.end(),node_replan);
+
+    int distance = std::distance(nodes.begin(),it_node_replan)-std::distance(nodes.begin(),it_current_node);
+    if(distance==0)
+    {
+      assert(node_replan == current_node);
+    }
+    else if(distance<0)
+    {
+      //if the current node is ahead of replan node, consider current_node = replan node (so keep replanned path unchanged)
+    }
+    else //distance>0
+    {
+      PathPtr tmp_subpath = current_path->getSubpathFromNode(current_node);
+      tmp_subpath = tmp_subpath->getSubpathToNode(node_replan);
+      std::vector<ConnectionPtr> new_conns = tmp_subpath->getConnections();
+      new_conns.insert(new_conns.end(),replanned_path->getConnectionsConst().begin(),replanned_path->getConnectionsConst().end());
+      replanned_path->setConnections(new_conns);
+    }
+  }
 
   if(replanner->replanNodeIsANewNode() && (node_replan->getConfiguration() != configuration))
   {
@@ -242,15 +314,6 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
         assert(not tree->isInTree(node_replan));
       }
     }
-  }
-
-  if(replanned_path->findConnection(configuration_replan_) == nullptr) //elimina
-  {
-    pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
-    disp->changeConnectionSize({0.03,0.03,0.03});
-    disp->displayPath(old_replanned_path,"pathplan",{0,0,1,1});
-    disp->displayPath(replanned_path,"pathplan",{1,0,0,1});
-    assert(0);
   }
 }
 
