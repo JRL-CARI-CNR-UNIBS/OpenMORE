@@ -105,16 +105,15 @@ int main(int argc, char **argv)
 
   // /////////////////////////////////////////////////////////////////////////////////////////////////////////
   std::string last_link=planning_scene->getRobotModel()->getJointModelGroup(group_name)->getLinkModelNames().back();
-  pathplan::Trajectory trajectory = pathplan::Trajectory(nh,planning_scene,group_name);
+  pathplan::TrajectoryPtr trajectory = std::make_shared<pathplan::Trajectory>(nh,planning_scene,group_name);
 
   pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name,last_link);
-
   ros::Duration(0.1).sleep();
 
   Eigen::VectorXd start_conf = Eigen::Map<Eigen::VectorXd>(start_configuration.data(), start_configuration.size());
-  Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
+  Eigen::VectorXd goal_conf  = Eigen::Map<Eigen::VectorXd>(stop_configuration .data(), stop_configuration .size());
 
-  Eigen::VectorXd delta = (goal_conf-start_conf)/(n_iter);
+  Eigen::VectorXd delta = (goal_conf-start_conf)/(std::max(n_iter-1,1));
   delta[0] = 0.0; //move on plane x=0
 
   pathplan::MetricsPtr metrics;
@@ -123,6 +122,7 @@ int main(int argc, char **argv)
   pathplan::RRTPtr solver;
   pathplan::PathPtr current_path, new_path;
   std::vector<pathplan::PathPtr> other_paths;
+  pathplan::ReplannerManagerBasePtr replanner_manager;
 
   int id_start,id_goal;
   double distance;
@@ -162,7 +162,7 @@ int main(int argc, char **argv)
     solver->setMaxDistance(max_distance);
 
     std::srand(std::time(NULL));
-    current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
+    current_path = trajectory->computePath(start_conf,goal_conf,solver,true);
 
     if(!current_path)
     {
@@ -173,7 +173,7 @@ int main(int argc, char **argv)
     }
 
     // //////////////////////////////////////////DEFINING THE REPLANNER//////////////////////////////////////////////
-    pathplan::ReplannerManagerBasePtr replanner_manager = nullptr;
+    replanner_manager.reset();
     if(replanner_type == "MPRRT")
     {
       replanner_manager.reset(new pathplan::ReplannerManagerMPRRT(current_path,solver,nh));
@@ -202,7 +202,7 @@ int main(int argc, char **argv)
       for(unsigned int i=0;i<n_other_paths;i++)
       {
         solver = std::make_shared<pathplan::RRT>(metrics,checker,sampler);
-        new_path = trajectory.computePath(start_conf,goal_conf,solver,true);
+        new_path = trajectory->computePath(start_conf,goal_conf,solver,true);
 
         other_paths.clear();
         if(new_path)

@@ -15,6 +15,10 @@ ReplannerManagerBase::ReplannerManagerBase(const PathPtr &current_path,
   subscribeTopicsAndServices();
 }
 
+ReplannerManagerBase::~ReplannerManagerBase()
+{
+}
+
 void ReplannerManagerBase::fromParam()
 {
   if(!nh_.getParam("trj_execution_thread_frequency",trj_exec_thread_frequency_))
@@ -129,7 +133,12 @@ void ReplannerManagerBase::attributeInitialization()
   const robot_state::JointModelGroup* joint_model_group = state.getJointModelGroup(group_name_);
   std::vector<std::string> joint_names = joint_model_group->getActiveJointModelNames();
 
+  ROS_WARN("CLONE");
   current_path_shared_ = current_path_replanning_->clone();
+  ROS_WARN("PRINT current_path_replanning_");
+  current_path_replanning_->getWaypoints();
+  ROS_WARN("PRINT current_path_shared_");
+  current_path_shared_->getWaypoints();
 
   checker_cc_         = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_cc_,        group_name_,10,checker_resolution_);
   checker_replanning_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_,group_name_,10,checker_resolution_);

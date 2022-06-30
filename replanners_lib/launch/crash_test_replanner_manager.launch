@@ -12,8 +12,8 @@
         name="crash_test_replanner_managers"
         type="crash_test_replanner_managers"
         output="screen"
-        launch-prefix="valgrind --leak-check=full" >
-        <!-- launch-prefix="gdb -ex run -XXXXX-args" > aggiungi trattino -->
+        launch-prefix="gdb -ex run --args">
+        <!-- "valgrind -XX-leak-check=full" --> 
   </node>
 
 </launch>

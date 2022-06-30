@@ -49,6 +49,7 @@ public:
                 const PathPtr &current_path,
                 const double &max_time,
                 const TreeSolverPtr& solver);
+  ~ReplannerBase();
 
   PathPtr getReplannedPath()
   {

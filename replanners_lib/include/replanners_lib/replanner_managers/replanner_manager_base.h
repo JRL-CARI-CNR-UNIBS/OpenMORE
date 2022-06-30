@@ -140,6 +140,7 @@ public:
   ReplannerManagerBase(const PathPtr &current_path,
                        const TreeSolverPtr &solver,
                        const ros::NodeHandle &nh);
+  ~ReplannerManagerBase();
 
   trajectory_msgs::JointTrajectoryPoint getJointTarget()
   {

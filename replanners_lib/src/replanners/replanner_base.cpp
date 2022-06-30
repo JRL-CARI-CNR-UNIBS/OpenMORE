@@ -26,4 +26,9 @@ ReplannerBase::ReplannerBase(const Eigen::VectorXd& current_configuration,
   disp_ = nullptr;
   verbose_ = false;
 }
+
+ReplannerBase::~ReplannerBase()
+{
+}
+
 }
