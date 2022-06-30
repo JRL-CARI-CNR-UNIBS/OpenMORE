@@ -13,7 +13,7 @@ bool checkTreeNodes(const TreePtr& tree) //ELIMINA
     if(n == root)
       continue;
 
-    if(n->parent_connections_.size() != 1)
+    if(n->getParentConnectionsSize() != 1)
       assert(0);
   }
   return true;
@@ -91,13 +91,13 @@ void DynamicRRT::fixTree(const NodePtr& node_replan, const NodePtr& root, std::v
 
     if(std::find(old_nodes.begin(),old_nodes.end(),node_replan) == old_nodes.end()) //if the node_replan has been added to the path and tree, remove it. If it was already present, do not remove it
     {
-      assert(node_replan->parent_connections_.size() == 1 && node_replan->child_connections_.size() == 1);
+      assert(node_replan->getParentConnectionsSize() == 1 && node_replan->getChildConnectionsSize() == 1);
 
       NodePtr parent = node_replan->getParents().front();
       NodePtr child = node_replan->getChildren().front();
 
       ConnectionPtr conn = std::make_shared<Connection>(parent,child);
-      double cost = node_replan->parent_connections_.front()->getCost()+child->parent_connections_.front()->getCost();
+      double cost = node_replan->parentConnection(0)->getCost()+child->parentConnection(0)->getCost();
       conn->setCost(cost);
       conn->add();
 
@@ -177,8 +177,8 @@ bool DynamicRRT::trimInvalidTree(NodePtr& node, std::vector<ConnectionPtr>& chec
 
     for(const NodePtr& n:tree->getNodes())
     {
-      assert(((n->parent_connections_.size() == 1) && (n!=tree->getRoot())) || (n == tree->getRoot()));
-      if(n->child_connections_.empty())
+      assert(((n->getParentConnectionsSize() == 1) && (n!=tree->getRoot())) || (n == tree->getRoot()));
+      if(n->getChildConnectionsSize() == 0)
         leaves.push_back(n);
     }
 
@@ -273,7 +273,7 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
       {
         if(checker_->checkPath(new_node->getConfiguration(), node->getConfiguration()))
         {
-          if(not node->parent_connections_.empty() && not node->child_connections_.empty())
+          if(not (node->getParentConnectionsSize() == 0) && not (node->getChildConnectionsSize() == 0))
           {
             ROS_INFO_STREAM("node:\n"<<*node);
             assert(0);
@@ -299,7 +299,7 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
           {
             if(replanned_path_->getConnections().at(i)->norm() <1e-06)
             {
-              if(replanned_path_->getConnections().at(i)->getParent()->child_connections_.size() == 1)
+              if(replanned_path_->getConnections().at(i)->getParent()->getChildConnectionsSize() == 1)
               {
                 ConnectionPtr conn = std::make_shared<Connection>(replanned_path_->getConnections().at(i-1)->getParent(),replanned_path_->getConnections().at(i)->getChild());
                 double cost = metrics_->cost(replanned_path_->getConnections().at(i-1)->getParent(),replanned_path_->getConnections().at(i)->getChild());
@@ -311,7 +311,7 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
                 replanned_path_ = std::make_shared<Path>(trimmed_tree_->getConnectionToNode(goal_node_), metrics_, checker_);
                 break;
               }
-              else if(replanned_path_->getConnections().at(i)->getChild()->child_connections_.size() == 1)
+              else if(replanned_path_->getConnections().at(i)->getChild()->getChildConnectionsSize() == 1)
               {
                 ConnectionPtr conn = std::make_shared<Connection>(replanned_path_->getConnections().at(i)->getParent(),replanned_path_->getConnections().at(i+1)->getChild());
                 double cost = metrics_->cost(replanned_path_->getConnections().at(i)->getParent(),replanned_path_->getConnections().at(i+1)->getChild());

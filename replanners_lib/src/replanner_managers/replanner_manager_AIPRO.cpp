@@ -161,16 +161,16 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
 
   if(old_current_node_ && (old_current_node_->getConfiguration() != configuration) && old_current_node_ != node_replan)
   {
-    if((old_current_node_->parent_connections_.size()+old_current_node_->net_parent_connections_.size()) == 1)
+    if((old_current_node_->getParentConnectionsSize()+old_current_node_->getNetParentConnectionsSize()) == 1)
     {
-      if((old_current_node_->child_connections_.size()+old_current_node_->net_child_connections_.size()) == 1)
+      if((old_current_node_->getChildConnectionsSize()+old_current_node_->getNetChildConnectionsSize()) == 1)
       {
         /* Remove the old node detaching it from the tree, restore the old connection and set it as initial
          * connection of current path to be able to insert the new current node */
 
         ConnectionPtr parent_conn;
-        (old_current_node_->parent_connections_.size()>0)? (parent_conn = old_current_node_->parent_connections_.front()):
-                                                           (parent_conn = old_current_node_->net_parent_connections_.front());
+        (old_current_node_->getParentConnectionsSize()>0)? (parent_conn = old_current_node_->parentConnection(0)):
+                                                           (parent_conn = old_current_node_->netParentConnection(0));
 
         assert(tree->isInTree(parent_conn->getParent()));
 

@@ -20,7 +20,7 @@ void checkNewBranch(const std::vector<ConnectionPtr> &branch) //ELIMINA
 {
   for(const ConnectionPtr& conn:branch)
   {
-    if(conn->getChild()->parent_connections_.size() != 1)
+    if(conn->getChild()->getParentConnectionsSize() != 1)
     {
       ROS_INFO_STREAM("Node is unconnected: "<<conn->getChild()->getConfiguration().transpose());
       plotBranch(branch);
@@ -48,7 +48,7 @@ bool checkTree(const TreePtr& tree) //ELIMINA
     if(n == root)
       continue;
 
-    if(n->parent_connections_.size() != 1)
+    if(n->getParentConnectionsSize() != 1)
       return false;
   }
   return true;
