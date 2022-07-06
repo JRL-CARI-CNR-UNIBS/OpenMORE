@@ -324,7 +324,7 @@ std::vector<node_and_path> AIPRO::sortNodesOnDistance(const NodePtr& start_node)
 
     for(const NodePtr& n:nodes)
     {
-      if((n->getConfiguration() - start_node->getConfiguration()).norm()<Path::TOLERANCE)
+      if((n->getConfiguration() - start_node->getConfiguration()).norm()<TOLERANCE)
         continue;
 
       node_and_path n_p;
@@ -1394,8 +1394,8 @@ PathPtr AIPRO::getSubpath1(NodePtr& current_node)
   current_node = nullptr;
   std::vector<NodePtr> current_path_nodes = current_path_->getNodes();
 
-  assert(Path::TOLERANCE>0);
-  if((current_configuration_-current_path_nodes.back()->getConfiguration()).norm()<Path::TOLERANCE)
+  assert(TOLERANCE>0);
+  if((current_configuration_-current_path_nodes.back()->getConfiguration()).norm()<TOLERANCE)
   {
     ROS_WARN("The current node is the goal!");
     current_node = current_path_nodes.back();
@@ -1405,7 +1405,7 @@ PathPtr AIPRO::getSubpath1(NodePtr& current_node)
 
   for(unsigned int i=0;i<current_path_nodes.size()-1;i++)
   {
-    if((current_configuration_-current_path_nodes.at(i)->getConfiguration()).norm()<Path::TOLERANCE)
+    if((current_configuration_-current_path_nodes.at(i)->getConfiguration()).norm()<TOLERANCE)
     {
       current_node = current_path_nodes.at(i);
       return current_path_->getSubpathFromNode(current_node);

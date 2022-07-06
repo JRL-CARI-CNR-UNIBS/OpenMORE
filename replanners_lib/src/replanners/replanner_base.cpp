@@ -11,7 +11,7 @@ ReplannerBase::ReplannerBase(const Eigen::VectorXd& current_configuration,
   current_path_ = current_path;
   replanned_path_ = current_path;
 
-  goal_node_ = current_path->getConnections().back()->getChild();
+  goal_node_ = current_path_->getGoalNode();
 
   solver_  = solver;
   metrics_ = solver->getMetrics();

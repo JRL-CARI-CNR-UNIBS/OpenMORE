@@ -13,7 +13,8 @@
         type="crash_test_replanner_managers"
         output="screen"
         launch-prefix="gdb -ex run --args">
-        <!-- "valgrind -XX-leak-check=full" --> 
+        <!-- "gdb -ex run -XX-args" -->
+        <!-- valgrind -XX-leak-check=full -->
   </node>
 
 </launch>

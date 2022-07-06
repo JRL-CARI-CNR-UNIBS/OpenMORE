@@ -2,23 +2,6 @@
 
 namespace pathplan
 {
-
-bool checkTreeNodes(const TreePtr& tree) //ELIMINA
-{
-  std::vector<NodePtr> nodes = tree->getNodes();
-  NodePtr root = tree->getRoot();
-
-  for(const NodePtr& n:nodes)
-  {
-    if(n == root)
-      continue;
-
-    if(n->getParentConnectionsSize() != 1)
-      assert(0);
-  }
-  return true;
-}
-
 DynamicRRT::DynamicRRT(Eigen::VectorXd& current_configuration,
                        PathPtr& current_path,
                        const double& max_time,
@@ -113,8 +96,6 @@ void DynamicRRT::fixTree(const NodePtr& node_replan, const NodePtr& root, std::v
 
 bool DynamicRRT::trimInvalidTree(NodePtr& node, std::vector<ConnectionPtr>& checked_connections)
 {
-  checkTreeNodes(current_path_->getTree()); //elimina
-
   ros::WallTime tic = ros::WallTime::now();
 
   bool trimmed = false;
@@ -161,12 +142,7 @@ bool DynamicRRT::trimInvalidTree(NodePtr& node, std::vector<ConnectionPtr>& chec
     }
   }
 
-  checkTreeNodes(current_path_->getTree()); //elimina
-
   //Now check the remaining tree
-
-  int iter = 0; //elimina
-
   bool trimmed_again;
   do
   {
@@ -203,12 +179,6 @@ bool DynamicRRT::trimInvalidTree(NodePtr& node, std::vector<ConnectionPtr>& chec
           break;
       }
     }
-
-    ROS_INFO_STREAM("Iter trim: "<<iter);
-    checkTreeNodes(current_path_->getTree()); //elimina
-
-    iter++;
-
   }while(trimmed_again);
 
   trimmed_tree_ = tree;
@@ -231,8 +201,6 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
     assert(0);
   }
 
-  checkTreeNodes(current_path_->getTree()); //elimina
-
   if(not tree_is_trimmed_)
   {
     //Trim the tree
@@ -250,8 +218,6 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
   double perc = ((ros::WallTime::now()-tic).toSec()/max_time_)*100;
   ROS_WARN_STREAM("tempo impiegato "<<perc<< "%"); //ELIMINA
 
-  checkTreeNodes(current_path_->getTree()); //elimina
-
   //Regrow the tree
   double max_distance = trimmed_tree_->getMaximumDistance();
   assert(max_distance>0.0);
@@ -266,8 +232,6 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
     //if(trimmed_tree_->extendWithPathCheck(conf,new_node,checked_connections))
     if(trimmed_tree_->extend(conf,new_node))
     {
-      checkTreeNodes(current_path_->getTree()); //elimina
-
       ROS_INFO_STREAM("new_node: "<<new_node->getConfiguration().transpose()<<" conf: "<<conf.transpose()); //ELIMINA
       if((new_node->getConfiguration() - node->getConfiguration()).norm() < max_distance)
       {
@@ -286,8 +250,6 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
           checked_connections.push_back(conn);
 
           trimmed_tree_->addNode(node);
-
-          checkTreeNodes(current_path_->getTree()); //elimina
 
           //Set the root in the node and extract the new path
           trimmed_tree_->changeRoot(node);
@@ -326,8 +288,6 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
             }
           }
           // FINO A QUA
-
-          checkTreeNodes(current_path_->getTree()); //elimina
 
           solver_->setStartTree(trimmed_tree_);
           solver_->setSolution(replanned_path_,true);
@@ -368,20 +328,14 @@ bool DynamicRRT::replan()
     NodePtr root = current_path_->getTree()->getRoot();
     assert(root == current_path_->getConnections().front()->getParent());
 
-    checkTreeNodes(current_path_->getTree()); //elimina
-
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
     NodePtr node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true,is_a_new_node_);
-
-    checkTreeNodes(current_path_->getTree()); //elimina
 
     if(verbose_)
       ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
 
     if(not regrowRRT(node_replan)) //root is goal
       fixTree(node_replan,root,path_nodes,connections_costs);
-
-    checkTreeNodes(current_path_->getTree()); //elimina
   }
   else //replan not needed
   {

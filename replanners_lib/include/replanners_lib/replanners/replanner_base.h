@@ -51,12 +51,20 @@ public:
                 const TreeSolverPtr& solver);
   ~ReplannerBase();
 
-  PathPtr getReplannedPath()
+  PathPtr getReplannedPath() const
   {
+    //elimina
+    for(const pathplan::NodePtr& n:replanned_path_->getNodes())
+      assert(n != nullptr);
+
+    for(const pathplan::ConnectionPtr& c:replanned_path_->getConnections())
+      assert((c->getParent() != nullptr) && (c->getChild() != nullptr));
+    //
+
     return replanned_path_;
   }
 
-  PathPtr getCurrentPath()
+  PathPtr getCurrentPath() const
   {
     return current_path_;
   }
@@ -89,17 +97,17 @@ public:
     success_ = false;
   }
 
-  NodePtr getGoal()
+  NodePtr getGoal() const
   {
     return goal_node_;
   }
 
-  Eigen::VectorXd getCurrentConf()
+  Eigen::VectorXd getCurrentConf() const
   {
     return current_configuration_;
   }
 
-  TreeSolverPtr getSolver()
+  TreeSolverPtr getSolver() const
   {
     return solver_;
   }
@@ -119,17 +127,17 @@ public:
     disp_ = disp;
   }
 
-  DisplayPtr getDisp()
+  DisplayPtr getDisp() const
   {
     return disp_;
   }
 
-  bool replanNodeIsANewNode()
+  bool replanNodeIsANewNode() const
   {
     return is_a_new_node_;
   }
 
-  bool getSuccess()
+  bool getSuccess() const
   {
     return success_;
   }

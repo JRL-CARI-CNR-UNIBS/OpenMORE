@@ -3,6 +3,15 @@
 namespace pathplan
 {
 
+void checkPath(const PathPtr& p) //elimina
+{
+  for(const NodePtr& n:p->getNodes())
+    assert(n != nullptr);
+
+  for(const ConnectionPtr& c:p->getConnections())
+    assert((c->getParent() != nullptr) && (c->getChild() != nullptr));
+}
+
 ReplannerManagerBase::ReplannerManagerBase(const PathPtr &current_path,
                                            const TreeSolverPtr &solver,
                                            const ros::NodeHandle &nh)
@@ -65,10 +74,10 @@ void ReplannerManagerBase::fromParam()
     goal_tol_ = 1.0e-03;
   else
   {
-    if(goal_tol_<Path::TOLERANCE)
+    if(goal_tol_<TOLERANCE)
     {
-      goal_tol_ = Path::TOLERANCE;
-      ROS_WARN("goal_tol set equal to Path::TOLERANCE (%f), it can't be less than that value", Path::TOLERANCE);
+      goal_tol_ = TOLERANCE;
+      ROS_WARN("goal_tol set equal to TOLERANCE (%f), it can't be less than that value", TOLERANCE);
     }
   }
 
@@ -167,7 +176,7 @@ void ReplannerManagerBase::attributeInitialization()
     point2project(i) = pnt_replan_.positions.at(i);
 
   configuration_replan_  = current_path_shared_->projectOnClosestConnection(point2project);
-  current_configuration_ = current_path_shared_->getConnections().front()->getParent()->getConfiguration();
+  current_configuration_ = current_path_shared_->getStartNode()->getConfiguration();
 
   initReplanner();
   replanner_->setVerbosity(replanner_verbosity_);
@@ -253,6 +262,10 @@ void ReplannerManagerBase::updateSharedPath()
 void ReplannerManagerBase::syncPathCost()
 {
   paths_mtx_.lock();
+
+  checkPath(current_path_replanning_);
+  checkPath(current_path_shared_);
+
   std::vector<ConnectionPtr> current_path_conn        = current_path_replanning_->getConnections();
   std::vector<ConnectionPtr> current_path_shared_conn = current_path_shared_    ->getConnections();
 
@@ -331,6 +344,7 @@ void ReplannerManagerBase::replanningThread()
       paths_mtx_.lock();
       past_configuration_replan = configuration_replan_;
       path2project_on = current_path_shared_->clone();
+      checkPath(path2project_on); //elimina
       paths_mtx_.unlock();
 
       projection = path2project_on->projectOnClosestConnection(point2project);
@@ -347,6 +361,7 @@ void ReplannerManagerBase::replanningThread()
       scene_mtx_.unlock();
 
       replanner_mtx_.lock();
+      checkPath(current_path_replanning_); //elimina
       if(not (current_path_replanning_->findConnection(configuration_replan_)))
       {
         ROS_WARN("configuration replan not found on path");
@@ -391,9 +406,21 @@ void ReplannerManagerBase::replanningThread()
         replanner_mtx_.lock();
         trj_mtx_.lock();
 
+        checkPath(current_path_replanning_); //elimina
+        checkPath(replanner_->getReplannedPath()); //elimina
+
+
         startReplannedPathFromNewCurrentConf(current_configuration_);
 
+        ROS_INFO("0");
         current_path_replanning_ = replanner_->getReplannedPath();
+        ROS_INFO("1");
+        checkPath(replanner_->getReplannedPath()); //elimina
+        ROS_INFO("2");
+
+        checkPath(current_path_replanning_); //elimina
+        ROS_INFO("3");
+
         replanner_->setCurrentPath(current_path_replanning_);
 
         paths_mtx_.lock();
@@ -401,6 +428,7 @@ void ReplannerManagerBase::replanningThread()
         paths_mtx_.unlock();
 
         PathPtr trj_path = current_path_replanning_->clone();
+        checkPath(trj_path); //elimina
         ROS_INFO_STREAM("trj_path size: "<<trj_path->getConnectionsSize());
         trj_path->removeNodes(); //remove useless nodes to speed up the trj (does not affect the tree because its a cloned path)
         ROS_INFO_STREAM("new trj_path size: "<<trj_path->getConnectionsSize());
@@ -451,6 +479,7 @@ void ReplannerManagerBase::collisionCheckThread()
   Eigen::VectorXd current_configuration_copy;
 
   PathPtr current_path_copy = current_path_shared_->clone();
+  checkPath(current_path_copy); //elimina
   current_path_copy->setChecker(checker_cc_);
 
   ros::Rate lp(collision_checker_thread_frequency_);
@@ -491,6 +520,7 @@ void ReplannerManagerBase::collisionCheckThread()
     if(current_path_sync_needed_)
     {
       current_path_copy = current_path_shared_->clone();
+      checkPath(current_path_copy); //elimina
       current_path_copy->setChecker(checker_cc_);
       current_path_sync_needed_ = false;
     }
@@ -615,6 +645,8 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
   while((not stop_) && ros::ok())
   {
+    checkPath(current_path_shared_); //elimina
+
     tic = ros::WallTime::now();
     real_time_ += dt_;
 
@@ -634,6 +666,7 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
     paths_mtx_.lock();
     path2project_on = current_path_shared_->clone();
+    checkPath(path2project_on); //elimina
     paths_mtx_.unlock();
 
     interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling_);
@@ -646,7 +679,7 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     past_abscissa = abscissa_current_configuration_;
     past_current_configuration = current_configuration_;
     current_configuration_ = path2project_on->projectOnClosestConnection(point2project);
-//    current_configuration_ = path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_current_configuration,abscissa_current_configuration_,past_abscissa,n_conn_);
+    //    current_configuration_ = path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_current_configuration,abscissa_current_configuration_,past_abscissa,n_conn_);
 
     ROS_INFO_STREAM("current abscissa: "<<abscissa_current_configuration_<<" replan abscissa: "<<abscissa_replan_configuration<<" delta curr pos: "<<(current_configuration_-past_current_configuration).norm());
 

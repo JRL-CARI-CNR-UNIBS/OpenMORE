@@ -113,7 +113,7 @@ bool DynamicRRTStar::connectBehindObs(NodePtr& node)
           if(not (replan_goal->getParentConnectionsSize() == 0))
           {
             replan_goal->parentConnection(0)->remove();    //delete the connection between replan_goal and the old parent, because now the parents of replan_goal come from new_node
-            assert(replan_goal->getChildConnectionsSize() == 0);
+            assert(replan_goal->getParentConnectionsSize() == 0);
           }
 
           double cost = metrics_->cost(new_node->getConfiguration(),replan_goal->getConfiguration());

@@ -3,75 +3,6 @@
 namespace pathplan
 {
 
-void plotBranch(const std::vector<ConnectionPtr> &branch) //ELIMINA
-{
-  for(const ConnectionPtr& conn:branch) //ELIMINA
-  {
-    ROS_INFO_STREAM("bn p: "<<conn->getParent()->getConfiguration().transpose()<<" "<<conn->getParent());
-    ROS_INFO_STREAM("bn c: "<<conn->getChild()->getConfiguration().transpose()<<" "<<conn->getChild());
-  }
-
-  ROS_INFO_STREAM("bn: "<<(branch.front()->getParent())<<"\n"<<*(branch.front()->getParent()));
-  for(const ConnectionPtr& conn:branch)
-    ROS_INFO_STREAM("bn: "<<conn->getChild()<<"\n"<<*conn->getChild()<<" its_parent: "<<conn->getChild()->getParents().front()->getConfiguration().transpose());
-}
-
-void checkNewBranch(const std::vector<ConnectionPtr> &branch) //ELIMINA
-{
-  for(const ConnectionPtr& conn:branch)
-  {
-    if(conn->getChild()->getParentConnectionsSize() != 1)
-    {
-      ROS_INFO_STREAM("Node is unconnected: "<<conn->getChild()->getConfiguration().transpose());
-      plotBranch(branch);
-      assert(0);
-    }
-    if(conn->norm() == 0)
-    {
-      for(const ConnectionPtr& conn:branch)
-      {
-        ROS_WARN_STREAM("branch p"<<conn->getParent()->getConfiguration().transpose());
-        ROS_WARN_STREAM("branch c"<<conn->getChild()->getConfiguration().transpose());
-      }
-      assert(0);
-    }
-  }
-}
-
-bool checkTree(const TreePtr& tree) //ELIMINA
-{
-  std::vector<NodePtr> nodes = tree->getNodes();
-  NodePtr root = tree->getRoot();
-
-  for(const NodePtr& n:nodes)
-  {
-    if(n == root)
-      continue;
-
-    if(n->getParentConnectionsSize() != 1)
-      return false;
-  }
-  return true;
-}
-
-void plotTree(const TreePtr& tree) //ELIMINA
-{
-  std::vector<NodePtr> nodes = tree->getNodes();
-  NodePtr root = tree->getRoot();
-
-  ROS_INFO("Tree nodes");
-
-  for(const NodePtr& n:nodes)
-  {
-    if(n == root)
-      continue;
-
-    ROS_INFO_STREAM(*n);
-  }
-
-  ROS_INFO_STREAM("Root:"<<root<<"\n"<<*root);
-}
-
 ReplannerManagerDRRT::ReplannerManagerDRRT(const PathPtr &current_path,
                                            const TreeSolverPtr &solver,
                                            const ros::NodeHandle &nh):ReplannerManagerBase(current_path,solver,nh)
@@ -84,7 +15,6 @@ ReplannerManagerDRRT::ReplannerManagerDRRT(const PathPtr &current_path,
 
 void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
 {
-  ROS_INFO("------");
   paths_mtx_.lock();
   PathPtr current_path_copy = current_path_shared_->clone();
   current_path_copy->setChecker(checker_replanning_);
@@ -93,20 +23,9 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
   std::vector<ConnectionPtr> path_connections;
 
   PathPtr replanned_path = replanner_->getReplannedPath();
+  NodePtr replanned_path_start = replanned_path->getStartNode();
+  NodePtr goal = replanned_path->getGoalNode();
   TreePtr tree = replanned_path->getTree();
-  NodePtr goal = replanned_path->getConnections().back()->getChild();
-  NodePtr replanned_path_start = replanned_path->getConnections().front()->getParent();
-
-  ROS_INFO_STREAM("ddrt goal "<<goal->getConfiguration()<<" "<<goal); //ELIMINA
-
-  if(not checkTree(tree)) //ELIMINA
-  {
-    plotTree(tree);
-    ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-    ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-    assert(0);
-  }
 
   assert(goal == replanner_->getGoal());
   assert(tree->isInTree(replanned_path_start));
@@ -114,33 +33,14 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
   //If the configuration matches to a node of the replanned path
   for(const NodePtr& node:replanned_path->getNodes())
   {
-    if(node->getConfiguration() == configuration)
+    if((node->getConfiguration()-configuration).norm()<TOLERANCE)
     {
       assert(node->getConfiguration() != replanned_path->getWaypoints().back());
       assert(tree->isInTree(node));
 
-      if(not checkTree(tree)) //ELIMINA
-      {
-        plotTree(tree);
-        ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-        ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-        assert(0);
-      }
-
-      ROS_INFO("QUA0");
       tree->changeRoot(node);
       path_connections = tree->getConnectionToNode(goal);
       replanned_path->setConnections(path_connections);
-
-      if(not checkTree(tree)) //ELIMINA
-      {
-        plotTree(tree);
-        ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-        ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-        assert(0);
-      }
 
       return;
     }
@@ -154,26 +54,14 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
   double abscissa_current_conf = current_path_copy->curvilinearAbscissaOfPoint(configuration,idx_current_conf);
   double abscissa_replanned_path_start = current_path_copy->curvilinearAbscissaOfPoint(replanned_path_start->getConfiguration(),idx_replanned_path_start);
 
-  if(abscissa_current_conf == abscissa_replanned_path_start)     //Double check..
-  {
+  assert(abscissa_current_conf != abscissa_replanned_path_start);
 
-    if(not checkTree(tree)) //ELIMINA
-    {
-      plotTree(tree);
-      ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-      ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-      assert(0);
-    }
-
-    return;
-  }
-  else if(abscissa_current_conf < abscissa_replanned_path_start)
+  if(abscissa_current_conf < abscissa_replanned_path_start)
   {
     ROS_INFO("abscissa_current_conf < abscissa_replanned_path_start");
     try
     {
-      new_tree_branch = current_path_copy->getSubpathToConf(replanned_path_start->getConfiguration(),true);
+      new_tree_branch = current_path_copy->getSubpathToConf(replanned_path_start->getConfiguration(),false);
     }
     catch(...)
     {
@@ -182,20 +70,13 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
         ROS_INFO_STREAM("CURRENT PATH COPY WP: "<<wp.transpose());
     }
 
-//    ROS_INFO("TO REPLANNED");
-//    plotBranch(new_tree_branch->getConnectionsConst()); //ELIMINA
-
-    new_tree_branch = new_tree_branch->getSubpathFromConf(configuration,true);
-//    ROS_INFO("FROM CONF");
-//    plotBranch(new_tree_branch->getConnectionsConst()); //ELIMINA
-
+    new_tree_branch = new_tree_branch->getSubpathFromConf(configuration,false);
+    new_tree_branch = new_tree_branch->clone(); //if you not clone, you flip only a part of current_path_copy and this crates nodes with more than one parent and nodes with zero parents
     new_tree_branch->flip();
-//    ROS_INFO("FLIPPED");
-//    plotBranch(new_tree_branch->getConnectionsConst()); //ELIMINA
 
     std::vector<ConnectionPtr> new_tree_branch_connections = new_tree_branch->getConnections();
-//    ROS_INFO("BEFORE CHANGING FIRST CONNECTION");
-//    plotBranch(new_tree_branch_connections); //ELIMINA
+    current_node = new_tree_branch_connections.back()->getChild();
+    assert(current_node->getConfiguration() == configuration);
 
     ConnectionPtr conn2delete = new_tree_branch_connections.at(0);
     NodePtr child = conn2delete->getChild();
@@ -206,52 +87,15 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
 
     conn2delete->remove();
 
-    if(not checkTree(tree)) //ELIMINA
-    {
-      plotTree(tree);
-      ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-      ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-      assert(0);
-    }
-
     new_tree_branch_connections.at(0) = new_conn;
-
-    current_node = new_tree_branch_connections.back()->getChild();
-    assert(current_node->getConfiguration() == configuration);
-
-    checkNewBranch(new_tree_branch_connections); //ELIMINA
-//    ROS_INFO("AFTER CHANGING FIRST CONNECTION");
-//    plotBranch(new_tree_branch_connections); //ELIMINA
 
     if(not tree->addBranch(new_tree_branch_connections))
       ROS_ERROR("Branch from current node not added to the replanned tree");
 
     assert(tree->isInTree(current_node));
 
-    if(not checkTree(tree)) //ELIMINA
-    {
-      plotTree(tree);
-      ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-      ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-      assert(0);
-    }
-
-    ROS_INFO("QUA1");
-    ROS_INFO_STREAM("curr node \n"<<*current_node);
-    ROS_INFO_STREAM("repl node \n"<<*replanned_path_start);
     if(not tree->changeRoot(current_node))
       ROS_ERROR("Root can't be changed to current node");
-
-    if(not checkTree(tree)) //ELIMINA
-    {
-      plotTree(tree);
-      ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-      ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-      assert(0);
-    }
 
     path_connections = tree->getConnectionToNode(goal);
     replanned_path->setConnections(path_connections);
@@ -286,30 +130,10 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
       conn->add();
 
       tree->addNode(current_node);
-
-      if(not checkTree(tree)) //ELIMINA
-      {
-        plotTree(tree);
-        ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-        ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-        assert(0);
-      }
-
       assert(tree->isInTree(current_node));
 
-      ROS_INFO("QUA2");
       if(not tree->changeRoot(current_node))
         ROS_ERROR("Root can't be changed to current node");
-
-      if(not checkTree(tree)) //ELIMINA
-      {
-        plotTree(tree);
-        ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-        ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-        assert(0);
-      }
 
       path_connections = tree->getConnectionToNode(goal);
       replanned_path->setConnections(path_connections);
@@ -321,7 +145,7 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
       ROS_INFO("no conn");
       try
       {
-        new_tree_branch = current_path_copy->getSubpathToConf(configuration,true);
+        new_tree_branch = current_path_copy->getSubpathToConf(configuration,false);
       }
       catch(...)
       {
@@ -330,7 +154,7 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
           ROS_INFO_STREAM("CURRENT PATH COPY WP: "<<wp.transpose());
       }
 
-      new_tree_branch = new_tree_branch->getSubpathFromConf(replanned_path_start->getConfiguration(),true);
+      new_tree_branch = new_tree_branch->getSubpathFromConf(replanned_path_start->getConfiguration(),false);
 
       std::vector<ConnectionPtr> new_tree_branch_connections = new_tree_branch->getConnections();
 
@@ -364,97 +188,34 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
         NodePtr parent = replanned_path->getConnections().at(idx)->getChild();
         NodePtr child = conn2delete->getChild();
 
-        if(not checkTree(tree)) //ELIMINA
-        {
-          plotTree(tree);
-          ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-          ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-          assert(0);
-        }
-
         new_conn = std::make_shared<Connection>(parent,child);
         new_conn->setCost(conn2delete->getCost());
         new_conn->add();
 
         conn2delete->remove();
-
-        if(not checkTree(tree)) //ELIMINA
-        {
-          plotTree(tree);
-          ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-          ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-          assert(0);
-        }
       }
       else
       {
         ConnectionPtr conn2delete = new_tree_branch_connections.at(0);
         NodePtr child = conn2delete->getChild();
 
-        if(not checkTree(tree)) //ELIMINA
-        {
-          plotTree(tree);
-          ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-          ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-          assert(0);
-        }
-
         new_conn = std::make_shared<Connection>(replanned_path_start,child);
         new_conn->setCost(conn2delete->getCost());
         new_conn->add();
 
         conn2delete->remove();
-
-        if(not checkTree(tree)) //ELIMINA
-        {
-          plotTree(tree);
-          ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-          ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-          assert(0);
-        }
       }
 
       new_tree_branch_connections.at(0) = new_conn;
 
       current_node = new_tree_branch_connections.back()->getChild();
 
-      checkNewBranch(new_tree_branch_connections); //ELIMINA
-
-      plotBranch(new_tree_branch_connections); //ELIMINA
-
       if(not tree->addBranch(new_tree_branch_connections))
         ROS_ERROR("Branch from current node not added to the replanned tree");
 
-      if(not checkTree(tree)) //ELIMINA
-      {
-        plotTree(tree);
-        ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-        ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-        assert(0);
-      }
-
       assert(tree->isInTree(current_node));
-
-      ROS_INFO("QUA3");
-      ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-      ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
       if(not tree->changeRoot(current_node))
         ROS_ERROR("Root can't be changed to current node");
-
-      if(not checkTree(tree)) //ELIMINA
-      {
-        plotTree(tree);
-        ROS_INFO_STREAM("Current conf"<<configuration.transpose());
-        ROS_INFO_STREAM("Replan start:"<<replanned_path_start<<"\n"<<*replanned_path_start);
-
-        assert(0);
-      }
 
       path_connections = tree->getConnectionToNode(goal);
       replanned_path->setConnections(path_connections);
