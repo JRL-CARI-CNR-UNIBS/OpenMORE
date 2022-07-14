@@ -148,16 +148,16 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
 
   PathPtr current_path   = replanner->getCurrentPath();
   PathPtr replanned_path = replanner->getReplannedPath();
-  NodePtr node_replan    = replanned_path->getConnections().front()->getParent();
+  NodePtr node_replan    = replanned_path->getStartNode();
 
   TreePtr tree = current_path->getTree();
 
+  ROS_INFO("IN START REP PATH FROM NEW CURR CONF"); //elimina
   ROS_INFO_STREAM("current path: "<<*current_path);
+  ROS_INFO_STREAM("replanned path: "<<*replanned_path);
+  ROS_WARN_STREAM("node replan: "<<node_replan->getConfiguration().transpose()<<" "<<node_replan);
 
-  if(current_path->findConnection(configuration) == nullptr) //ELIMNA
-  {
-    assert(0);
-  }
+  assert(current_path->findConnection(configuration) != nullptr);
 
   if(old_current_node_ && (old_current_node_->getConfiguration() != configuration) && old_current_node_ != node_replan)
   {
@@ -179,13 +179,11 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
         current_path->setConnections(new_conns);
 
         ConnectionPtr restored_conn;
-        if(not current_path->removeNode(old_current_node_,{},restored_conn))
-          ROS_ERROR_STREAM("OLD CURRENT NODE NOT REMOVED!"<<old_current_node_->getConfiguration().transpose());
-        else
+        if(current_path->removeNode(old_current_node_,{},restored_conn))
         {
-          ROS_INFO_STREAM("current path: "<<*current_path); //elimina
+          ROS_INFO_STREAM("old current node removed: "<<old_current_node_->getConfiguration().transpose()<<" "<<old_current_node_); //elimina
+          ROS_INFO_STREAM("restored conn: "<<*restored_conn);//elimina
 
-          ROS_WARN_STREAM(" OLD current node removed: "<<*old_current_node_);
           for(PathPtr& p:other_paths_)
           {
             p->restoreConnection(restored_conn,old_current_node_);
@@ -200,17 +198,14 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
     }
   }
 
+  ROS_INFO("--------");
+  ROS_INFO_STREAM("current path: "<<*current_path); //elimina
+
   int conn_idx;
   bool is_a_new_node;
   ConnectionPtr conn = current_path->findConnection(configuration,conn_idx);
   NodePtr current_node = current_path->addNodeAtCurrentConfig(configuration,conn,true,is_a_new_node);
-
-  double abs_current_node, abs_node_replan;
-  abs_current_node = current_path->curvilinearAbscissaOfPoint(configuration);
-  abs_node_replan  = current_path->curvilinearAbscissaOfPoint(node_replan->getConfiguration());
-
-  ROS_INFO_STREAM("CURRENT NODE: "<<*current_node<<current_node<<"\n"<<is_a_new_node<<"\n abs: "<<abs_current_node); //elimina
-  ROS_INFO_STREAM("REPLAN NODE"<<*node_replan<<node_replan<<"\n abs: "<<abs_node_replan); //elimina
+  ROS_WARN_STREAM("current node: "<<current_node->getConfiguration().transpose()<<" "<<current_node); //elimina
 
   if(is_a_new_node)
   {
@@ -224,7 +219,9 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
   else
     old_current_node_ = nullptr;
 
+  ROS_INFO("--------");
   ROS_INFO_STREAM("current path: "<<*current_path); //elimina
+  ROS_INFO_STREAM("replanned path: "<<*replanned_path); //elimina
 
   if(not replanner->getSuccess())
   {
@@ -263,15 +260,17 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
     //
 
     replanned_path->setConnections(current_path->getSubpathFromNode(current_node)->getConnections());
+    ROS_INFO("1111");
   }
   else
   {
     std::vector<NodePtr> nodes = current_path->getNodes();
 
     std::vector<NodePtr>::iterator it_current_node = std::find(nodes.begin(),nodes.end(),current_node);
-    std::vector<NodePtr>::iterator it_node_replan = std::find(nodes.begin(),nodes.end(),node_replan);
+    std::vector<NodePtr>::iterator it_node_replan  = std::find(nodes.begin(),nodes.end(),node_replan );
 
     int distance = std::distance(nodes.begin(),it_node_replan)-std::distance(nodes.begin(),it_current_node);
+
     if(distance==0)
     {
       assert(node_replan == current_node);
@@ -282,20 +281,62 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
     }
     else //distance>0
     {
+      ROS_INFO_STREAM("current node: "<<current_node->getConfiguration().transpose()<<current_node); //elimina
       PathPtr tmp_subpath = current_path->getSubpathFromNode(current_node);
       tmp_subpath = tmp_subpath->getSubpathToNode(node_replan);
       std::vector<ConnectionPtr> new_conns = tmp_subpath->getConnections();
+
+      for(const ConnectionPtr& c:new_conns)
+        ROS_INFO_STREAM("new conn: "<<*c);
+
+      for(const ConnectionPtr& c:replanned_path->getConnections())
+        ROS_INFO_STREAM("rep conn: "<<*c);
+
       new_conns.insert(new_conns.end(),replanned_path->getConnectionsConst().begin(),replanned_path->getConnectionsConst().end());
+
+      //      //elimina
+      //      MetricsPtr m = std::make_shared<Metrics>();
+      //      PathPtr p_tmp = std::make_shared<Path>(new_conns,m,replanned_path->getChecker());
+      //      for(const NodePtr& n:p_tmp->getNodes())
+      //      {
+      //        int number = 0;
+      //        for(const NodePtr& nn:p_tmp->getNodes())
+      //        {
+      //          if(n == nn)
+      //          {
+      //            number++;
+      //            if(number>1)
+      //            {
+      //              ROS_WARN_STREAM("node replicated: "<<n->getConfiguration().transpose()<<" "<<n);
+
+      //              pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
+      //              disp->displayPath(replanned_path);
+      //              disp->displayPath(replanned_path);
+
+      //              disp->displayNode(n);
+      //              disp->displayNode(n);
+
+
+      //              assert(0);
+      //            }
+      //          }
+      //        }
+      //      }
+      //      //
+
       replanned_path->setConnections(new_conns);
+
+      ROS_INFO("2222"); //elimina
     }
   }
+
+  ROS_INFO("--------");
+  ROS_INFO_STREAM("replanned path: "<<*replanned_path); //elimina
 
   if(replanner->replanNodeIsANewNode() && (node_replan->getConfiguration() != configuration))
   {
     ConnectionPtr restored_conn;
-    if(not replanned_path->removeNode(node_replan,{},restored_conn))
-      ROS_ERROR_STREAM("REPLAN NODE NOT REMOVED !"<<node_replan->getConfiguration().transpose());
-    else
+    if(replanned_path->removeNode(node_replan,{},restored_conn))
     {
       ROS_WARN_STREAM("Node replan removed: "<<*node_replan);
       ROS_INFO_STREAM("RESTORED CONN: "<<*restored_conn);
@@ -315,6 +356,91 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
       }
     }
   }
+
+  NodePtr repeated_node = nullptr;
+  std::vector<NodePtr> repeated_nodes_vector;
+  std::vector<NodePtr> replanned_path_nodes = replanned_path->getNodes();
+  for(const NodePtr& n: replanned_path_nodes)
+  {
+    if(std::find(repeated_nodes_vector.begin(),repeated_nodes_vector.end(),n)<repeated_nodes_vector.end())
+      continue;
+
+    if(std::count(replanned_path_nodes.begin(),replanned_path_nodes.end(),n)>1)
+    {
+      repeated_node = n;
+      repeated_nodes_vector.push_back(n);
+    }
+  }
+
+  if(repeated_nodes_vector.size()>1)
+  {
+    pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
+    disp->displayPath(replanned_path);
+    disp->displayPath(replanned_path);
+
+    ROS_WARN("--------------");
+    ROS_INFO_STREAM("replanned "<<*replanned_path);
+
+    for(const NodePtr& n:repeated_nodes_vector)
+    {
+      ROS_WARN_STREAM("repeated node: "<<n->getConfiguration().transpose()<<" "<<n);
+      disp->displayNode(n);
+      ros::Duration(0.1).sleep();
+    }
+    assert(0);
+  }
+
+  if(not repeated_nodes_vector.empty())
+  {
+    std::vector<ConnectionPtr> before_connections, after_connections;
+    std::vector<ConnectionPtr> replanned_path_connections = replanned_path->getConnections();
+
+    if(repeated_node != replanned_path->getGoalNode())
+    {
+      for(int i=replanned_path_connections.size()-1;i>=0;i--)
+      {
+        after_connections.push_back(replanned_path_connections.at(i));
+        if(replanned_path_connections.at(i)->getParent() == repeated_node)
+          break;
+      }
+      if(not after_connections.empty())
+        std::reverse(after_connections.begin(),after_connections.end());
+    }
+
+    if(repeated_node != replanned_path->getStartNode())
+    {
+      for(int i=0;i<replanned_path_connections.size();i++)
+      {
+        before_connections.push_back(replanned_path_connections.at(i));
+        if(replanned_path_connections.at(i)->getChild() == repeated_node)
+          break;
+      }
+    }
+
+    if(not after_connections.empty())
+      before_connections.insert(before_connections.end(),after_connections.begin(),after_connections.end());
+
+    replanned_path->setConnections(before_connections);
+  }
+
+  //elimina
+  for(const NodePtr& n:replanned_path->getNodes())
+  {
+    int number = 0;
+    for(const NodePtr& nn:replanned_path->getNodes())
+    {
+      if(n == nn)
+      {
+        number++;
+        if(number>1)
+        {
+          ROS_WARN_STREAM("node replicated: "<<n->getConfiguration().transpose()<<" "<<n);
+          assert(0);
+        }
+      }
+    }
+  }
+  //
 }
 
 bool ReplannerManagerAIPRO::haveToReplan(const bool path_obstructed)
@@ -324,7 +450,7 @@ bool ReplannerManagerAIPRO::haveToReplan(const bool path_obstructed)
 
 void ReplannerManagerAIPRO::updateSharedPath()
 {
-  ROS_WARN("AGGIORNO I PATH CONDIVISI");
+  //  ROS_WARN("AGGIORNO I PATH CONDIVISI");
   ReplannerManagerBase::updateSharedPath();
 
   other_paths_mtx_.lock();
@@ -340,10 +466,10 @@ void ReplannerManagerAIPRO::updateSharedPath()
         if(other_paths_shared_.at(i)->getConnections().at(j)->getParent()->getConfiguration() != other_paths_.at(i)->getConnections().at(j)->getParent()->getConfiguration())
         {
           sync_needed = true;
-          ROS_WARN("OTHER path n %i shared changed, diff %f",i, (other_paths_shared_.at(i)->getConnections().at(j)->getParent()->getConfiguration() - other_paths_.at(i)->getConnections().at(j)->getParent()->getConfiguration()).norm());
+          //          ROS_WARN("OTHER path n %i shared changed, diff %f",i, (other_paths_shared_.at(i)->getConnections().at(j)->getParent()->getConfiguration() - other_paths_.at(i)->getConnections().at(j)->getParent()->getConfiguration()).norm());
 
-          ROS_WARN_STREAM("shared: "<<*other_paths_shared_.at(i)); //elimina
-          ROS_WARN_STREAM("other: "<<*other_paths_.at(i));
+          //          ROS_WARN_STREAM("shared: "<<*other_paths_shared_.at(i)); //elimina
+          //          ROS_WARN_STREAM("other: "<<*other_paths_.at(i));
           break;
         }
       }
@@ -354,10 +480,10 @@ void ReplannerManagerAIPRO::updateSharedPath()
     else
     {
       sync_needed = true;
-      ROS_WARN("OTHER path n %i shared changed",i);
-      ROS_WARN_STREAM(*other_paths_shared_.at(i));
-      ROS_WARN("other path: ");
-      ROS_WARN_STREAM(*other_paths_.at(i));
+      //      ROS_WARN("OTHER path n %i shared changed",i);
+      //      ROS_WARN_STREAM(*other_paths_shared_.at(i));
+      //      ROS_WARN("other path: ");
+      //      ROS_WARN_STREAM(*other_paths_.at(i));
     }
 
     if(sync_needed)
@@ -368,12 +494,12 @@ void ReplannerManagerAIPRO::updateSharedPath()
       other_paths_shared_.at(i) = other_paths_.at(i)->clone();
       other_paths_shared_.at(i)->setChecker(checker);
 
-      ROS_WARN("other path shared %i changed",i);
-      ROS_WARN_STREAM(*other_paths_shared_.at(i));
+      //      ROS_WARN("other path shared %i changed",i);
+      //      ROS_WARN_STREAM(*other_paths_shared_.at(i));
     }
   }
   other_paths_mtx_.unlock();
-  ROS_WARN("PATH CONDIVISI AGGIORNATI");
+  //  ROS_WARN("PATH CONDIVISI AGGIORNATI");
 }
 
 void ReplannerManagerAIPRO::syncPathCost()

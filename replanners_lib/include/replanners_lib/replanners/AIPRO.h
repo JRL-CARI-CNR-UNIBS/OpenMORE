@@ -32,8 +32,8 @@ protected:
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> admissible_other_paths_;
   std::vector<PathPtr> replanned_paths_vector_;
-  std::vector<invalid_connection> invalid_connections_;
   std::vector<ConnectionPtr> checked_connections_;
+  std::vector<invalid_connection> invalid_connections_;
 
   double time_first_sol_;
   double time_replanning_;
@@ -56,6 +56,7 @@ protected:
   std::vector<NodePtr> startNodes(const std::vector<ConnectionPtr>& subpath1_conn);
   PathPtr getSubpath1(NodePtr& current_node);
   PathPtr bestExistingSolution(const PathPtr& current_solution);
+  PathPtr bestExistingSolution(const PathPtr& current_solution, std::multimap<double, std::vector<ConnectionPtr> > &tmp_map);
   bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost);
   bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost, unsigned int &number_of_candidates);
   double maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle);

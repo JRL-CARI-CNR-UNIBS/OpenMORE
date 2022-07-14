@@ -412,14 +412,9 @@ void ReplannerManagerBase::replanningThread()
 
         startReplannedPathFromNewCurrentConf(current_configuration_);
 
-        ROS_INFO("0");
         current_path_replanning_ = replanner_->getReplannedPath();
-        ROS_INFO("1");
         checkPath(replanner_->getReplannedPath()); //elimina
-        ROS_INFO("2");
-
         checkPath(current_path_replanning_); //elimina
-        ROS_INFO("3");
 
         replanner_->setCurrentPath(current_path_replanning_);
 
@@ -681,14 +676,14 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     current_configuration_ = path2project_on->projectOnClosestConnection(point2project);
     //    current_configuration_ = path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_current_configuration,abscissa_current_configuration_,past_abscissa,n_conn_);
 
-    ROS_INFO_STREAM("current abscissa: "<<abscissa_current_configuration_<<" replan abscissa: "<<abscissa_replan_configuration<<" delta curr pos: "<<(current_configuration_-past_current_configuration).norm());
+//    ROS_INFO_STREAM("current abscissa: "<<abscissa_current_configuration_<<" replan abscissa: "<<abscissa_replan_configuration<<" delta curr pos: "<<(current_configuration_-past_current_configuration).norm());
 
     abscissa_current_configuration_ = path2project_on->curvilinearAbscissaOfPoint(current_configuration_);
     if(abscissa_current_configuration_>abscissa_replan_configuration) //the current confgiruation must not surpass that of replanning
     {
       current_configuration_ = configuration_replan;
       abscissa_current_configuration_ = abscissa_replan_configuration;
-      ROS_WARN("Abscissa alignment!");
+//      ROS_WARN("Abscissa alignment!");
     }
 
     trj_mtx_.unlock();

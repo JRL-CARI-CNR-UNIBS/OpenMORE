@@ -1,5 +1,5 @@
 #TEST CONFIGURATIONS:
-n_iter: 100
+n_iter: 500
 
 #PLANNING CONFIGURATIONS:
 group_name: "cartesian_arm"
@@ -19,7 +19,7 @@ checker_resolution: 0.01
 # - anytimeDRRT
 # - AIPRO
 
-replanner_type: "anytimeDRRT"
+replanner_type: "AIPRO"
 dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
@@ -32,11 +32,11 @@ to_goal:
   n_threads_replan: 5
 
 aipro:
-  n_other_paths: 2
+  n_other_paths: 3
   dt_replan_relaxed: 0.20
-  verbosity_level: 2
+  verbosity_level: 1
 
-# VERBOSITY:
+#VERBOSITY:
 replanner_verbosity: true
 display_timing_warning: true
 display_replanning_success: true
