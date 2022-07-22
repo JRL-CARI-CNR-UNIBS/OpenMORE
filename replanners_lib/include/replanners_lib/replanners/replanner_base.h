@@ -53,14 +53,6 @@ public:
 
   PathPtr getReplannedPath() const
   {
-    //elimina
-    for(const pathplan::NodePtr& n:replanned_path_->getNodes())
-      assert(n != nullptr);
-
-    for(const pathplan::ConnectionPtr& c:replanned_path_->getConnections())
-      assert((c->getParent() != nullptr) && (c->getChild() != nullptr));
-    //
-
     return replanned_path_;
   }
 
