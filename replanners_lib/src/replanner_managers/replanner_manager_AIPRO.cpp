@@ -260,6 +260,7 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
 
   int conn_idx;
   bool is_a_new_node;
+  PathPtr tmp_p = current_path->clone();
   ConnectionPtr conn = current_path->findConnection(configuration,conn_idx);
   NodePtr current_node = current_path->addNodeAtCurrentConfig(configuration,conn,true,is_a_new_node);
 
@@ -270,7 +271,15 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
              ROS_INFO_STREAM("is a new node: "<<is_a_new_node);
              ROS_INFO_STREAM("replan node: "<<node_replan<<" "<<*node_replan);
              ROS_INFO_STREAM("conn: "<<*conn);
-             ROS_INFO_STREAM("TOLERANCE: "<<TOLERANCE<<" norm: "<<(current_node->getConfiguration()-node_replan->getConfiguration()).norm());
+             ROS_INFO_STREAM("conf: "<<configuration.transpose());
+             ROS_INFO_STREAM("TOLERANCE: "<<TOLERANCE<<" norm: "<<(configuration-node_replan->getConfiguration()).norm());
+
+             ROS_INFO_STREAM("curr p:"<<*current_path);
+             ROS_INFO_STREAM("tmp p: "<<*tmp_p);
+
+             conn = tmp_p->findConnection(configuration,conn_idx);
+             current_node = tmp_p->addNodeAtCurrentConfig(configuration,conn,true,is_a_new_node,true);
+
              return false;
            }
            return true;
