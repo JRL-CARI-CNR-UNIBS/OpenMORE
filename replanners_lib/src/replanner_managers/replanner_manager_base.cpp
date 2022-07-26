@@ -75,8 +75,6 @@ void ReplannerManagerBase::fromParam()
     ROS_ERROR("group_name not set, maybe set later with setChainProperties(..)?");
   if(!nh_.getParam("scaling",scaling_from_param_))
     scaling_from_param_ = 1.0;
-  if(!nh_.getParam("spawn_objs",spawn_objs_))
-    spawn_objs_ = false;
   if(!nh_.getParam("display_timing_warning",display_timing_warning_))
     display_timing_warning_ = false;
   if(!nh_.getParam("display_replanning_success", display_replanning_success_))
@@ -91,6 +89,17 @@ void ReplannerManagerBase::fromParam()
     display_current_trj_point_ = true;
   if(!nh_.getParam("display_current_config",display_current_config_))
     display_current_config_ = true;
+  if(!nh_.getParam("spawn_objs",spawn_objs_))
+    spawn_objs_ = false;
+  else
+  {
+    spawn_instants_.clear();
+    if(!nh_.getParam("spawn_instants",spawn_instants_))
+      spawn_instants_.push_back(0.5);
+
+    if(!nh_.getParam("obj_type",obj_type_))
+      obj_type_ = "scatola";
+  }
 }
 
 void ReplannerManagerBase::attributeInitialization()
@@ -763,93 +772,66 @@ void ReplannerManagerBase::spawnObjects()
 
   ros::Rate lp(trj_exec_thread_frequency_);
 
-  bool spawn = true;
-  bool spawn_second_object = true;
+  std::reverse(spawn_instants_.begin(),spawn_instants_.end());
 
-  std::string last_link = planning_scn_cc_->getRobotModel()->getJointModelGroup(group_name_)->getLinkModelNames().back();
   CollisionCheckerPtr checker = checker_cc_->clone();
+  std::string last_link = planning_scn_cc_->getRobotModel()->getJointModelGroup(group_name_)->getLinkModelNames().back();
 
   while(not stop_ && ros::ok())
   {
-    if(real_time_>=1.2 && spawn_second_object)
+    if(not spawn_instants_.empty())
     {
-      spawn = true;
-      spawn_second_object = false;
-    }
-
-    if(spawn && real_time_>=0.5)
-    {
-      object_loader_msgs::Object obj;
-      obj.object_type="scatola";
-      obj.pose.header.frame_id="world";
-
-      int obj_conn_pos;
-
-      replanner_mtx_.lock();
-      paths_mtx_.lock();
-      PathPtr path_copy = current_path_shared_->clone();
-      path_copy->setChecker(checker);
-      path_copy = path_copy->getSubpathFromConf(configuration_replan_,true);
-      paths_mtx_.unlock();
-      replanner_mtx_.unlock();
-
-      int size = path_copy->getConnectionsSize();
-
-      std::srand(time(NULL));
-      obj_conn_pos = rand() % size;
-
-      pathplan::ConnectionPtr obj_conn;
-      pathplan::NodePtr obj_parent;
-      pathplan::NodePtr obj_child;
-      Eigen::VectorXd obj_pos;
-
-      if(obj_conn_pos != size-1)
+      if(real_time_>=spawn_instants_.back())
       {
-        obj_conn = path_copy->getConnections().at(obj_conn_pos);
-        obj_parent = obj_conn->getParent();
-        obj_child = obj_conn->getChild();
-        obj_pos = obj_parent->getConfiguration() + 0.75*(obj_child->getConfiguration()-obj_parent->getConfiguration());
-      }
-      else
-      {
-        obj_conn = path_copy->getConnections().at(size-1);
-        obj_parent = obj_conn->getParent();
-        obj_child = obj_conn->getChild();
-        obj_pos = obj_parent->getConfiguration() + 0.3*(obj_child->getConfiguration()-obj_parent->getConfiguration());
+        spawn_instants_.pop_back();
 
-        if((obj_pos-obj_child->getConfiguration()).norm()<0.12) //side of "scatola" = 0.05
+        object_loader_msgs::Object obj;
+        obj.object_type = obj_type_;
+        obj.pose.header.frame_id="world";
+
+        replanner_mtx_.lock();
+        paths_mtx_.lock();
+        PathPtr path_copy = current_path_shared_->clone();
+        path_copy->setChecker(checker);
+        path_copy = path_copy->getSubpathFromConf(configuration_replan_,true);
+        paths_mtx_.unlock();
+        replanner_mtx_.unlock();
+
+        double obj_abscissa = 0.0;
+        std::srand(std::time(NULL));
+
+        while(obj_abscissa<0.1 || obj_abscissa>0.8) //to not obstruct goal and current robot position
+          obj_abscissa = double(rand())/double(RAND_MAX);
+
+        obj_abscissa = obj_abscissa*path_copy->length();
+        Eigen::VectorXd obj_pos = path_copy->pointOnCurvilinearAbscissa(obj_abscissa);
+
+        moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
+        tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
+
+        srv_add_object.request.objects.clear();
+        srv_add_object.request.objects.push_back(obj);
+
+        scene_mtx_.lock();
+        ROS_WARN("Obstacle spawned!");
+        if(not add_obj_.call(srv_add_object))
         {
-          obj_pos = obj_child->getConfiguration() + 0.08*(obj_parent->getConfiguration()-obj_child->getConfiguration())/(obj_parent->getConfiguration()-obj_child->getConfiguration()).norm();
+          ROS_ERROR("call to add obj srv not ok");
+
+          stop_ = true;
+          break;
         }
+
+        if(not srv_add_object.response.success)
+          ROS_ERROR("add obj srv error");
+        else
+        {
+          for (const std::string& str:srv_add_object.response.ids)
+            srv_remove_object.request.obj_ids.push_back(str);
+        }
+
+        scene_mtx_.unlock();
       }
-
-      moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
-      tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
-
-      srv_add_object.request.objects.clear();
-      srv_add_object.request.objects.push_back(obj);
-
-      scene_mtx_.lock();
-      ROS_WARN("Obstacle spawned!");
-      if(not add_obj_.call(srv_add_object))
-      {
-        ROS_ERROR("call to add obj srv not ok");
-
-        stop_ = true;
-        break;
-      }
-
-      if(not srv_add_object.response.success)
-        ROS_ERROR("add obj srv error");
-      else
-      {
-        for (const std::string& str:srv_add_object.response.ids)
-          srv_remove_object.request.obj_ids.push_back(str);
-      }
-
-      scene_mtx_.unlock();
-
-      spawn = false;
     }
 
     lp.sleep();

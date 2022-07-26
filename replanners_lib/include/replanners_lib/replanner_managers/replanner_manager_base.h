@@ -64,7 +64,6 @@ protected:
   double abscissa_replan_configuration_ ;
   double abscissa_current_configuration_;
 
-
   ReplannerBasePtr                          replanner_               ;
   Eigen::VectorXd                           current_configuration_   ;
   Eigen::VectorXd                           configuration_replan_    ;
@@ -81,6 +80,9 @@ protected:
   sensor_msgs::JointState                   new_joint_state_unscaled_;
   sensor_msgs::JointState                   new_joint_state_         ;
   moveit_msgs::PlanningScene                planning_scene_msg_      ;
+
+  std::string obj_type_;
+  std::vector<double> spawn_instants_;
 
   std::thread display_thread_;
   std::thread spawn_obj_thread_;
