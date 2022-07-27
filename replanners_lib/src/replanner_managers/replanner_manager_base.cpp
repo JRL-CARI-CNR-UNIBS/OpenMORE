@@ -98,7 +98,7 @@ void ReplannerManagerBase::fromParam()
       spawn_instants_.push_back(0.5);
 
     if(!nh_.getParam("obj_type",obj_type_))
-      obj_type_ = "scatola";
+      obj_type_ = "little_box";
   }
 }
 
@@ -298,6 +298,10 @@ void ReplannerManagerBase::updatePathCost(const PathPtr& current_path_updated_co
     }
     current_path_shared_->cost();
   }
+
+  if(current_path_shared_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
+    ROS_WARN("Obstacle detected!");
+
   paths_mtx_.unlock();
 }
 
@@ -768,14 +772,13 @@ void ReplannerManagerBase::spawnObjects()
 {
   object_loader_msgs::AddObjects srv_add_object;
   object_loader_msgs::RemoveObjects srv_remove_object;
-  MoveitUtils moveit_utils(planning_scn_cc_,group_name_);
 
   ros::Rate lp(trj_exec_thread_frequency_);
+  CollisionCheckerPtr checker = checker_cc_->clone();
+  MoveitUtils moveit_utils(planning_scn_cc_,group_name_);
+  std::string last_link = planning_scn_cc_->getRobotModel()->getJointModelGroup(group_name_)->getLinkModelNames().back();
 
   std::reverse(spawn_instants_.begin(),spawn_instants_.end());
-
-  CollisionCheckerPtr checker = checker_cc_->clone();
-  std::string last_link = planning_scn_cc_->getRobotModel()->getJointModelGroup(group_name_)->getLinkModelNames().back();
 
   while(not stop_ && ros::ok())
   {

@@ -1,0 +1,27 @@
+scene_objects:
+ - {type: "box",      frame: "world", position: [-0.5,-0.5,0.5], quaternion: [0, 0, 0, 1]}
+ - {type: "box",      frame: "world", position: [0.5,-0.5,0.5],  quaternion: [0, 0, 0, 1]}
+ - {type: "box",      frame: "world", position: [-0.5,0.5,0.5],  quaternion: [0, 0, 0, 1]}
+ - {type: "box",      frame: "world", position: [0.5,0.5,0.5],   quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [2,2,0.5],       quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [2,-2,0.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [5,4,0.5],       quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [5,-4,0.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [7,8,0.5],       quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [7,-8,0.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [9,3,0.5],       quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [9,-3,0.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [-2,2,0.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [-2,-2,0.5],     quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [-5,4,0.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [-5,-4,0.5],     quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [-7,8,0.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [-7,-8,0.5],     quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [-9,3,0.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [-9,-3,0.5],     quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [0,4,0.5],       quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [0,7,0.5],       quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [0,-4,0.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [0,-7,0.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [5, 0,0.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [-5,0,0.5],      quaternion: [0, 0, 0, 1]}

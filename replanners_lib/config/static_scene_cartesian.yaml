@@ -1,4 +1,0 @@
-scene_objects:
-- {type: "big_box_cartesian", frame: "world", position: [0.5,0.5,0.5], quaternion: [0, 0, 0, 1]}
-- {type: "big_box_cartesian", frame: "world", position: [0.5,0.5,0.5], quaternion: [1, 0, 0, 1]}
-- {type: "big_box_cartesian", frame: "world", position: [0.5,0.5,0.5], quaternion: [0, 1, 0, 1]}

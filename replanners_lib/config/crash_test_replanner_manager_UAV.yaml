@@ -2,13 +2,13 @@
 n_iter: 500
 
 #PLANNING CONFIGURATIONS:
-group_name: "cartesian_arm"
-start_configuration: [0.2,0.2,0.2]
-stop_configuration:  [0.8,0.8,0.8]
+group_name: "UAV_arm"
+start_configuration: [0.0,0.0,0.0]
+stop_configuration:  [10,10,2]
 utopia_tolerance: 0.05
 extend: false
-max_distance: 0.3
-checker_resolution: 0.01
+max_distance: 0.5
+checker_resolution: 0.05
 
 #REPLANNER CONFIGURATIONS:
 
@@ -24,8 +24,8 @@ dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 spawn_objs: true
-spawn_instants: [0.5, 1.5, 2.5]
-obj_type: "little_box"
+spawn_instants: [1,2,3,4,5,7,8,9,10,11,12,13,14,15]
+obj_type: "box"
 scaling: 0.5
 read_safe_scaling: false
 read_real_joints_values_: false
@@ -34,7 +34,7 @@ to_goal:
   n_threads_replan: 5
 
 aipro:
-  n_other_paths: 3
+  n_other_paths: 7
   dt_replan_relaxed: 0.20
   verbosity_level: 1
 

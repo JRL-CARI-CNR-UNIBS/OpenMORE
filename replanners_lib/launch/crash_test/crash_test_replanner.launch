@@ -2,14 +2,14 @@
 <launch>
   <include file="$(find replanners_lib)/launch/cell.launch">
     <arg name="demo_package" value="cartesian_moveit_config"/>
-    <arg name="static_scene" value="static_scene_cartesian.yaml"/>
+    <arg name="static_scene" value="static_scene_crash_test.yaml"/>
   </include>
 
-  <rosparam command="load" file="$(find replanners_lib)/config/test_replanner_manager_cartesian.yaml"/>
+  <rosparam command="load" file="$(find replanners_lib)/config/crash_test_replanner.yaml"/>
 
   <node pkg="replanners_lib"
-        name="test_replanner_managers"
-        type="test_replanner_managers"
+        name="crash_test_replanners"
+        type="crash_test_replanners"
         output="screen"
         launch-prefix="gdb -ex run --args" >
   </node>

@@ -429,6 +429,11 @@ std::vector<NodePtr> AIPRO::startNodes(const std::vector<ConnectionPtr>& subpath
            return true;
          }());
 
+  std::reverse(start_node_vector.begin(),start_node_vector.end());         //aggiunto per start_nodes_vector invertito
+
+  if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+    ROS_INFO_STREAM("NEW J: "<<start_node_vector.size()-1);
+
   return start_node_vector;
 }
 
@@ -1796,9 +1801,11 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
         if(findValidSolution(map_to_start_node_for_pathSwitch,subpath_to_start_node_for_pathSwitch->cost(),
                              candidate_solution_conn,subpath_to_start_node_for_pathSwitch_cost))
         {
-          start_node_vector.clear();
-          start_node_vector = startNodes(candidate_solution_conn); //if a solution different from subpath_to_start_node_for_pathSwitch is found, update the nodes
-          j = start_node_vector.size();
+          //tolto per start_nodes_vector invertito
+
+          //          start_node_vector.clear();
+          //          start_node_vector = startNodes(candidate_solution_conn); //if a solution different from subpath_to_start_node_for_pathSwitch is found, update the nodes
+          //          j = start_node_vector.size();
         }
         else
         {
@@ -1836,6 +1843,12 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
         assert(replanned_path->getTree() == tree_);
         assert(replanned_path_cost < std::numeric_limits<double>::infinity());
         assert(replanned_path->getStartNode() == current_node);
+
+        //aggiunto per start_nodes_vector invertito
+        start_node_vector.clear();
+        start_node_vector = startNodes(replanned_path->getConnections());
+        j = start_node_vector.size();
+        //
 
         success_ = true;
         an_obstacle_ = false;
@@ -1891,12 +1904,11 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
 
           subpath1 = replanned_path;
 
+          //aggiunto per start_nodes_vector invertito
+
           start_node_vector.clear();
           start_node_vector = startNodes(replanned_path->getConnectionsConst());
           j = start_node_vector.size();
-
-          if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
-            ROS_INFO_STREAM("NEW J: "<<j-1);
         }
       }
       else

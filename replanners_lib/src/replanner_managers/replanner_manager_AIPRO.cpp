@@ -277,8 +277,7 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
              ROS_INFO_STREAM("curr p:"<<*current_path);
              ROS_INFO_STREAM("tmp p: "<<*tmp_p);
 
-             conn = tmp_p->findConnection(configuration,conn_idx);
-             current_node = tmp_p->addNodeAtCurrentConfig(configuration,conn,true,is_a_new_node,true);
+             conn = tmp_p->findConnection(configuration,conn_idx,true);
 
              return false;
            }
