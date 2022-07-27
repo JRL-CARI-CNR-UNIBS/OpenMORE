@@ -49,6 +49,7 @@ protected:
   bool at_least_a_trial_;
   bool pathSwitch_disp_;
   bool pathSwitch_verbose_;
+  bool reverse_start_nodes_;
   bool informedOnlineReplanning_disp_;
   bool informedOnlineReplanning_verbose_;
 
@@ -107,6 +108,11 @@ public:
     verbose_ = verbose;
     informedOnlineReplanning_verbose_ = verbose;
     pathSwitch_verbose_ = verbose;
+  }
+
+  void reverseStartNodes(const bool reverse)
+  {
+    reverse_start_nodes_ = reverse;
   }
 
   void setInformedOnlineReplanningVerbose(const bool verbose)

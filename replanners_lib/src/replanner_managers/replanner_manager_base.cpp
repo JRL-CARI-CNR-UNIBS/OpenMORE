@@ -300,7 +300,7 @@ void ReplannerManagerBase::updatePathCost(const PathPtr& current_path_updated_co
   }
 
   if(current_path_shared_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
-    ROS_WARN("Obstacle detected!");
+    ROS_WHITE_STREAM("Obstacle detected!");
 
   paths_mtx_.unlock();
 }
@@ -357,7 +357,7 @@ void ReplannerManagerBase::replanningThread()
       replanner_mtx_.lock();
       if(not (current_path_replanning_->findConnection(configuration_replan_)))
       {
-        ROS_WARN("configuration replan not found on path");
+        ROS_YELLOW_STREAM("configuration replan not found on path");
         trj_mtx_.lock();
         configuration_replan_ = current_configuration_;
         trj_mtx_.unlock();
@@ -389,9 +389,9 @@ void ReplannerManagerBase::replanningThread()
       }
 
       if(replanning_duration>=dt_replan_/0.9 && display_timing_warning_)
-        ROS_WARN("Replanning duration: %f",replanning_duration);
+        ROS_YELLOW_STREAM("Replanning duration: "<<replanning_duration);
       if(display_replanning_success_)
-        ROS_INFO_STREAM("Success: "<< success <<" in "<< replanning_duration <<" seconds");
+        ROS_WHITE_STREAM("Success: "<< success <<" in "<< replanning_duration <<" seconds");
 
       if(path_changed && (not stop_))
       {
@@ -440,8 +440,8 @@ void ReplannerManagerBase::replanningThread()
 
       if(display_timing_warning_ && duration>(dt_replan_/0.9))
       {
-        ROS_WARN("Replanning thread time expired: duration-> %f",duration);
-        ROS_WARN("replanning time-> %f",replanning_duration);
+        ROS_YELLOW_STREAM("Replanning thread time expired: duration-> "<<duration);
+        ROS_YELLOW_STREAM("replanning time-> "<<replanning_duration);
       }
     }
 
@@ -517,9 +517,7 @@ void ReplannerManagerBase::collisionCheckThread()
     double duration = (toc-tic).toSec();
 
     if(duration>(1.0/collision_checker_thread_frequency_) && display_timing_warning_)
-    {
-      ROS_WARN("Collision checking thread time expired: total duration-> %f, duration_check-> %f duration_pln_scn_srv-> %f, duration_copy_path-> %f, duration_update_cost_info-> %f",duration,duration_check,duration_pln_scn_srv,duration_copy_path,duration_update_cost_info);
-    }
+      ROS_YELLOW_STREAM("Collision checking thread time expired: total duration-> "<<duration<<", duration_check-> "<<duration_check<<", duration_pln_scn_srv-> "<<duration_pln_scn_srv<<", duration_copy_path-> "<<duration_copy_path<<", duration_update_cost_info-> "<<duration_update_cost_info);
 
     lp.sleep();
   }
@@ -556,7 +554,7 @@ bool ReplannerManagerBase::run()
   target_pub_         .publish(new_joint_state_         );
   unscaled_target_pub_.publish(new_joint_state_unscaled_);
 
-  ROS_WARN("Launching threads..");
+  ROS_WHITE_STREAM("Launching threads..");
 
   display_thread_                   = std::thread(&ReplannerManagerBase::displayThread             ,this);  //it must be the first one launched, otherwise the first paths will be not displayed in time
   if(spawn_objs_) spawn_obj_thread_ = std::thread(&ReplannerManagerBase::spawnObjects              ,this);
@@ -586,7 +584,7 @@ bool ReplannerManagerBase::startWithoutReplanning()
   target_pub_         .publish(new_joint_state_         );
   unscaled_target_pub_.publish(new_joint_state_unscaled_);
 
-  ROS_WARN("Launching threads..");
+  ROS_WHITE_STREAM("Launching threads..");
 
   display_thread_  = std::thread(&ReplannerManagerBase::displayThread             ,this);
   trj_exec_thread_ = std::thread(&ReplannerManagerBase::trajectoryExecutionThread ,this);
@@ -677,13 +675,13 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     ros::WallTime toc = ros::WallTime::now();
     double duration = (toc-tic).toSec();
     if(duration>(1/trj_exec_thread_frequency_) && display_timing_warning_)
-      ROS_WARN("Trj execution thread time expired: duration-> %f",duration);
+      ROS_YELLOW_STREAM("Trj execution thread time expired: duration-> "<<duration);
 
     lp.sleep();
   }
 
   stop_ = true;
-  ROS_ERROR("STOP");
+  ROS_RED_STREAM("STOP");
 }
 
 void ReplannerManagerBase::displayThread()
@@ -816,7 +814,7 @@ void ReplannerManagerBase::spawnObjects()
         srv_add_object.request.objects.push_back(obj);
 
         scene_mtx_.lock();
-        ROS_WARN("Obstacle spawned!");
+        ROS_WHITE_STREAM("Obstacle spawned!");
         if(not add_obj_.call(srv_add_object))
         {
           ROS_ERROR("call to add obj srv not ok");

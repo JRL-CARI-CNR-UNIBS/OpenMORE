@@ -228,6 +228,12 @@ int main(int argc, char **argv)
         ROS_ERROR("n_other_paths not set, set 1");
         n_other_paths = 1;
       }
+      bool reverse;
+      if (!nh.getParam("/aipro/reverse_start_nodes",reverse))
+      {
+        ROS_ERROR("reverse_start_nodes not set, set false");
+        reverse = false;
+      }
 
       std::vector<pathplan::PathPtr> other_paths;
       for(unsigned int i=0;i<n_other_paths;i++)
@@ -250,6 +256,7 @@ int main(int argc, char **argv)
 
       pathplan::AIPROPtr aipro_replanner = std::make_shared<pathplan::AIPRO>(current_configuration,current_path,max_time,solver);
       aipro_replanner->setOtherPaths(other_paths);
+      aipro_replanner->reverseStartNodes(reverse);
 
       replanner = aipro_replanner;
     }

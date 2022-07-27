@@ -14,6 +14,7 @@ class ReplannerManagerAIPRO: public ReplannerManagerBase
 {
 protected:
   bool first_replanning_;
+  bool reverse_start_nodes_;
   int verbosity_level_;
   double dt_replan_relaxed_;
   NodePtr old_current_node_;

@@ -35,6 +35,12 @@ void ReplannerManagerAIPRO::additionalParam()
     dt_replan_relaxed_ = 1.5*dt_replan_;
   }
 
+  if(!nh_.getParam("/aipro/reverse_start_nodes",reverse_start_nodes_))
+  {
+    ROS_ERROR("/aipro/reverse_start_nodes not set, set false");
+    reverse_start_nodes_ = false;
+  }
+
   if(!nh_.getParam("/aipro/verbosity_level",verbosity_level_))
   {
     ROS_ERROR("/aipro/verbosity_level not set, set 0");
@@ -338,9 +344,7 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
       std::vector<ConnectionPtr> new_conns = tmp_subpath->getConnections();
 
       new_conns.insert(new_conns.end(),replanned_path->getConnectionsConst().begin(),replanned_path->getConnectionsConst().end());
-      ROS_INFO("QUA0");//ELIMINA
       replanned_path->setConnections(new_conns);
-      ROS_INFO("QUA1");//ELIMINA
     }
   }
 
@@ -603,7 +607,10 @@ void ReplannerManagerAIPRO::syncPathCost()
 void ReplannerManagerAIPRO::initReplanner()
 {
   double time_for_repl = 0.9*dt_replan_;
-  replanner_ = std::make_shared<pathplan::AIPRO>(configuration_replan_,current_path_replanning_,time_for_repl,solver_,other_paths_);
+  pathplan::AIPROPtr replanner = std::make_shared<pathplan::AIPRO>(configuration_replan_,current_path_replanning_,time_for_repl,solver_,other_paths_);
+  replanner->reverseStartNodes(reverse_start_nodes_);
+
+  replanner_ = replanner;
 
   pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
   replanner_->setDisp(disp);
@@ -742,7 +749,7 @@ void ReplannerManagerAIPRO::collisionCheckThread()
     double duration = (toc-tic).toSec();
 
     if(duration>(1.0/collision_checker_thread_frequency_) && display_timing_warning_)
-      ROS_WARN("Collision checking thread time expired: total duration-> %f",duration);
+      ROS_YELLOW_STREAM("Collision checking thread time expired: total duration-> "<<duration);
 
     lp.sleep();
   }
@@ -770,7 +777,7 @@ void ReplannerManagerAIPRO::updatePathsCost(const PathPtr& current_path_updated_
   }
 
   if(current_path_shared_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
-    ROS_WARN("Obstacle detected!");
+    ROS_WHITE_STREAM("Obstacle detected!");
 
   other_paths_mtx_.lock();
   for(unsigned int i=0;i<other_paths_updated_copy.size();i++)

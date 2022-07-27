@@ -165,6 +165,12 @@ int main(int argc, char **argv)
       ROS_ERROR("n_other_paths not set, set 1");
       n_other_paths = 1;
     }
+    bool reverse;
+    if (!nh.getParam("/aipro/reverse_start_nodes",reverse))
+    {
+      ROS_ERROR("reverse_start_nodes not set, set false");
+      reverse = false;
+    }
 
     bool verbose,display;
     if(!nh.getParam("/aipro/verbose",verbose))
@@ -209,6 +215,7 @@ int main(int argc, char **argv)
     aipro_replanner->setVerbosity(verbose);
 
     aipro_replanner->setOtherPaths(other_paths);
+    aipro_replanner->reverseStartNodes(reverse);
 
     replanner = aipro_replanner;
   }

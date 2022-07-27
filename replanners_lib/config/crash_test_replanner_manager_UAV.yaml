@@ -35,8 +35,9 @@ to_goal:
 
 aipro:
   n_other_paths: 7
+  reverse_start_nodes: true
   dt_replan_relaxed: 0.20
-  verbosity_level: 1
+  verbosity_level: 2
 
 #VERBOSITY:
 replanner_verbosity: true
