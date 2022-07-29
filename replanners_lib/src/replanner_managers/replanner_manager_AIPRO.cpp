@@ -647,13 +647,16 @@ void ReplannerManagerAIPRO::collisionCheckThread()
   int other_path_size = other_paths_copy.size();
 
   ros::Rate lp(collision_checker_thread_frequency_);
-  ros::WallTime tic;
+  ros::WallTime tic, tic1;
+
+  double duration_copy_path, duration_update_cost_info, duration_pln_scn_srv, duration_check; //ELIMINA
 
   while((not stop_) && ros::ok())
   {
     tic = ros::WallTime::now();
 
     /* Update planning scene */
+    tic1 = ros::WallTime::now();
     scene_mtx_.lock();
     if(not plannning_scene_client_.call(ps_srv))
     {
@@ -661,13 +664,15 @@ void ReplannerManagerAIPRO::collisionCheckThread()
       stop_ = true;
       break;
     }
-
     checker_cc_->setPlanningSceneMsg(ps_srv.response.scene);
     for(const CollisionCheckerPtr& checker: checkers)
       checker->setPlanningSceneMsg(ps_srv.response.scene);
 
     scene_mtx_.unlock();
 
+    duration_pln_scn_srv = (ros::WallTime::now()-tic1).toSec();
+
+    tic1 = ros::WallTime::now();
     //    trj_mtx_.lock();
     //    current_configuration_copy = current_configuration_;
     //    trj_mtx_.unlock();
@@ -675,7 +680,7 @@ void ReplannerManagerAIPRO::collisionCheckThread()
     current_configuration_copy = configuration_replan_;
     replanner_mtx_.unlock();
 
-    if(current_configuration_copy == replanner_->getGoal()->getConfiguration())
+    if((current_configuration_copy-replanner_->getGoal()->getConfiguration()).norm()<goal_tol_)
     {
       stop_ = true;
       break;
@@ -725,7 +730,11 @@ void ReplannerManagerAIPRO::collisionCheckThread()
     other_paths_mtx_.unlock();
     paths_mtx_.unlock();
 
+    duration_copy_path = (ros::WallTime::now()-tic1).toSec();
+
     /* Launch collision check tasks */
+    tic1 = ros::WallTime::now();
+
     std::vector<std::shared_future<bool>> tasks;
     for(unsigned int i=0;i<other_paths_copy.size();i++)
     {
@@ -739,17 +748,20 @@ void ReplannerManagerAIPRO::collisionCheckThread()
     for(unsigned int i=0; i<tasks.size();i++)
       tasks.at(i).wait();  //wait for the end of each task
 
+    duration_check = (ros::WallTime::now()-tic1).toSec();
+
     /* Update the cost of the paths */
+    tic1 = ros::WallTime::now();
     scene_mtx_.lock();
     updatePathsCost(current_path_copy,other_paths_copy);
     planning_scene_msg_ = ps_srv.response.scene;
     scene_mtx_.unlock();
+    duration_update_cost_info = (ros::WallTime::now()-tic1).toSec();
 
-    ros::WallTime toc=ros::WallTime::now();
-    double duration = (toc-tic).toSec();
+    double duration = (ros::WallTime::now()-tic).toSec();
 
     if(duration>(1.0/collision_checker_thread_frequency_) && display_timing_warning_)
-      ROS_YELLOW_STREAM("Collision checking thread time expired: total duration-> "<<duration);
+      ROS_BOLDYELLOW_STREAM("Collision checking thread time expired: total duration-> "<<duration<<", duration_check-> "<<duration_check<<", duration_pln_scn_srv-> "<<duration_pln_scn_srv<<", duration_copy_path-> "<<duration_copy_path<<", duration_update_cost_info-> "<<duration_update_cost_info);
 
     lp.sleep();
   }
@@ -777,7 +789,7 @@ void ReplannerManagerAIPRO::updatePathsCost(const PathPtr& current_path_updated_
   }
 
   if(current_path_shared_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
-    ROS_WHITE_STREAM("Obstacle detected!");
+    ROS_BOLDMAGENTA_STREAM("Obstacle detected!");
 
   other_paths_mtx_.lock();
   for(unsigned int i=0;i<other_paths_updated_copy.size();i++)

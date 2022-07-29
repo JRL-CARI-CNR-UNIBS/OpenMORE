@@ -10,8 +10,9 @@ namespace pathplan
 struct ps_goals
 {
   NodePtr node;
-  PathPtr path;
   double utopia;
+  PathPtr subpath;
+  double subpath_cost;
 };
 
 struct invalid_connection
@@ -63,7 +64,7 @@ protected:
   std::vector<double> informed_marker_color_sphere_ = {1.0,0.5,0.0,1.0  };
 
   std::vector<PathPtr> addAdmissibleCurrentPath(const int &idx_current_conn, PathPtr& admissible_current_path);
-  std::vector<ps_goals> sortNodesOnDistance(const NodePtr& node);
+  std::vector<ps_goals> sortNodes(const NodePtr& node);
   std::vector<NodePtr> startNodes(const std::vector<ConnectionPtr>& subpath1_conn);
   PathPtr getSubpath1(NodePtr& current_node);
   PathPtr bestExistingSolution(const PathPtr& current_solution);

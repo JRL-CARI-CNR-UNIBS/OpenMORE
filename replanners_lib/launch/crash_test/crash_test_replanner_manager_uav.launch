@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
 <launch>
   <include file="$(find replanners_lib)/launch/cell.launch">
-    <arg name="demo_package" value="UAV_moveit_config"/>
-    <arg name="static_scene" value="static_scene_crash_test_UAV.yaml"/>
+    <arg name="demo_package" value="uav_moveit_config"/>
+    <arg name="static_scene" value="static_scene_crash_test_uav.yaml"/>
   </include>
 
-  <rosparam command="load" file="$(find replanners_lib)/config/crash_test_replanner_manager_UAV.yaml"/>
+  <rosparam command="load" file="$(find replanners_lib)/config/crash_test_replanner_manager_uav.yaml"/>
 
   <node pkg="replanners_lib"
         name="crash_test_replanner_managers"

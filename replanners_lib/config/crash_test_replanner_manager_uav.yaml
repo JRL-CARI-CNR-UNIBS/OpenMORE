@@ -2,7 +2,7 @@
 n_iter: 500
 
 #PLANNING CONFIGURATIONS:
-group_name: "UAV_arm"
+group_name: "uav_arm"
 start_configuration: [0.0,0.0,0.0]
 stop_configuration:  [10,10,2]
 utopia_tolerance: 0.05
@@ -34,7 +34,7 @@ to_goal:
   n_threads_replan: 5
 
 aipro:
-  n_other_paths: 7
+  n_other_paths: 3
   reverse_start_nodes: true
   dt_replan_relaxed: 0.20
   verbosity_level: 2
