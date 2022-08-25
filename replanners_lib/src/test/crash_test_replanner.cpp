@@ -234,6 +234,12 @@ int main(int argc, char **argv)
         ROS_ERROR("reverse_start_nodes not set, set false");
         reverse = false;
       }
+      bool full_search;
+      if (!nh.getParam("/aipro/full_net_search",full_search))
+      {
+        ROS_ERROR("full_net_search not set, set true");
+        full_search = true;
+      }
 
       std::vector<pathplan::PathPtr> other_paths;
       for(unsigned int i=0;i<n_other_paths;i++)
@@ -257,6 +263,7 @@ int main(int argc, char **argv)
       pathplan::AIPROPtr aipro_replanner = std::make_shared<pathplan::AIPRO>(current_configuration,current_path,max_time,solver);
       aipro_replanner->setOtherPaths(other_paths);
       aipro_replanner->reverseStartNodes(reverse);
+      aipro_replanner->setFullNetSearch(full_search);
 
       replanner = aipro_replanner;
     }

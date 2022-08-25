@@ -22,3 +22,4 @@ to_goal:
 aipro:
   n_other_paths: 2
   reverse_start_nodes: true
+  full_net_search: true
