@@ -41,6 +41,12 @@ void ReplannerManagerAIPRO::additionalParam()
     reverse_start_nodes_ = false;
   }
 
+  if(!nh_.getParam("/aipro/full_net_search",full_net_search_))
+  {
+    ROS_ERROR("/aipro/full_net_search_ not set, set true");
+    full_net_search_ = true;
+  }
+
   if(!nh_.getParam("/aipro/verbosity_level",verbosity_level_))
   {
     ROS_ERROR("/aipro/verbosity_level not set, set 0");
@@ -609,6 +615,7 @@ void ReplannerManagerAIPRO::initReplanner()
   double time_for_repl = 0.9*dt_replan_;
   pathplan::AIPROPtr replanner = std::make_shared<pathplan::AIPRO>(configuration_replan_,current_path_replanning_,time_for_repl,solver_,other_paths_);
   replanner->reverseStartNodes(reverse_start_nodes_);
+  replanner->setFullNetSearch(full_net_search_);
 
   replanner_ = replanner;
 

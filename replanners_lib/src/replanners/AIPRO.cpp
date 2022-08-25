@@ -17,6 +17,7 @@ AIPRO::AIPRO(const Eigen::VectorXd& current_configuration,
   time_percentage_variability_ = TIME_PERCENTAGE_VARIABILITY;
 
   reverse_start_nodes_ = false;
+  full_net_search_ = true;
 
   an_obstacle_ = false;
 
@@ -333,7 +334,7 @@ std::vector<ps_goals> AIPRO::sortNodes(const NodePtr& start_node)
    */
 
   std::vector<ps_goals> goals;
-  std::vector<NodePtr> added_nodes;
+  std::vector<NodePtr> considered_nodes;
   std::multimap<double,ps_goals> ps_goals_map, ps_invalid_goals_map;
 
   double distance;
@@ -349,7 +350,7 @@ std::vector<ps_goals> AIPRO::sortNodes(const NodePtr& start_node)
 
     for(const NodePtr& n:nodes)
     {
-      if(std::find(added_nodes.begin(),added_nodes.end(),n)<added_nodes.end())
+      if(std::find(considered_nodes.begin(),considered_nodes.end(),n)<considered_nodes.end())
         continue;
 
       distance = metrics_->utopia(start_node->getConfiguration(),n->getConfiguration());
@@ -373,12 +374,15 @@ std::vector<ps_goals> AIPRO::sortNodes(const NodePtr& start_node)
         ps_goal.subpath_cost = 0.0;
       }
 
-      added_nodes.push_back(n);
+      considered_nodes.push_back(n);
 
       if(ps_goal.subpath_cost<std::numeric_limits<double>::infinity())
         ps_goals_map.insert(std::pair<double,ps_goals>(distance,ps_goal));
       else
-        ps_invalid_goals_map.insert(std::pair<double,ps_goals>(distance,ps_goal));
+      {
+        if(full_net_search_)
+          ps_invalid_goals_map.insert(std::pair<double,ps_goals>(distance,ps_goal));
+      }
     }
   }
 
@@ -386,7 +390,7 @@ std::vector<ps_goals> AIPRO::sortNodes(const NodePtr& start_node)
   for(const std::pair<double,ps_goals> &p: ps_goals_map)
     goals.push_back(p.second);
 
-  //Then, add the invalid goals, ordered by distance
+  //Then, add the invalid goals, ordered by distance (void map if full_net_search_ == false)
   for(const std::pair<double,ps_goals> &p: ps_invalid_goals_map)
     goals.push_back(p.second);
 
@@ -1230,7 +1234,7 @@ bool AIPRO::pathSwitch(const PathPtr &current_path,
   NodePtr path1_node_of_sol, path2_node_of_sol;
 
   /* Identifying the subpath of current_path starting from node. It should be on the best path
-            * from node to goal because current path is the result of bestExistingSolution (?) */
+   * from node to goal because current path is the result of bestExistingSolution (?) */
 
   PathPtr path1_subpath = current_path->getSubpathFromNode(path1_node);
 
@@ -1259,28 +1263,32 @@ bool AIPRO::pathSwitch(const PathPtr &current_path,
     {
       path2_subpath_conn = path2_subpath->getConnections();
 
-      double better_path2_subpath_cost;
-      std::vector<ConnectionPtr> better_path2_subpath_conn;
-      ros::WallTime tic_map = ros::WallTime::now();
-      std::multimap<double,std::vector<ConnectionPtr>> path2_subpath_map = net_->getConnectionBetweenNodes(path2_node,goal_node_,path2_subpath_cost,{path1_node});
-
-      double search_time = (ros::WallTime::now()-tic_map).toSec();
-
-      tic_map = ros::WallTime::now();
-      if(findValidSolution(path2_subpath_map,path2_subpath_cost,better_path2_subpath_conn,better_path2_subpath_cost))
+      if(full_net_search_)
       {
-        path2_subpath_conn = better_path2_subpath_conn;
-        path2_subpath = std::make_shared<Path>(path2_subpath_conn,metrics_,checker_);
-        path2_subpath_cost = better_path2_subpath_cost;
+        double better_path2_subpath_cost;
+        std::vector<ConnectionPtr> better_path2_subpath_conn;
+        ros::WallTime tic_map = ros::WallTime::now();
+        std::multimap<double,std::vector<ConnectionPtr>> path2_subpath_map = net_->getConnectionBetweenNodes(path2_node,goal_node_,path2_subpath_cost,{path1_node});
 
-        assert(better_path2_subpath_cost == path2_subpath->cost());
+        double search_time = (ros::WallTime::now()-tic_map).toSec();
+
+        tic_map = ros::WallTime::now();
+        if(findValidSolution(path2_subpath_map,path2_subpath_cost,better_path2_subpath_conn,better_path2_subpath_cost))
+        {
+          path2_subpath_conn.clear();
+          path2_subpath_conn = better_path2_subpath_conn;
+          path2_subpath = std::make_shared<Path>(path2_subpath_conn,metrics_,checker_);
+          path2_subpath_cost = better_path2_subpath_cost;
+
+          assert(better_path2_subpath_cost == path2_subpath->cost());
+
+          if(pathSwitch_verbose_)
+            ROS_BLUE_STREAM("A better path2_subpath has been found!\n"<<*path2_subpath);
+        }
 
         if(pathSwitch_verbose_)
-          ROS_BLUE_STREAM("A better path2_subpath has been found!\n"<<*path2_subpath);
+          ROS_BLUE_STREAM("Time to search for a better subpath2: "<<search_time<<", time to check solutions: "<<(ros::WallTime::now()-tic_map).toSec());
       }
-
-      if(pathSwitch_verbose_)
-        ROS_BLUE_STREAM("Time to search for a better subpath2: "<<search_time<<", time to check solutions: "<<(ros::WallTime::now()-tic_map).toSec());
     }
 
     double diff_subpath_cost = candidate_solution_cost - path2_subpath_cost; // it is the maximum cost to make the connecting_path convenient
@@ -1600,7 +1608,10 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
   if(informedOnlineReplanning_verbose_)
     ROS_GREEN_STREAM("Searching for an already existing solution..");
 
-  replanned_path = bestExistingSolution(subpath1);  // if a solution is not found, replanned_path = subpath1
+  full_net_search_?
+        (replanned_path = bestExistingSolution(subpath1)): // if a solution is not found, replanned_path = subpath1
+        (replanned_path = subpath1);
+
   replanned_path_cost = replanned_path->cost();
 
   assert(replanned_path->getStartNode() == current_node);
@@ -1730,21 +1741,27 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
       if(start_node_for_pathSwitch != current_node)
       {
         subpath_to_start_node_for_pathSwitch = replanned_path->getSubpathToNode(start_node_for_pathSwitch);
-        //candidate_solution_conn = replanned_path->getSubpathToNode(start_node_for_pathSwitch)->getConnections();
 
         assert(replanned_path->getStartNode() == current_node);
 
-        double subpath_to_start_node_for_pathSwitch_cost;
-        std::multimap<double,std::vector<ConnectionPtr>> map_to_start_node_for_pathSwitch = net_->getConnectionBetweenNodes(current_node,start_node_for_pathSwitch,subpath_to_start_node_for_pathSwitch->cost(),{});
-
-        if(findValidSolution(map_to_start_node_for_pathSwitch,subpath_to_start_node_for_pathSwitch->cost(),
-                             candidate_solution_conn,subpath_to_start_node_for_pathSwitch_cost))
+        if(full_net_search_)
         {
-          if(not reverse_start_nodes_)
+          double subpath_to_start_node_for_pathSwitch_cost;
+          std::multimap<double,std::vector<ConnectionPtr>> map_to_start_node_for_pathSwitch = net_->getConnectionBetweenNodes(current_node,start_node_for_pathSwitch,subpath_to_start_node_for_pathSwitch->cost(),{});
+
+          if(findValidSolution(map_to_start_node_for_pathSwitch,subpath_to_start_node_for_pathSwitch->cost(),
+                               candidate_solution_conn,subpath_to_start_node_for_pathSwitch_cost))
           {
-            start_node_vector.clear();
-            start_node_vector = startNodes(candidate_solution_conn); //if a solution different from subpath_to_start_node_for_pathSwitch is found, update the nodes
-            j = start_node_vector.size();
+            if(not reverse_start_nodes_)
+            {
+              start_node_vector.clear();
+              start_node_vector = startNodes(candidate_solution_conn); //if a solution different from subpath_to_start_node_for_pathSwitch is found, update the nodes
+              j = start_node_vector.size();
+            }
+          }
+          else
+          {
+            candidate_solution_conn = subpath_to_start_node_for_pathSwitch->getConnections();
           }
         }
         else
@@ -1833,14 +1850,17 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
       {
         if(replanned_path->getConnectionsSize()>1)
         {
-          std::multimap<double,std::vector<ConnectionPtr>> best_replanned_path_map  = net_->getConnectionBetweenNodes(current_node,goal_node_,replanned_path->cost());
-
-          double best_replanned_path_cost;
-          std::vector<ConnectionPtr> best_replanned_path_conns;
-          if(findValidSolution(best_replanned_path_map,replanned_path->cost(),best_replanned_path_conns,best_replanned_path_cost))
+          if(full_net_search_)
           {
-            replanned_path = std::make_shared<Path>(best_replanned_path_conns,metrics_,checker_);
-            replanned_path->setTree(tree_);
+            std::multimap<double,std::vector<ConnectionPtr>> best_replanned_path_map  = net_->getConnectionBetweenNodes(current_node,goal_node_,replanned_path->cost());
+
+            double best_replanned_path_cost;
+            std::vector<ConnectionPtr> best_replanned_path_conns;
+            if(findValidSolution(best_replanned_path_map,replanned_path->cost(),best_replanned_path_conns,best_replanned_path_cost))
+            {
+              replanned_path = std::make_shared<Path>(best_replanned_path_conns,metrics_,checker_);
+              replanned_path->setTree(tree_);
+            }
           }
 
           subpath1 = replanned_path;

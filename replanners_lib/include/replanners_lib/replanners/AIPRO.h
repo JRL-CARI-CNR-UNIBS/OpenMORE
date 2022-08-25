@@ -47,6 +47,7 @@ protected:
 
   bool an_obstacle_;
   bool is_a_new_node_;
+  bool full_net_search_;
   bool at_least_a_trial_;
   bool pathSwitch_disp_;
   bool pathSwitch_verbose_;
@@ -109,6 +110,11 @@ public:
     verbose_ = verbose;
     informedOnlineReplanning_verbose_ = verbose;
     pathSwitch_verbose_ = verbose;
+  }
+
+  void setFullNetSearch(const bool full_net_search)
+  {
+    full_net_search_ = full_net_search;
   }
 
   void reverseStartNodes(const bool reverse)

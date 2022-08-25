@@ -13,6 +13,7 @@ typedef std::shared_ptr<ReplannerManagerAIPRO> ReplannerManagerAIPROPtr;
 class ReplannerManagerAIPRO: public ReplannerManagerBase
 {
 protected:
+  bool full_net_search_;
   bool first_replanning_;
   bool reverse_start_nodes_;
   int verbosity_level_;
