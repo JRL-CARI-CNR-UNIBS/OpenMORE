@@ -40,11 +40,16 @@ void ReplannerManagerBase::fromParam()
     ROS_ERROR("checker_resolution not set, set 0.05");
     checker_resolution_ = 0.05;
   }
-  if(!nh_.getParam("read_safe_scaling",read_safe_scaling_))
   {
-    ROS_ERROR("read_safe_scaling not set, set false");
-    read_safe_scaling_ = false;
+    ROS_ERROR("parallel_checker_n_threads not set, set 10");
+    parallel_checker_n_threads_ = 10;
   }
+  if(!nh_.getParam("parallel_checker_n_threads",parallel_checker_n_threads_))
+    if(!nh_.getParam("read_safe_scaling",read_safe_scaling_))
+    {
+      ROS_ERROR("read_safe_scaling not set, set false");
+      read_safe_scaling_ = false;
+    }
 
   if(read_safe_scaling_)
   {
@@ -89,6 +94,8 @@ void ReplannerManagerBase::fromParam()
     display_current_trj_point_ = true;
   if(!nh_.getParam("display_current_config",display_current_config_))
     display_current_config_ = true;
+  if(!nh_.getParam("test",test_))
+    test_ = false;
   if(!nh_.getParam("spawn_objs",spawn_objs_))
     spawn_objs_ = false;
   else
@@ -99,6 +106,9 @@ void ReplannerManagerBase::fromParam()
 
     if(!nh_.getParam("obj_type",obj_type_))
       obj_type_ = "little_box";
+
+    if(!nh_.getParam("obj_max_size",obj_max_size_))
+      obj_max_size_ = 0.15;
   }
 }
 
@@ -109,6 +119,7 @@ void ReplannerManagerBase::attributeInitialization()
   n_conn_                          = 0    ;
   abscissa_current_configuration_  = 0.0  ;
   abscissa_replan_configuration_   = 0.0  ;
+  replanning_time_                 = 0.0  ;
   scaling_                         = 1.0  ;
   real_time_                       = 0.0  ;
   t_                               = 0.0  ;
@@ -174,6 +185,8 @@ void ReplannerManagerBase::attributeInitialization()
 
   initReplanner();
   replanner_->setVerbosity(replanner_verbosity_);
+
+  obj_ids_.clear();
 
   new_joint_state_.position                 = pnt_.positions                  ;
   new_joint_state_.velocity                 = pnt_.velocities                 ;
@@ -385,6 +398,11 @@ void ReplannerManagerBase::replanningThread()
         replanning_duration = (toc_rep-tic_rep).toSec();
         success = replanner_->getSuccess();
 
+        test_mtx_.lock();
+        if(success)
+          replanning_time_ = replanning_duration;
+        test_mtx_.unlock();
+
         assert(((not path_changed) && (n_size_before == current_path_replanning_->getConnectionsSize())) || (path_changed));
       }
 
@@ -537,6 +555,7 @@ bool ReplannerManagerBase::stop()
   if(replanning_thread_              .joinable()) replanning_thread_.join();
   if(col_check_thread_               .joinable()) col_check_thread_ .join();
   if(display_thread_                 .joinable()) display_thread_   .join();
+  if(test_       && test_thread_     .joinable()) test_thread_      .join();
   if(spawn_objs_ && spawn_obj_thread_.joinable()) spawn_obj_thread_ .join();
   return true;
 }
@@ -561,6 +580,7 @@ bool ReplannerManagerBase::run()
 
   display_thread_                   = std::thread(&ReplannerManagerBase::displayThread             ,this);  //it must be the first one launched, otherwise the first paths will be not displayed in time
   if(spawn_objs_) spawn_obj_thread_ = std::thread(&ReplannerManagerBase::spawnObjects              ,this);
+  if(test_)       test_thread_      = std::thread(&ReplannerManagerBase::testThread                ,this);
   replanning_thread_                = std::thread(&ReplannerManagerBase::replanningThread          ,this);
   col_check_thread_                 = std::thread(&ReplannerManagerBase::collisionCheckThread      ,this);
   ros::Duration(0.5).sleep()                                                                             ;
@@ -774,18 +794,21 @@ void ReplannerManagerBase::spawnObjects()
   object_loader_msgs::AddObjects srv_add_object;
   object_loader_msgs::RemoveObjects srv_remove_object;
 
-  ros::Rate lp(trj_exec_thread_frequency_);
   CollisionCheckerPtr checker = checker_cc_->clone();
   MoveitUtils moveit_utils(planning_scn_cc_,group_name_);
   std::string last_link = planning_scn_cc_->getRobotModel()->getJointModelGroup(group_name_)->getLinkModelNames().back();
 
+  bool obj_ok;
+  PathPtr path_copy;
+  Eigen::VectorXd conf, obj_pos;
+  Eigen::VectorXd goal = current_path_shared_->getGoalNode()->getConfiguration();
+
   geometry_msgs::Quaternion q;
-  q.x = 0.0;
-  q.y = 0.0;
-  q.z = 0.0;
-  q.w = 1.0;
+  q.x = 0.0; q.y = 0.0; q.z = 0.0; q.w = 1.0;
 
   std::reverse(spawn_instants_.begin(),spawn_instants_.end());
+
+  ros::Rate lp(trj_exec_thread_frequency_);
 
   while(not stop_ && ros::ok())
   {
@@ -802,20 +825,29 @@ void ReplannerManagerBase::spawnObjects()
 
         replanner_mtx_.lock();
         paths_mtx_.lock();
-        PathPtr path_copy = current_path_shared_->clone();
+        path_copy = (current_path_shared_->clone())->getSubpathFromConf(configuration_replan_,true);
         path_copy->setChecker(checker);
-        path_copy = path_copy->getSubpathFromConf(configuration_replan_,true);
+        conf = configuration_replan_;
         paths_mtx_.unlock();
         replanner_mtx_.unlock();
 
+        obj_ok = true;
         double obj_abscissa = 0.0;
         std::srand(std::time(NULL));
 
-        while(obj_abscissa<0.1 || obj_abscissa>0.8) //to not obstruct goal and current robot position
-          obj_abscissa = double(rand())/double(RAND_MAX);
+        do
+        {
+          while(obj_abscissa<0.1 || obj_abscissa>0.8) //to not obstruct goal and current robot position
+            obj_abscissa = double(rand())/double(RAND_MAX);
 
-        obj_abscissa = obj_abscissa*path_copy->length();
-        Eigen::VectorXd obj_pos = path_copy->pointOnCurvilinearAbscissa(obj_abscissa);
+          obj_abscissa = obj_abscissa*path_copy->length();
+          obj_pos = path_copy->pointOnCurvilinearAbscissa(obj_abscissa);
+
+          if((obj_pos-conf).norm()<=obj_max_size_ || (obj_pos-goal).norm()<=obj_max_size_)
+            obj_ok = false;
+
+        }while(not obj_ok);
+
 
         moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
         tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
@@ -837,6 +869,10 @@ void ReplannerManagerBase::spawnObjects()
           ROS_ERROR("add obj srv error");
         else
         {
+          test_mtx_.lock();
+          obj_ids_.push_back(srv_add_object.response.ids.front());
+          test_mtx_.unlock();
+
           for (const std::string& str:srv_add_object.response.ids)
             srv_remove_object.request.obj_ids.push_back(str);
         }
@@ -855,4 +891,104 @@ void ReplannerManagerBase::spawnObjects()
     ROS_ERROR("remove obj srv error");
   scene_mtx_.unlock();
 }
+
+void ReplannerManagerBase::testThread()
+{
+  Eigen::VectorXd old_current_configuration, current_configuration;
+
+  bool success = true;
+  double path_length = 0.0;
+  std::vector<double> replanning_time_vector;
+
+  robot_state::RobotStatePtr state;
+  planning_scene::PlanningScenePtr planning_scene;
+
+  collision_detection::CollisionRequest col_req;
+  collision_detection::CollisionResult col_res;
+  col_req.contacts = true;
+  col_req.group_name = group_name_;
+
+  ros::Rate lp(2*trj_exec_thread_frequency_);
+
+  while((not stop_) && ros::ok())
+  {
+    trj_mtx_.lock();
+    current_configuration = current_configuration_;
+    trj_mtx_.unlock();
+
+    scene_mtx_.lock();
+    planning_scene->setPlanningSceneMsg(planning_scene_msg_);
+    scene_mtx_.unlock();
+
+    test_mtx_.lock();
+    if(replanning_time_ != 0.0)
+      replanning_time_vector.push_back(replanning_time_);
+
+    replanning_time_ = 0.0;
+    test_mtx_.unlock();
+
+    path_length += (current_configuration-old_current_configuration).norm();
+
+    if(success) //robot has not already collided with an obstacle
+    {
+      *state = planning_scene->getCurrentState();
+      state->setJointGroupPositions(group_name_, current_configuration);
+      planning_scene->checkCollision(col_req,col_res,*state);
+
+      if(col_res.collision)
+      {
+        //check collisions with spawned obstacle (not with environment)
+        for(const  std::pair<std::pair<std::string, std::string>, std::vector<collision_detection::Contact> >& contact: col_res.contacts)
+        {
+          test_mtx_.lock();
+          for(const std::string& obj_id:obj_ids_)
+          {
+            if(obj_id.compare(contact.first.first) == 0 || obj_id.compare(contact.first.second) == 0)
+            {
+              success = false;
+              break;
+            }
+          }
+          test_mtx_.unlock();
+
+          if(not success)
+            break;
+        }
+      }
+    }
+
+    lp.sleep();
+  }
+
+  double sum, mean, std_dev, variance;
+  sum = std::accumulate(replanning_time_vector.begin(),replanning_time_vector.end(),0.0);
+  mean = sum/replanning_time_vector.size();
+
+  variance = 0.0;
+  for(const double& d:replanning_time_vector)
+    variance += std::pow(d - mean, 2);
+
+  std_dev = std::sqrt(variance / replanning_time_vector.size());
+
+  std::string test_name = "replanner_test/test";
+  nh_.getParam("replanner/test_name",test_name);
+
+  std::ofstream file;
+  file.open(test_name+".bin",std::ios::out | std::ios::binary);
+
+  const size_t bufsize = 1024 * 1024;
+  std::unique_ptr<char[]> buf;
+  buf.reset(new char[bufsize]);
+
+  file.rdbuf()->pubsetbuf(buf.get(), bufsize);
+
+  file.write((char*) &success,     sizeof(bool)  );
+  file.write((char*) &path_length, sizeof(double));
+  file.write((char*) &real_time_,  sizeof(double));
+  file.write((char*) &sum,         sizeof(double));
+  file.write((char*) &std_dev,     sizeof(double));
+
+  file.close();
+}
+
 }

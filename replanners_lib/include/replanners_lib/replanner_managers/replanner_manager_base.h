@@ -37,6 +37,7 @@ protected:
   ros::NodeHandle      nh_                                ;
 
   /* Global variables */
+  bool test_                      ;
   bool stop_                      ;
   bool spawn_objs_                ;
   bool read_safe_scaling_         ;
@@ -49,13 +50,16 @@ protected:
   bool display_current_trj_point_ ;
   bool display_replanning_success_;
 
-  int n_conn_;
+  int n_conn_                    ;
+  int parallel_checker_n_threads_;
 
-  double real_time_                     ;
   double t_                             ;
   double dt_                            ;
+  double real_time_                     ;
+  double obj_max_size_                  ;
   double replan_offset_                 ;
   double t_replan_                      ;
+  double replanning_time_               ;
   double replanning_thread_frequency_   ;
   double scaling_from_param_            ;
   double checker_resolution_            ;
@@ -83,18 +87,21 @@ protected:
 
   std::string obj_type_;
   std::vector<double> spawn_instants_;
+  std::vector<std::string> obj_ids_;
 
+  std::thread test_thread_;
   std::thread display_thread_;
+  std::thread trj_exec_thread_;
+  std::thread col_check_thread_;
   std::thread spawn_obj_thread_;
   std::thread replanning_thread_;
-  std::thread col_check_thread_;
-  std::thread trj_exec_thread_;
 
   std::mutex trj_mtx_;
   std::mutex paths_mtx_;
   std::mutex scene_mtx_;
   std::mutex replanner_mtx_;
   std::mutex ovr_mtx_;
+  std::mutex test_mtx_;
 
   std::vector<std::string>                                                        scaling_topics_names_ ;
   std::vector<std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>>> scaling_topics_vector_;
@@ -119,6 +126,7 @@ protected:
   virtual void replanningThread();
   virtual void collisionCheckThread();
   virtual void displayThread();
+  void testThread();
   void spawnObjects();
   void trajectoryExecutionThread();
   double readScalingTopics();

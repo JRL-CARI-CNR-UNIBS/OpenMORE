@@ -952,7 +952,7 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
     if(pathSwitch_verbose_)
     {
       if(number_of_candidates>0)
-        ROS_BLUE_STREAM(number_of_candidates<< " candidate solutions found in the subtree but no one was free (check time"<<(ros::WallTime::now()-tic_search).toSec()<<" seconds)");
+        ROS_BLUE_STREAM(number_of_candidates<< " candidate solutions found in the subtree but no one was free (check time "<<(ros::WallTime::now()-tic_search).toSec()<<" seconds)");
       else
         ROS_BLUE_STREAM("No candidate solutions found in the subtree (search time "<<(ros::WallTime::now()-tic_search).toSec()<<" seconds)");
     }
@@ -1933,7 +1933,15 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
 
   if(success_)
   {
-    std::multimap<double,std::vector<ConnectionPtr>> best_replanned_path_map  = net_->getConnectionBetweenNodes(current_node,goal_node_,replanned_path->cost());
+    assert(replanned_path_cost == replanned_path->cost());
+
+    net_->setVerbosity(true);
+    std::multimap<double,std::vector<ConnectionPtr>> best_replanned_path_map  =
+        net_->getConnectionBetweenNodes(current_node,goal_node_,replanned_path->cost(),{},0.02); //max 20 milliseconds
+    net_->setVerbosity(false);
+
+    if(informedOnlineReplanning_verbose_)
+      ROS_GREEN_STREAM("At the end of replanning, in the graph there are "<<best_replanned_path_map.size()<<" paths better the one found!");
 
     double best_replanned_path_cost;
     std::vector<ConnectionPtr> best_replanned_path_conns;
@@ -1941,6 +1949,11 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
     {
       replanned_path = std::make_shared<Path>(best_replanned_path_conns,metrics_,checker_);
       replanned_path->setTree(tree_);
+
+      if(informedOnlineReplanning_verbose_)
+        ROS_GREEN_STREAM("A better path exists! Cost: "<<replanned_path->cost()<<" previous cost: "<<replanned_path_cost);
+
+      replanned_path_cost = replanned_path->cost();
     }
     assert(replanned_path->cost()<=subpath1->cost() && replanned_path->cost()<std::numeric_limits<double>::infinity());
 
