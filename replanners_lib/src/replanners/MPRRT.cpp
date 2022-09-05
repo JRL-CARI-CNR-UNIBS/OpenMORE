@@ -96,8 +96,8 @@ bool MPRRT::asyncComputeConnectingPath(const Eigen::VectorXd path1_node_conf,
 
   double cost;
   success?
-        (cost = best_solution->cost()):
-        (cost = -1);
+        (cost = best_cost):
+        (cost = current_solution_cost);
 
   if(verbose_)
     ROS_INFO_STREAM("\n--- THREAD REASUME ---\nthread n: "<<index<<"\nsuccess: "<<success<<"\nconnecting path cost: "<< cost<<"\nn iter: "<<iter<<" time: "<<(ros::WallTime::now()-tic).toSec());

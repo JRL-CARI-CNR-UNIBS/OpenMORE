@@ -31,11 +31,11 @@ src/replanners/MPRRT.cpp
 src/replanners/DRRTStar.cpp
 src/replanners/DRRT.cpp
 src/replanners/anytimeDRRT.cpp
-src/replanners/AIPRO.cpp
+src/replanners/MARS.cpp
 src/replanner_managers/replanner_manager_base.cpp
 src/replanner_managers/replanner_manager_DRRTStar.cpp
 src/replanner_managers/replanner_manager_DRRT.cpp
-src/replanner_managers/replanner_manager_AIPRO.cpp
+src/replanner_managers/replanner_manager_MARS.cpp
 src/replanner_managers/replanner_manager_anytimeDRRT.cpp
 src/replanner_managers/replanner_manager_MPRRT.cpp
 )

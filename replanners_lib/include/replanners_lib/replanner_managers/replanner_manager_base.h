@@ -37,7 +37,7 @@ protected:
   ros::NodeHandle      nh_                                ;
 
   /* Global variables */
-  bool test_                      ;
+  bool benchmark_                      ;
   bool stop_                      ;
   bool spawn_objs_                ;
   bool read_safe_scaling_         ;
@@ -88,12 +88,13 @@ protected:
   std::string obj_type_;
   std::vector<double> spawn_instants_;
   std::vector<std::string> obj_ids_;
+  std::vector<Eigen::VectorXd> obj_pos_;
 
-  std::thread test_thread_;
   std::thread display_thread_;
   std::thread trj_exec_thread_;
   std::thread col_check_thread_;
   std::thread spawn_obj_thread_;
+  std::thread benchmark_thread_;
   std::thread replanning_thread_;
 
   std::mutex trj_mtx_;
@@ -101,7 +102,7 @@ protected:
   std::mutex scene_mtx_;
   std::mutex replanner_mtx_;
   std::mutex ovr_mtx_;
-  std::mutex test_mtx_;
+  std::mutex bench_mtx_;
 
   std::vector<std::string>                                                        scaling_topics_names_ ;
   std::vector<std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>>> scaling_topics_vector_;
@@ -115,8 +116,8 @@ protected:
   ros::ServiceClient add_obj_;
   ros::ServiceClient remove_obj_;
 
-  void overrideCallback(const std_msgs::Int64ConstPtr& msg, const std::string& override_name);
-  void subscribeTopicsAndServices();
+  virtual void overrideCallback(const std_msgs::Int64ConstPtr& msg, const std::string& override_name);
+  virtual void subscribeTopicsAndServices();
   virtual bool replan();
   virtual void fromParam();
   virtual void syncPathCost();
@@ -126,10 +127,10 @@ protected:
   virtual void replanningThread();
   virtual void collisionCheckThread();
   virtual void displayThread();
-  void testThread();
-  void spawnObjects();
-  void trajectoryExecutionThread();
-  double readScalingTopics();
+  virtual void benchmarkThread();
+  virtual void spawnObjectsThread();
+  virtual void trajectoryExecutionThread();
+  virtual double readScalingTopics();
 
   virtual void initReplanner()=0         ;
   virtual bool haveToReplan(const bool path_obstructed)=0;

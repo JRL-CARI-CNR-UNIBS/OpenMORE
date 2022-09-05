@@ -1,64 +1,64 @@
-﻿#include "replanners_lib/replanner_managers/replanner_manager_AIPRO.h"
+﻿#include "replanners_lib/replanner_managers/replanner_manager_MARS.h"
 
 namespace pathplan
 {
-ReplannerManagerAIPRO::ReplannerManagerAIPRO(const PathPtr &current_path,
+ReplannerManagerMARS::ReplannerManagerMARS(const PathPtr &current_path,
                                              const TreeSolverPtr &solver,
                                              const ros::NodeHandle &nh):ReplannerManagerBase(current_path,solver,nh)
 {
-  ReplannerManagerAIPRO::additionalParam();
+  ReplannerManagerMARS::additionalParam();
 }
 
-ReplannerManagerAIPRO::ReplannerManagerAIPRO(const PathPtr &current_path,
+ReplannerManagerMARS::ReplannerManagerMARS(const PathPtr &current_path,
                                              const TreeSolverPtr &solver,
                                              const ros::NodeHandle &nh,
-                                             std::vector<PathPtr> &other_paths):ReplannerManagerAIPRO(current_path,solver,nh)
+                                             std::vector<PathPtr> &other_paths):ReplannerManagerMARS(current_path,solver,nh)
 {
   setOtherPaths(other_paths);
 }
 
-void ReplannerManagerAIPRO::setOtherPaths(std::vector<PathPtr>& other_paths)
+void ReplannerManagerMARS::setOtherPaths(std::vector<PathPtr>& other_paths)
 {
   other_paths_ = other_paths;
   if(replanner_)
   {
-    AIPROPtr aipro_replanner = std::static_pointer_cast<AIPRO>(replanner_);
-    aipro_replanner->setOtherPaths(other_paths);
+    MARSPtr MARS_replanner = std::static_pointer_cast<MARS>(replanner_);
+    MARS_replanner->setOtherPaths(other_paths);
   }
 }
 
-void ReplannerManagerAIPRO::additionalParam()
+void ReplannerManagerMARS::additionalParam()
 {
-  if(!nh_.getParam("/aipro/dt_replan_relaxed",dt_replan_relaxed_))
+  if(!nh_.getParam("/MARS/dt_replan_relaxed",dt_replan_relaxed_))
   {
-    ROS_ERROR("/aipro/dt_replan_relaxed not set, set 150% of dt_replan");
+    ROS_ERROR("/MARS/dt_replan_relaxed not set, set 150% of dt_replan");
     dt_replan_relaxed_ = 1.5*dt_replan_;
   }
 
-  if(!nh_.getParam("/aipro/reverse_start_nodes",reverse_start_nodes_))
+  if(!nh_.getParam("/MARS/reverse_start_nodes",reverse_start_nodes_))
   {
-    ROS_ERROR("/aipro/reverse_start_nodes not set, set false");
+    ROS_ERROR("/MARS/reverse_start_nodes not set, set false");
     reverse_start_nodes_ = false;
   }
 
-  if(!nh_.getParam("/aipro/full_net_search",full_net_search_))
+  if(!nh_.getParam("/MARS/full_net_search",full_net_search_))
   {
-    ROS_ERROR("/aipro/full_net_search_ not set, set true");
+    ROS_ERROR("/MARS/full_net_search_ not set, set true");
     full_net_search_ = true;
   }
 
-  if(!nh_.getParam("/aipro/verbosity_level",verbosity_level_))
+  if(!nh_.getParam("/MARS/verbosity_level",verbosity_level_))
   {
-    ROS_ERROR("/aipro/verbosity_level not set, set 0");
+    ROS_ERROR("/MARS/verbosity_level not set, set 0");
     verbosity_level_ = 0;
   }
 }
 
-void ReplannerManagerAIPRO::attributeInitialization()
+void ReplannerManagerMARS::attributeInitialization()
 {
   ReplannerManagerBase::attributeInitialization();
 
-  AIPROPtr replanner = std::static_pointer_cast<AIPRO>(replanner_);
+  MARSPtr replanner = std::static_pointer_cast<MARS>(replanner_);
 
   if(replanner_verbosity_)
   {
@@ -117,7 +117,7 @@ void ReplannerManagerAIPRO::attributeInitialization()
   configuration_replan_ = current_path_shared_->projectOnClosestConnection(point2project);
 }
 
-bool ReplannerManagerAIPRO::replan()
+bool ReplannerManagerMARS::replan()
 {
   double cost = replanner_->getCurrentPath()->getCostFromConf(replanner_->getCurrentConf());
   (cost == std::numeric_limits<double>::infinity())? (replanner_->setMaxTime(0.9*dt_replan_)):
@@ -137,14 +137,12 @@ bool ReplannerManagerAIPRO::replan()
     other_paths_shared_.push_back(another_path);
     other_paths_sync_needed_.push_back(false);
 
-    AIPROPtr replanner = std::static_pointer_cast<AIPRO>(replanner_);
+    MARSPtr replanner = std::static_pointer_cast<MARS>(replanner_);
     replanner->addOtherPath(initial_path_,false); //replanner->getCurrentPath() can be slightly different (some new nodes)
 
     assert(another_path->getConnectionsSize() == initial_path_->getConnectionsSize());
 
-    replanner_mtx_.lock();
     other_paths_.push_back(initial_path_); //not move from here
-    replanner_mtx_.unlock();
 
     other_paths_mtx_.unlock();
   }
@@ -152,9 +150,9 @@ bool ReplannerManagerAIPRO::replan()
   return path_changed;
 }
 
-void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
+void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
 {
-  AIPROPtr replanner = std::static_pointer_cast<AIPRO>(replanner_);
+  MARSPtr replanner = std::static_pointer_cast<MARS>(replanner_);
 
   PathPtr current_path   = replanner->getCurrentPath();
   PathPtr replanned_path = replanner->getReplannedPath();
@@ -508,14 +506,13 @@ void ReplannerManagerAIPRO::startReplannedPathFromNewCurrentConf(const Eigen::Ve
          }());
 }
 
-bool ReplannerManagerAIPRO::haveToReplan(const bool path_obstructed)
+bool ReplannerManagerMARS::haveToReplan(const bool path_obstructed)
 {
   return alwaysReplan();
 }
 
-void ReplannerManagerAIPRO::updateSharedPath()
+void ReplannerManagerMARS::updateSharedPath()
 {
-  //  ROS_WARN("AGGIORNO I PATH CONDIVISI");
   ReplannerManagerBase::updateSharedPath();
 
   other_paths_mtx_.lock();
@@ -531,10 +528,6 @@ void ReplannerManagerAIPRO::updateSharedPath()
         if(other_paths_shared_.at(i)->getConnections().at(j)->getParent()->getConfiguration() != other_paths_.at(i)->getConnections().at(j)->getParent()->getConfiguration())
         {
           sync_needed = true;
-          //          ROS_WARN("OTHER path n %i shared changed, diff %f",i, (other_paths_shared_.at(i)->getConnections().at(j)->getParent()->getConfiguration() - other_paths_.at(i)->getConnections().at(j)->getParent()->getConfiguration()).norm());
-
-          //          ROS_WARN_STREAM("shared: "<<*other_paths_shared_.at(i)); //elimina
-          //          ROS_WARN_STREAM("other: "<<*other_paths_.at(i));
           break;
         }
       }
@@ -545,10 +538,6 @@ void ReplannerManagerAIPRO::updateSharedPath()
     else
     {
       sync_needed = true;
-      //      ROS_WARN("OTHER path n %i shared changed",i);
-      //      ROS_WARN_STREAM(*other_paths_shared_.at(i));
-      //      ROS_WARN("other path: ");
-      //      ROS_WARN_STREAM(*other_paths_.at(i));
     }
 
     if(sync_needed)
@@ -558,22 +547,17 @@ void ReplannerManagerAIPRO::updateSharedPath()
       CollisionCheckerPtr checker = other_paths_shared_.at(i)->getChecker();
       other_paths_shared_.at(i) = other_paths_.at(i)->clone();
       other_paths_shared_.at(i)->setChecker(checker);
-
-      //      ROS_WARN("other path shared %i changed",i);
-      //      ROS_WARN_STREAM(*other_paths_shared_.at(i));
     }
   }
   other_paths_mtx_.unlock();
-  //  ROS_WARN("PATH CONDIVISI AGGIORNATI");
 }
 
-void ReplannerManagerAIPRO::syncPathCost()
+void ReplannerManagerMARS::syncPathCost()
 {
-  //  ROS_WARN("SINCRONIZZO IL COSTO DEI PATH");
-
   ReplannerManagerBase::syncPathCost();
 
   other_paths_mtx_.lock();
+
   unsigned int other_paths_size = std::min(other_paths_.size(),other_paths_shared_.size());
   for(unsigned int i=0;i<other_paths_size;i++)
   {
@@ -593,27 +577,18 @@ void ReplannerManagerAIPRO::syncPathCost()
         (*it)->setCost((*it_shared)->getCost());
       }
       else
-      {
-        //        ROS_INFO("shared path %i",i); //elimina
-        //        ROS_INFO_STREAM(*other_paths_shared_.at(i));
-        //        ROS_INFO("other path %i",i);
-        //        ROS_INFO_STREAM(*other_paths_.at(i));
-
         break;
-      }
     }
 
     other_paths_.at(i)->cost(); //update path cost
   }
   other_paths_mtx_.unlock();
-
-  //  ROS_WARN("COSTO DEI PATH SINCRONIZZATO");
 }
 
-void ReplannerManagerAIPRO::initReplanner()
+void ReplannerManagerMARS::initReplanner()
 {
   double time_for_repl = 0.9*dt_replan_;
-  pathplan::AIPROPtr replanner = std::make_shared<pathplan::AIPRO>(configuration_replan_,current_path_replanning_,time_for_repl,solver_,other_paths_);
+  pathplan::MARSPtr replanner = std::make_shared<pathplan::MARS>(configuration_replan_,current_path_replanning_,time_for_repl,solver_,other_paths_);
   replanner->reverseStartNodes(reverse_start_nodes_);
   replanner->setFullNetSearch(full_net_search_);
 
@@ -623,7 +598,7 @@ void ReplannerManagerAIPRO::initReplanner()
   replanner_->setDisp(disp);
 }
 
-bool ReplannerManagerAIPRO::checkPathTask(const PathPtr& path)
+bool ReplannerManagerMARS::checkPathTask(const PathPtr& path)
 {
   bool valid = path->isValid();
   path->cost();
@@ -631,7 +606,7 @@ bool ReplannerManagerAIPRO::checkPathTask(const PathPtr& path)
   return valid;
 }
 
-void ReplannerManagerAIPRO::collisionCheckThread()
+void ReplannerManagerMARS::collisionCheckThread()
 {
   moveit_msgs::GetPlanningScene ps_srv;
   Eigen::VectorXd current_configuration_copy;
@@ -654,56 +629,37 @@ void ReplannerManagerAIPRO::collisionCheckThread()
   int other_path_size = other_paths_copy.size();
 
   ros::Rate lp(collision_checker_thread_frequency_);
-  ros::WallTime tic, tic1;
-
-  double duration_copy_path, duration_update_cost_info, duration_pln_scn_srv, duration_check; //ELIMINA
+  ros::WallTime tic;
 
   while((not stop_) && ros::ok())
   {
     tic = ros::WallTime::now();
 
     /* Update planning scene */
-    tic1 = ros::WallTime::now();
-    scene_mtx_.lock();
     if(not plannning_scene_client_.call(ps_srv))
     {
       ROS_ERROR("call to srv not ok");
       stop_ = true;
       break;
     }
+
+    scene_mtx_.lock();
     checker_cc_->setPlanningSceneMsg(ps_srv.response.scene);
     for(const CollisionCheckerPtr& checker: checkers)
       checker->setPlanningSceneMsg(ps_srv.response.scene);
-
     scene_mtx_.unlock();
 
-    duration_pln_scn_srv = (ros::WallTime::now()-tic1).toSec();
-
-    tic1 = ros::WallTime::now();
-    //    trj_mtx_.lock();
-    //    current_configuration_copy = current_configuration_;
-    //    trj_mtx_.unlock();
-    replanner_mtx_.lock();
-    current_configuration_copy = configuration_replan_;
-    replanner_mtx_.unlock();
-
-    if((current_configuration_copy-replanner_->getGoal()->getConfiguration()).norm()<goal_tol_)
-    {
-      stop_ = true;
-      break;
-    }
-
     /* Update paths if they have been changed */
+    replanner_mtx_.lock();
     paths_mtx_.lock();
-    //    ROS_WARN("AGGIORNO I PATH IN CC");
+
+    current_configuration_copy = configuration_replan_;
 
     if(current_path_sync_needed_)
     {
       current_path_copy = current_path_shared_->clone();
       current_path_copy->setChecker(checker_cc_);
       current_path_sync_needed_ = false;
-
-      //      ROS_WARN_STREAM("cc current path viene clonato"<<*current_path_copy);
     }
 
     other_paths_mtx_.lock();
@@ -728,25 +684,26 @@ void ReplannerManagerAIPRO::collisionCheckThread()
         other_paths_copy.at(i) = other_paths_shared_.at(i)->clone();
         other_paths_copy.at(i)->setChecker(checkers.at(i));
         other_paths_sync_needed_.at(i) = false;
-        //        ROS_WARN("cc path %i viene clonato",i);
-        //        ROS_WARN_STREAM(*other_paths_copy.at(i));
       }
     }
-    //    ROS_WARN("PATH IN CC AGGIORNATI");
 
     other_paths_mtx_.unlock();
     paths_mtx_.unlock();
+    replanner_mtx_.unlock();
 
-    duration_copy_path = (ros::WallTime::now()-tic1).toSec();
+    if((current_configuration_copy-replanner_->getGoal()->getConfiguration()).norm()<goal_tol_)
+    {
+      stop_ = true;
+      break;
+    }
 
     /* Launch collision check tasks */
-    tic1 = ros::WallTime::now();
 
     std::vector<std::shared_future<bool>> tasks;
     for(unsigned int i=0;i<other_paths_copy.size();i++)
     {
       tasks.push_back(std::async(std::launch::async,
-                                 &ReplannerManagerAIPRO::checkPathTask,
+                                 &ReplannerManagerMARS::checkPathTask,
                                  this,other_paths_copy.at(i)));
     }
 
@@ -755,29 +712,25 @@ void ReplannerManagerAIPRO::collisionCheckThread()
     for(unsigned int i=0; i<tasks.size();i++)
       tasks.at(i).wait();  //wait for the end of each task
 
-    duration_check = (ros::WallTime::now()-tic1).toSec();
-
     /* Update the cost of the paths */
-    tic1 = ros::WallTime::now();
     scene_mtx_.lock();
     updatePathsCost(current_path_copy,other_paths_copy);
     planning_scene_msg_ = ps_srv.response.scene;
     scene_mtx_.unlock();
-    duration_update_cost_info = (ros::WallTime::now()-tic1).toSec();
 
     double duration = (ros::WallTime::now()-tic).toSec();
 
     if(duration>(1.0/collision_checker_thread_frequency_) && display_timing_warning_)
-      ROS_BOLDYELLOW_STREAM("Collision checking thread time expired: total duration-> "<<duration<<", duration_check-> "<<duration_check<<", duration_pln_scn_srv-> "<<duration_pln_scn_srv<<", duration_copy_path-> "<<duration_copy_path<<", duration_update_cost_info-> "<<duration_update_cost_info);
+      ROS_BOLDYELLOW_STREAM("Collision checking thread time expired: total duration-> "<<duration);
 
     lp.sleep();
   }
+
+  ROS_BOLDCYAN_STREAM("Collision check thread is over");
 }
 
-void ReplannerManagerAIPRO::updatePathsCost(const PathPtr& current_path_updated_copy, const std::vector<PathPtr>& other_paths_updated_copy)
+void ReplannerManagerMARS::updatePathsCost(const PathPtr& current_path_updated_copy, const std::vector<PathPtr>& other_paths_updated_copy)
 {
-  //  ROS_WARN("CARICO IL COSTO NEI PATH CONDIVISI");
-
   paths_mtx_.lock();
   if(not current_path_sync_needed_)
   {
@@ -806,22 +759,6 @@ void ReplannerManagerAIPRO::updatePathsCost(const PathPtr& current_path_updated_
       std::vector<ConnectionPtr> path_conns      = other_paths_shared_     .at(i)->getConnections();
       std::vector<ConnectionPtr> path_copy_conns = other_paths_updated_copy.at(i)->getConnections();
 
-      //      if(path_conns.size() != path_copy_conns.size()) //elimina
-      //      {
-      //        ROS_ERROR_STREAM("other path shared size: "<<other_paths_shared_.size());
-      //        ROS_ERROR_STREAM("other path shared updated size: "<<other_paths_updated_copy.size());
-      //        ROS_ERROR_STREAM("INDEX: "<<i);
-
-      //        assert(i<other_paths_shared_.size());
-      //        assert(i<other_paths_updated_copy.size());
-
-      //        ROS_ERROR("shared path %i",i); //elimina
-      //        ROS_ERROR_STREAM(*other_paths_shared_.at(i));
-      //        ROS_ERROR("updated_shared path %i",i);
-      //        ROS_ERROR_STREAM(*other_paths_updated_copy.at(i));
-      //        assert(0);
-      //      }
-
       assert(path_conns.size() == path_copy_conns.size());
       for(unsigned int j=0;j<path_conns.size();j++)
       {
@@ -837,12 +774,12 @@ void ReplannerManagerAIPRO::updatePathsCost(const PathPtr& current_path_updated_
   paths_mtx_.unlock();       //here to sync the cost of all paths
 }
 
-void ReplannerManagerAIPRO::displayCurrentPath()
+void ReplannerManagerMARS::displayCurrentPath()
 {
   ReplannerManagerBase::displayThread();
 }
 
-void ReplannerManagerAIPRO::displayOtherPaths()
+void ReplannerManagerMARS::displayOtherPaths()
 {
   pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
 
@@ -878,12 +815,14 @@ void ReplannerManagerAIPRO::displayOtherPaths()
 
     lp.sleep();
   }
+
+  ROS_BOLDCYAN_STREAM("Display other paths thread is over");
 }
 
-void ReplannerManagerAIPRO::displayThread()
+void ReplannerManagerMARS::displayThread()
 {
-  std::thread current_path_display_thread = std::thread(&ReplannerManagerAIPRO::displayCurrentPath,this);
-  std::thread other_paths_display_thread  = std::thread(&ReplannerManagerAIPRO::displayOtherPaths ,this);
+  std::thread current_path_display_thread = std::thread(&ReplannerManagerMARS::displayCurrentPath,this);
+  std::thread other_paths_display_thread  = std::thread(&ReplannerManagerMARS::displayOtherPaths ,this);
 
   if(current_path_display_thread.joinable())
     current_path_display_thread.join();

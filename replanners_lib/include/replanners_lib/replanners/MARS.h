@@ -1,5 +1,5 @@
-#ifndef AIPRO_H__
-#define AIPRO_H__
+#ifndef MARS_H__
+#define MARS_H__
 #include <replanners_lib/replanners/replanner_base.h>
 #include <graph_core/graph/net.h>
 
@@ -21,10 +21,10 @@ struct invalid_connection
   double cost;
 };
 
-class AIPRO;
-typedef std::shared_ptr<AIPRO> AIPROPtr;
+class MARS;
+typedef std::shared_ptr<MARS> MARSPtr;
 
-class AIPRO: public ReplannerBase
+class MARS: public ReplannerBase
 {
 protected:
 
@@ -84,12 +84,12 @@ protected:
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  AIPRO(const Eigen::VectorXd& current_configuration,
+  MARS(const Eigen::VectorXd& current_configuration,
         const PathPtr& current_path,
         const double& max_time,
         const TreeSolverPtr &solver);
 
-  AIPRO(const Eigen::VectorXd& current_configuration,
+  MARS(const Eigen::VectorXd& current_configuration,
         const PathPtr& current_path,
         const double& max_time,
         const TreeSolverPtr &solver,
@@ -207,4 +207,4 @@ public:
 };
 }
 
-#endif // AIPRO_H
+#endif // MARS_H

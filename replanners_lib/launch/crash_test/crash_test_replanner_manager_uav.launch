@@ -6,6 +6,7 @@
   </include>
 
   <rosparam command="load" file="$(find replanners_lib)/config/crash_test_replanner_manager_uav.yaml"/>
+  <remap from="/joint_target" to="/joint_states"/>
 
   <node pkg="replanners_lib"
         name="crash_test_replanner_managers"

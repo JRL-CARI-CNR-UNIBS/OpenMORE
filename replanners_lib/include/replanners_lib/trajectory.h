@@ -74,7 +74,7 @@ public:
     return trj_;
   }
 
-  PathPtr computePath(const NodePtr &start_node, const NodePtr &goal_node, const TreeSolverPtr& solver, const bool& optimizePath = true, const double &max_time = std::numeric_limits<double>::infinity());
+  PathPtr computePath(const NodePtr &start_node, const NodePtr &goal_node, const TreeSolverPtr& solver, const bool& optimize = true, const double &max_time = std::numeric_limits<double>::infinity());
   PathPtr computePath(const Eigen::VectorXd &start_conf, const Eigen::VectorXd &goal_conf, const TreeSolverPtr& solver, const bool& optimizePath = true, const double &max_time = std::numeric_limits<double>::infinity());
 
   robot_trajectory::RobotTrajectoryPtr fromPath2Trj(const trajectory_msgs::JointTrajectoryPointPtr& pnt = nullptr);

@@ -15,14 +15,16 @@ typedef std::shared_ptr<DynamicRRT> DynamicRRTPtr;
 class DynamicRRT: public ReplannerBase
 {
 protected:
+  NodePtr node_replan_;
   TreePtr trimmed_tree_;
   bool tree_is_trimmed_;
   InformedSamplerPtr sampler_;
+  std::vector<ConnectionPtr> checked_connections_;
 
-  bool trimInvalidTree(NodePtr& node, std::vector<ConnectionPtr> &checked_connections);
+  bool trimInvalidTree(NodePtr& node);
   bool regrowRRT(NodePtr& node);
   void fixTree(const NodePtr& node_replan, const NodePtr& root, std::vector<NodePtr> &old_nodes, std::vector<double> &old_connections_costs);
-
+  bool replan(const double& cost_from_conf);
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 

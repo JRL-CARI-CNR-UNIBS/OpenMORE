@@ -3,7 +3,7 @@
 # - DRRT*
 # - DRRT
 # - anytimeDRRT
-# - AIPRO
+# - MARS
 
 replanner_type: "DRRT*"
 group_name: "cartesian_arm"
@@ -16,10 +16,10 @@ max_time: 0.2
 n_iter: 500
 display: false
 
-to_goal:
+MPRRT:
   n_threads_replan: 5
 
-aipro:
+MARS:
   n_other_paths: 2
   reverse_start_nodes: true
   full_net_search: true

@@ -38,7 +38,7 @@ PathPtr Trajectory::computePath(const Eigen::VectorXd& start_conf, const Eigen::
 }
 
 
-PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_node, const TreeSolverPtr& solver, const bool& optimizePath, const double &max_time)
+PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_node, const TreeSolverPtr& solver, const bool& optimize, const double &max_time)
 {
   CollisionCheckerPtr checker = solver->getChecker();
   SamplerPtr sampler = solver->getSampler();
@@ -49,12 +49,13 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
   pathplan::PathPtr solution;
   bool success = solver->computePath(start_node,goal_node,nh_, solution, max_time, 10000);
 
-  if(!success)
+  if(not success)
   {
     ROS_INFO("No solutions found");
+    return nullptr;
   }
 
-  if(optimizePath && success)
+  if(optimize && success)
   {
     pathplan::PathLocalOptimizer path_solver(checker, metrics);
     path_solver.config(nh_);
@@ -77,10 +78,6 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
 
     pathplan::RRTStar opt_solver(metrics, checker, local_sampler);
     opt_solver.importFromSolver(solver);
-
-    //    opt_solver.addStartTree(solver->getStartTree());
-    //    opt_solver.addGoal(goal_node);
-    //    opt_solver.config(nh_);
 
     std::vector<pathplan::NodePtr> white_list;
     white_list.push_back(goal_node);

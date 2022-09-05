@@ -18,7 +18,10 @@ void ReplannerManagerDRRTStar::startReplannedPathFromNewCurrentConf(const Eigen:
   PathPtr replanned_path = replanner_->getReplannedPath();
   TreePtr tree = current_path->getTree();
 
-  if(old_current_node_)
+  if(not tree->changeRoot(current_path->getStartNode()))
+    throw std::runtime_error("root can not be changed");
+
+  if(old_current_node_ && old_current_node_ != tree->getRoot())
     current_path->removeNode(old_current_node_,{});
 
   NodePtr current_node;
@@ -38,9 +41,10 @@ void ReplannerManagerDRRTStar::startReplannedPathFromNewCurrentConf(const Eigen:
     tree->addNode(current_node);
   }
 
-  tree->changeRoot(current_node);
+  if(not tree->changeRoot(current_node))
+    throw std::runtime_error("root can not be changed");
 
-  std::vector<ConnectionPtr> new_conns = tree->getConnectionToNode(replanner_->getGoal());
+  std::vector<ConnectionPtr> new_conns = tree->getConnectionToNode(replanned_path->getGoalNode());
   replanned_path->setConnections(new_conns);
 
   old_current_node_ = current_node;

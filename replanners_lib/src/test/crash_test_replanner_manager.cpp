@@ -3,7 +3,7 @@
 #include<replanners_lib/replanner_managers/replanner_manager_anytimeDRRT.h>
 #include<replanners_lib/replanner_managers/replanner_manager_DRRTStar.h>
 #include<replanners_lib/replanner_managers/replanner_manager_MPRRT.h>
-#include<replanners_lib/replanner_managers/replanner_manager_AIPRO.h>
+#include<replanners_lib/replanner_managers/replanner_manager_MARS.h>
 
 int main(int argc, char **argv)
 {
@@ -137,7 +137,7 @@ int main(int argc, char **argv)
       distance = (goal_conf-start_conf).norm();
 
       ROS_INFO_STREAM("Query: "<<std::to_string(i)<<" Iter: "<<std::to_string(j)<<" start: "<<start_conf.transpose()<< " goal: "<<goal_conf.transpose()<< " distance: "<<distance);
-      std::string test_name = "replanner_test/test_q_"+std::to_string(i)+"_i_"+std::to_string(j);
+      std::string test_name = "./replanner_test/test_q_"+std::to_string(i)+"_i_"+std::to_string(j);
 
       nh.setParam("replanner/test_name",test_name); //to save test results
 
@@ -194,10 +194,10 @@ int main(int argc, char **argv)
       {
         replanner_manager.reset(new pathplan::ReplannerManagerAnytimeDRRT(current_path,solver,nh));
       }
-      else if(replanner_type == "AIPRO")
+      else if(replanner_type == "MARS")
       {
         int n_other_paths;
-        if (!nh.getParam("/aipro/n_other_paths",n_other_paths))
+        if (!nh.getParam("/MARS/n_other_paths",n_other_paths))
         {
           ROS_ERROR("n_other_paths not set, set 1");
           n_other_paths = 1;
@@ -217,7 +217,7 @@ int main(int argc, char **argv)
           }
         }
 
-        replanner_manager = std::make_shared<pathplan::ReplannerManagerAIPRO>(current_path,solver,nh,other_paths);
+        replanner_manager = std::make_shared<pathplan::ReplannerManagerMARS>(current_path,solver,nh,other_paths);
       }
       else
       {
@@ -228,7 +228,7 @@ int main(int argc, char **argv)
       // //////////////////////////////REPLANNING///////////////////////////////////////////////////
       replanner_manager->start();
 
-      std::system("clear"); //clear terminal
+      //std::system("clear"); //clear terminal
     }
 
     start_conf = start_conf+delta;

@@ -1,11 +1,11 @@
-﻿#include "replanners_lib/replanners/AIPRO.h"
+﻿#include "replanners_lib/replanners/MARS.h"
 
 namespace pathplan
 {
-AIPRO::AIPRO(const Eigen::VectorXd& current_configuration,
-             const PathPtr& current_path,
-             const double& max_time,
-             const TreeSolverPtr &solver): ReplannerBase(current_configuration,current_path,max_time,solver)
+MARS::MARS(const Eigen::VectorXd& current_configuration,
+           const PathPtr& current_path,
+           const double& max_time,
+           const TreeSolverPtr &solver): ReplannerBase(current_configuration,current_path,max_time,solver)
 {
   tree_ = current_path_->getTree();
   net_ = std::make_shared<Net>(tree_);
@@ -28,16 +28,16 @@ AIPRO::AIPRO(const Eigen::VectorXd& current_configuration,
   pathSwitch_verbose_ = false;
 }
 
-AIPRO::AIPRO(const Eigen::VectorXd& current_configuration,
-             const PathPtr& current_path,
-             const double& max_time,
-             const TreeSolverPtr &solver,
-             std::vector<PathPtr> &other_paths): AIPRO(current_configuration,current_path,max_time,solver)
+MARS::MARS(const Eigen::VectorXd& current_configuration,
+           const PathPtr& current_path,
+           const double& max_time,
+           const TreeSolverPtr &solver,
+           std::vector<PathPtr> &other_paths): MARS(current_configuration,current_path,max_time,solver)
 {
   setOtherPaths(other_paths);
 }
 
-void AIPRO::copyTreeRoot()
+void MARS::copyTreeRoot()
 {
   /* Net stops working when encounters the tree root, so doesn't allow to find a replanned path which pass through the start
    * So, a copy of the root (=start) is created and all the paths will start from this node and not from the root.*/
@@ -60,7 +60,7 @@ void AIPRO::copyTreeRoot()
   }
 }
 
-bool AIPRO::mergePathToTree(PathPtr &path)
+bool MARS::mergePathToTree(PathPtr &path)
 {
   TreePtr path_tree = path->getTree();
   NodePtr path_goal = path->getConnections().back()->getChild();
@@ -255,9 +255,9 @@ bool AIPRO::mergePathToTree(PathPtr &path)
   return true;
 }
 
-void AIPRO::clearInvalidConnections()
+void MARS::clearInvalidConnections()
 {
-  /* Set the cost of subtree connections equal to their default value. In previous call to AIPRO replanner
+  /* Set the cost of subtree connections equal to their default value. In previous call to MARS replanner
    * the cost of some subtrees connections has been set equal to infinite. These connections usually are
    * not checked because not part of a path. So, now reset their costs. The connections of the paths are excluded
    * because their costs have been updated by an external collision checker */
@@ -275,7 +275,7 @@ void AIPRO::clearInvalidConnections()
   invalid_connections_.clear();
 }
 
-std::vector<PathPtr> AIPRO::addAdmissibleCurrentPath(const int &idx_current_conn, PathPtr& admissible_current_path)
+std::vector<PathPtr> MARS::addAdmissibleCurrentPath(const int &idx_current_conn, PathPtr& admissible_current_path)
 {
   std::vector<PathPtr> reset_other_paths;
   admissible_current_path = nullptr;
@@ -324,7 +324,7 @@ std::vector<PathPtr> AIPRO::addAdmissibleCurrentPath(const int &idx_current_conn
   }
 }
 
-std::vector<ps_goals> AIPRO::sortNodes(const NodePtr& start_node)
+std::vector<ps_goals> MARS::sortNodes(const NodePtr& start_node)
 {
   /* WHAT ABOUT SORTING LIKE A* ? */
 
@@ -397,7 +397,7 @@ std::vector<ps_goals> AIPRO::sortNodes(const NodePtr& start_node)
   return goals;
 }
 
-std::vector<NodePtr> AIPRO::startNodes(const std::vector<ConnectionPtr>& subpath1_conn)
+std::vector<NodePtr> MARS::startNodes(const std::vector<ConnectionPtr>& subpath1_conn)
 {
   std::vector<NodePtr> start_node_vector;
 
@@ -470,13 +470,13 @@ std::vector<NodePtr> AIPRO::startNodes(const std::vector<ConnectionPtr>& subpath
   return start_node_vector;
 }
 
-bool AIPRO::findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double &cost2beat, std::vector<ConnectionPtr> &solution, double& cost, bool verbose)
+bool MARS::findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double &cost2beat, std::vector<ConnectionPtr> &solution, double& cost, bool verbose)
 {
   unsigned int number_of_candidates = 0;
   return findValidSolution(map,cost2beat,solution,cost,number_of_candidates,verbose);
 }
 
-bool AIPRO::findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double &cost2beat, std::vector<ConnectionPtr> &solution, double& cost, unsigned int &number_of_candidates, bool verbose)
+bool MARS::findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double &cost2beat, std::vector<ConnectionPtr> &solution, double& cost, unsigned int &number_of_candidates, bool verbose)
 {
   solution.clear();
   number_of_candidates = 0;
@@ -528,7 +528,7 @@ bool AIPRO::findValidSolution(const std::multimap<double,std::vector<ConnectionP
         while(updated_cost<std::numeric_limits<double>::infinity() && i<size)
         {
           if(verbose)
-            ROS_CYAN_STREAM("connection: "<<solution_pair.second.at(i)->getCost()<<" cost: "<<solution_pair.second.at(i)->getCost());
+            ROS_CYAN_STREAM("connection: "<<solution_pair.second.at(i)<<" cost: "<<solution_pair.second.at(i)->getCost());
 
           updated_cost += solution_pair.second.at(i)->getCost();
           i++;
@@ -628,12 +628,12 @@ bool AIPRO::findValidSolution(const std::multimap<double,std::vector<ConnectionP
   return false;
 }
 
-PathPtr AIPRO::bestExistingSolution(const PathPtr& current_solution)
+PathPtr MARS::bestExistingSolution(const PathPtr& current_solution)
 {
   std::multimap<double,std::vector<ConnectionPtr>> tmp_map;
   return bestExistingSolution(current_solution,tmp_map);
 }
-PathPtr AIPRO::bestExistingSolution(const PathPtr& current_solution, std::multimap<double,std::vector<ConnectionPtr>>& tmp_map)
+PathPtr MARS::bestExistingSolution(const PathPtr& current_solution, std::multimap<double,std::vector<ConnectionPtr>>& tmp_map)
 {
   tmp_map.clear();
   PathPtr solution;
@@ -681,7 +681,7 @@ PathPtr AIPRO::bestExistingSolution(const PathPtr& current_solution, std::multim
   return solution;
 }
 
-void AIPRO::simplifyAdmissibleOtherPaths(const PathPtr& current_solution_path, const NodePtr& start_node, const std::vector<PathPtr>& reset_other_paths)
+void MARS::simplifyAdmissibleOtherPaths(const PathPtr& current_solution_path, const NodePtr& start_node, const std::vector<PathPtr>& reset_other_paths)
 {
   if(start_node == current_solution_path->getGoalNode())
     return;
@@ -736,7 +736,7 @@ void AIPRO::simplifyAdmissibleOtherPaths(const PathPtr& current_solution_path, c
   //  }
 }
 
-double AIPRO::maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle)
+double MARS::maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle)
 {
   double time;
   ros::WallTime toc = ros::WallTime::now();
@@ -751,7 +751,7 @@ double AIPRO::maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_c
   return time;
 }
 
-void AIPRO::optimizePath(PathPtr& path, const double& max_time)
+void MARS::optimizePath(PathPtr& path, const double& max_time)
 {
   ros::WallTime tic_opt = ros::WallTime::now();
   path->warp(0.1,max_time);
@@ -761,7 +761,7 @@ void AIPRO::optimizePath(PathPtr& path, const double& max_time)
     ROS_INFO_STREAM("max opt time: "<<max_time<<" used time: "<<(toc_opt-tic_opt).toSec());
 }
 
-bool AIPRO::simplifyReplannedPath(const double& distance)
+bool MARS::simplifyReplannedPath(const double& distance)
 {
   bool simplify1 = false;
   bool simplify2 = false;
@@ -780,7 +780,7 @@ bool AIPRO::simplifyReplannedPath(const double& distance)
   return simplified;
 }
 
-void AIPRO::convertToSubtreeSolution(const PathPtr& net_solution, const std::vector<NodePtr>& black_nodes)
+void MARS::convertToSubtreeSolution(const PathPtr& net_solution, const std::vector<NodePtr>& black_nodes)
 {
   std::vector<ConnectionPtr> connections = net_solution->getConnections();
   connections.pop_back(); //the last connection must remain a net connection
@@ -799,7 +799,7 @@ void AIPRO::convertToSubtreeSolution(const PathPtr& net_solution, const std::vec
   }
 }
 
-bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2_node, const double& diff_subpath_cost, const PathPtr& current_solution, const ros::WallTime& tic, const ros::WallTime& tic_cycle, PathPtr& connecting_path, bool& quickly_solved)
+bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2_node, const double& diff_subpath_cost, const PathPtr& current_solution, const ros::WallTime& tic, const ros::WallTime& tic_cycle, PathPtr& connecting_path, bool& quickly_solved)
 {
   connecting_path = nullptr;
 
@@ -814,6 +814,7 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
     std::vector<NodePtr> nodes = p->getNodes();
     black_list.insert(black_list.end(),nodes.begin(),nodes.end());
   }
+  assert(not black_list.empty());
 
   SubtreePtr subtree = pathplan::Subtree::createSubtree(tree_,path1_node,
                                                         path2_node->getConfiguration(),
@@ -835,10 +836,100 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
 
   ros::WallTime tic_search = ros::WallTime::now();
 
-  NetPtr net = std::make_shared<Net>(subtree);
-  std::multimap<double,std::vector<ConnectionPtr>> already_existing_solutions_map = net->getConnectionBetweenNodes(path1_node,path2_node,diff_subpath_cost,black_list);
+  bool search_in_subtree = true;
+  double net_time = maxSolverTime(tic,tic_cycle);
 
+  NetPtr net = std::make_shared<Net>(subtree);
+  std::multimap<double,std::vector<ConnectionPtr>> already_existing_solutions_map = net->getConnectionBetweenNodes(path1_node,path2_node,diff_subpath_cost,
+                                                                                                                   black_list,net_time,search_in_subtree);
   double time_search = (ros::WallTime::now()-tic_search).toSec();
+
+  if(already_existing_solutions_map.size()>100)
+  {
+    ROS_BOLDMAGENTA_STREAM("SIZE MAP "<<already_existing_solutions_map.size());
+    disp_->changeNodeSize();
+    disp_->displayNode(path1_node);
+    disp_->displayNode(path2_node);
+    disp_->defaultNodeSize();
+
+    std::vector<PathPtr> paths, short_paths;
+    for(const std::pair<double,std::vector<ConnectionPtr>>& p:already_existing_solutions_map)
+    {
+      PathPtr path = std::make_shared<Path>(p.second,metrics_,checker_);
+      paths.push_back(path);
+      //disp_->displayPath(path);
+    }
+
+    disp_->displaySubtree(subtree,"pathplan",{0,0,1,1});
+
+    int counter2 = 0;
+    for(unsigned int ii=0;ii<paths.size();ii++)
+    {
+      PathPtr p = paths.at(ii);
+      short_paths.clear();
+      short_paths.assign(paths.begin()+ii,paths.end());
+
+      for(const PathPtr& pp: short_paths)
+      {
+        if(p == pp)
+          continue;
+        else
+        {
+          if(std::abs(p->cost() - pp->cost())<1e-06)
+          {
+            if(p->getConnectionsSize() != pp->getConnectionsSize())
+              continue;
+            else
+            {
+              counter2++;
+              bool equal = true;
+              for(unsigned int idxx = 0;idxx<p->getConnectionsSize()-1;idxx++)
+              {
+                if((p->getConnections().at(idxx)->getChild()->getConfiguration() - pp->getConnections().at(idxx)->getChild()->getConfiguration()).norm()>1e-06)
+                {
+                  equal = false;
+                  break;
+                }
+              }
+
+              if(equal)
+              {
+                disp_->displayPath(p);
+                disp_->displayPath(pp);
+                ROS_INFO_STREAM(*p);
+                ROS_INFO_STREAM(*pp);
+                assert(0);
+              }
+            }
+          }
+        }
+      }
+    }
+
+
+    int counter = 0;
+    for(const PathPtr p:paths)
+    {
+      std::vector<NodePtr> nodes = p->getNodes();
+      for(const NodePtr& n:nodes)
+      {
+        if(n == path2_node)
+          continue;
+
+        if(not subtree->isInTree(n))
+        {
+          counter++;
+          disp_->displayNode(n,"pathplan",{0,0,0,1});
+        }
+      }
+      disp_->displayPath(p);
+    }
+
+    ROS_BOLDMAGENTA_STREAM("SIZE MAP vbut all ok "<<already_existing_solutions_map.size());
+    ROS_BOLDMAGENTA_STREAM("COUNTER "<<counter<<" counter2 "<<counter2);
+
+    assert(0);
+  }
 
   //elimina
   if(already_existing_solutions_map.size() == 1)
@@ -910,7 +1001,24 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
 
              if(std::find(parents.begin(),parents.end(),path1_node)<parents.end())
              {
-               return false;
+               std::vector<ConnectionPtr> net_parent_conn = path2_node->getNetParentConnections();
+               std::vector<ConnectionPtr> parent_conn = path2_node->getParentConnections();
+               parent_conn.insert(parent_conn.end(),net_parent_conn.begin(),net_parent_conn.end());
+
+               for(const ConnectionPtr& c:parent_conn)
+               {
+                 if(c->getParent() == path1_node)
+                 {
+                   if(c->getCost()<diff_subpath_cost)
+                   {
+                     ROS_INFO_STREAM("cost "<<c->getCost());
+                     net->setVerbosity(true);
+                     net->getConnectionBetweenNodes(path1_node,path2_node,diff_subpath_cost,
+                     black_list,net_time,search_in_subtree);
+                     return false;
+                   }
+                 }
+               }
              }
            }
            return true;
@@ -923,7 +1031,8 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
   unsigned int number_of_candidates = 0;
   double already_existing_solution_cost;
   std::vector<ConnectionPtr> already_existing_solution_conn;
-  if(findValidSolution(already_existing_solutions_map,diff_subpath_cost,already_existing_solution_conn,already_existing_solution_cost,number_of_candidates,true))
+  if(findValidSolution(already_existing_solutions_map,diff_subpath_cost,already_existing_solution_conn,
+                       already_existing_solution_cost,number_of_candidates,true))
   {
     connecting_path = std::make_shared<Path>(already_existing_solution_conn,metrics_,checker_);
     connecting_path->setTree(tree_);
@@ -969,6 +1078,8 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
   solver_->resetProblem();
   solver_->addStart(path1_node);
   solver_->setStartTree(subtree);
+
+  std::vector<NodePtr> subtree_nodes = subtree->getNodesConst(); //nodes already in the subtree
 
   double solver_time = maxSolverTime(tic,tic_cycle);
 
@@ -1035,16 +1146,37 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
 
     for(const ConnectionPtr& c:connecting_path->getConnections())
     {
+      if(std::find(subtree_nodes.begin(),subtree_nodes.end(),c->getChild())<subtree_nodes.end()) //connections that already were in the subtree excluded
+        continue;
+
+      assert(not c->isRecentlyChecked());
+      assert(c->getCost()<std::numeric_limits<double>::infinity());
+
       c->setRecentlyChecked(true);
       checked_connections_.push_back(c);
-
-      assert(c->getCost()<std::numeric_limits<double>::infinity());
     }
+
+    net_time = maxSolverTime(tic,tic_cycle);
 
     number_of_candidates = 0;
     double connecting_path_cost;
     std::vector<ConnectionPtr> connecting_path_conn;
-    std::multimap<double,std::vector<ConnectionPtr>> connecting_paths_map = net->getConnectionBetweenNodes(path1_node,path2_node_fake,diff_subpath_cost,black_list);
+    std::multimap<double,std::vector<ConnectionPtr>> connecting_paths_map = net->getConnectionBetweenNodes(path1_node,path2_node_fake,diff_subpath_cost,
+                                                                                                           black_list,net_time,search_in_subtree);
+    /*To be sure map contains the connecting path computed*/
+    double cost = 0.0;
+    std::vector<ConnectionPtr> conns = subtree->getConnectionToNode(path2_node_fake);
+    for(const ConnectionPtr& c: conns)
+      cost += c->getCost();
+
+    if(cost<diff_subpath_cost)
+    {
+      std::pair<double,std::vector<ConnectionPtr>> p;
+      p.first = cost;
+      p.second = conns;
+
+      connecting_paths_map.insert(p);
+    }
 
     if(not connecting_paths_map.empty())
     {
@@ -1062,14 +1194,17 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
                  {
                    if(conn->getParent() == last_conn->getParent())
                    {
-                     std::vector<ConnectionPtr> connections = current_path_->getConnections();
-                     for(const PathPtr& pt:other_paths_)
-                     connections.insert(connections.end(),pt->getConnectionsConst().begin(),pt->getConnectionsConst().end());
+                     std::vector<ConnectionPtr> connections;
+                     for(const PathPtr& pt:paths)
+                     {
+                       connections.insert(connections.end(),pt->getConnectionsConst().begin(),pt->getConnectionsConst().end());
+                     }
 
                      if(std::find(connections.begin(),connections.end(),conn)<connections.end())
-                     return true;
+                     {
+                       return true;
+                     }
 
-                     //trova una soluzione nella mappa iniziale ma la connessione è a costo infinito (non dovrebbe), ne cerca una nuova e ottiene la stessa connessione ma con costo non infinito
                      ROS_WARN_STREAM("conn to path2_node "<<*conn<<" recently_checked: "<<conn->isRecentlyChecked()<<" "<<conn);
                      ROS_WARN_STREAM("conn to path2_node_fake "<<*last_conn<<" recently_checked: "<<last_conn->isRecentlyChecked()<<" "<<last_conn);
                      ROS_WARN_STREAM("path2_node PARENT\n"<<*conn->getParent()<<conn->getParent());
@@ -1106,13 +1241,15 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
                      if(not found)
                      ROS_WARN_STREAM("conn to path2_node NOT found into invalid connections");
 
-                     ROS_WARN("Old map to path2_node:");
+                     ROS_WARN_STREAM("Old map to path2_node size "<<already_existing_solutions_map.size()<<":");
                      for(const std::pair<double,std::vector<ConnectionPtr>> &sp:already_existing_solutions_map)
                      {
                        ROS_WARN_STREAM("cost: "<<sp.first);
 
                        for(const ConnectionPtr& c: sp.second)
-                       ROS_WARN_STREAM(*c<<" "<<c);
+                       {
+                         ROS_WARN_STREAM(*c<<" "<<c);
+                       }
                        ROS_WARN("----------------");
                      }
 
@@ -1120,6 +1257,12 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
                      bool verbose = true;
                      std::vector<ConnectionPtr> cnn;
                      findValidSolution(already_existing_solutions_map,diff_subpath_cost,cnn,cnn_cost,verbose);
+
+                     ROS_WARN("Search again");
+                     net->setVerbosity(true);
+                     already_existing_solutions_map = net->getConnectionBetweenNodes(path1_node,path2_node,diff_subpath_cost,
+                     black_list,net_time,search_in_subtree);
+
 
                      return false;
                    }
@@ -1138,6 +1281,10 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
         connecting_path->setTree(tree_);
 
         last_conn->remove();
+
+        std::vector<ConnectionPtr>::iterator it = std::find(checked_connections_.begin(),checked_connections_.end(),last_conn);
+        assert(it<checked_connections_.end());
+        *it = new_conn;
 
         assert(connecting_path->cost() == std::numeric_limits<double>::infinity() || connecting_path->cost()<diff_subpath_cost);
 
@@ -1193,9 +1340,9 @@ bool AIPRO::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path
   return false;
 }
 
-bool AIPRO::pathSwitch(const PathPtr &current_path,
-                       const NodePtr &path1_node,
-                       PathPtr &new_path)
+bool MARS::pathSwitch(const PathPtr &current_path,
+                      const NodePtr &path1_node,
+                      PathPtr &new_path)
 {
   ros::WallTime tic=ros::WallTime::now();
   ros::WallTime toc, tic_cycle, toc_cycle;
@@ -1486,7 +1633,7 @@ bool AIPRO::pathSwitch(const PathPtr &current_path,
   return success;
 }
 
-PathPtr AIPRO::getSubpath1(NodePtr& current_node)
+PathPtr MARS::getSubpath1(NodePtr& current_node)
 {
   /* If the current configuration matches a node of the current_path_ */
   current_node = nullptr;
@@ -1505,7 +1652,10 @@ PathPtr AIPRO::getSubpath1(NodePtr& current_node)
     if((current_configuration_-current_path_nodes.at(i)->getConfiguration()).norm()<=TOLERANCE)
     {
       current_node = current_path_nodes.at(i);
-      return current_path_->getSubpathFromNode(current_node);
+      PathPtr subpath1 = current_path_->getSubpathFromNode(current_node);
+      subpath1->setTree(tree_);
+
+      return subpath1;
     }
   }
 
@@ -1516,7 +1666,7 @@ PathPtr AIPRO::getSubpath1(NodePtr& current_node)
   return nullptr;
 }
 
-void AIPRO::initCheckedConnections()
+void MARS::initCheckedConnections()
 {
   if(not checked_connections_.empty())
   {
@@ -1534,7 +1684,7 @@ void AIPRO::initCheckedConnections()
     checked_conn->setRecentlyChecked(true);
 }
 
-bool AIPRO::informedOnlineReplanning(const double &max_time)
+bool MARS::informedOnlineReplanning(const double &max_time)
 {
   ros::WallTime tic=ros::WallTime::now();
   ros::WallTime toc, tic_cycle, toc_cycle;
@@ -1935,6 +2085,7 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
   {
     assert(replanned_path_cost == replanned_path->cost());
 
+    ros::WallTime tn = ros::WallTime::now();
     net_->setVerbosity(true);
     std::multimap<double,std::vector<ConnectionPtr>> best_replanned_path_map  =
         net_->getConnectionBetweenNodes(current_node,goal_node_,replanned_path->cost(),{},0.02); //max 20 milliseconds
@@ -1983,7 +2134,7 @@ bool AIPRO::informedOnlineReplanning(const double &max_time)
   return success_;
 }
 
-bool AIPRO::replan()
+bool MARS::replan()
 {
   ros::WallTime tic = ros::WallTime::now();
   success_ = false;

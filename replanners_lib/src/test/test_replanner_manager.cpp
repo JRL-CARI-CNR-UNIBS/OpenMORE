@@ -109,7 +109,7 @@ int main(int argc, char **argv)
 
   pathplan::ReplannerManagerBasePtr replanner_manager = nullptr;
 
-  if(replanner_type == "replanner_to_goal")
+  if(replanner_type == "MPRRT")
   {
     replanner_manager = std::make_shared<pathplan::ReplannerManagerMPRRT>(current_path,solver,nh);
   }

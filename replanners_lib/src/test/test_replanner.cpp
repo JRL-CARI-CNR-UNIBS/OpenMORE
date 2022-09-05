@@ -7,7 +7,7 @@
 #include <replanners_lib/replanners/DRRTStar.h>
 #include <replanners_lib/replanners/DRRT.h>
 #include <replanners_lib/replanners/anytimeDRRT.h>
-#include <replanners_lib/replanners/AIPRO.h>
+#include <replanners_lib/replanners/MARS.h>
 #include <graph_core/parallel_moveit_collision_checker.h>
 
 int main(int argc, char **argv)
@@ -57,6 +57,21 @@ int main(int argc, char **argv)
     ROS_ERROR("stop_configuration not set, exit");
     return 0;
   }
+
+  bool verbose;
+  if (!nh.getParam("verbose",verbose))
+  {
+    ROS_ERROR("verbose not set, exit");
+    return 0;
+  }
+
+  bool display;
+  if (!nh.getParam("display",display))
+  {
+    ROS_ERROR("verbose not set, exit");
+    return 0;
+  }
+
 
   //  ///////////////////////////////////UPLOADING THE ROBOT ARM/////////////////////////////////////////////////////////////
 
@@ -157,28 +172,28 @@ int main(int argc, char **argv)
   {
     replanner =  std::make_shared<pathplan::AnytimeDynamicRRT>(current_configuration,current_path,max_time,solver);
   }
-  else if(replanner_type == "AIPRO")
+  else if(replanner_type == "MARS")
   {
     int n_other_paths;
-    if (!nh.getParam("/aipro/n_other_paths",n_other_paths))
+    if (!nh.getParam("/MARS/n_other_paths",n_other_paths))
     {
       ROS_ERROR("n_other_paths not set, set 1");
       n_other_paths = 1;
     }
     bool reverse;
-    if (!nh.getParam("/aipro/reverse_start_nodes",reverse))
+    if (!nh.getParam("/MARS/reverse_start_nodes",reverse))
     {
       ROS_ERROR("reverse_start_nodes not set, set false");
       reverse = false;
     }
 
     bool verbose,display;
-    if(!nh.getParam("/aipro/verbose",verbose))
+    if(!nh.getParam("/MARS/verbose",verbose))
     {
       return 0;
       verbose = false;
     }
-    if(!nh.getParam("/aipro/display",display))
+    if(!nh.getParam("/MARS/display",display))
     {
       return 0;
       display = false;
@@ -207,17 +222,17 @@ int main(int argc, char **argv)
 
     all_paths.insert(all_paths.end(),other_paths.begin(),other_paths.end());
 
-    pathplan::AIPROPtr aipro_replanner =  std::make_shared<pathplan::AIPRO>(current_configuration,current_path,max_time,solver);
-    aipro_replanner->setDisp(disp);
+    pathplan::MARSPtr MARS_replanner =  std::make_shared<pathplan::MARS>(current_configuration,current_path,max_time,solver);
+    MARS_replanner->setDisp(disp);
 
-    aipro_replanner->setInformedOnlineReplanningDisp(display);
-    aipro_replanner->setPathSwitchDisp(display);
-    aipro_replanner->setVerbosity(verbose);
+    MARS_replanner->setInformedOnlineReplanningDisp(display);
+    MARS_replanner->setPathSwitchDisp(display);
+    MARS_replanner->setVerbosity(verbose);
 
-    aipro_replanner->setOtherPaths(other_paths);
-    aipro_replanner->reverseStartNodes(reverse);
+    MARS_replanner->setOtherPaths(other_paths);
+    MARS_replanner->reverseStartNodes(reverse);
 
-    replanner = aipro_replanner;
+    replanner = MARS_replanner;
   }
   else
   {
@@ -247,7 +262,7 @@ int main(int argc, char **argv)
     }
 
     object_loader_msgs::Object obj;
-    obj.object_type="scatola";
+    obj.object_type="little_box";
 
     int obj_conn_pos = n_conn+1;
     pathplan::ConnectionPtr obj_conn = current_path->getConnections().at(obj_conn_pos);
@@ -305,9 +320,17 @@ int main(int argc, char **argv)
     disp->nextButton();
 
     //      /////////////////////////////////////REPLANNING ////////////////////////////////////////
+    if(display)
+      replanner->setDisp(disp);
+
+    if(verbose)
+      replanner->setVerbosity(true);
+
     tic = ros::WallTime::now();
-    success =  replanner->replan();
+    replanner->replan();
     toc = ros::WallTime::now();
+    success = replanner->getSuccess();
+
     if((i%2 != 0))
     {
       if (!remove_obj.call(remove_srv))
@@ -352,9 +375,9 @@ int main(int argc, char **argv)
 
     current_path = replanner->getReplannedPath();
 
-//    Eigen::VectorXd parent = current_path->getConnections().at(n_conn)->getParent()->getConfiguration();
-//    Eigen::VectorXd child = current_path->getConnections().at(n_conn)->getChild()->getConfiguration();
-//    current_configuration = parent + (child-parent)*0.1;
+    //    Eigen::VectorXd parent = current_path->getConnections().at(n_conn)->getParent()->getConfiguration();
+    //    Eigen::VectorXd child = current_path->getConnections().at(n_conn)->getChild()->getConfiguration();
+    //    current_configuration = parent + (child-parent)*0.1;
 
     replanner->setCurrentConf(current_configuration);
     replanner->setCurrentPath(current_path);

@@ -15,8 +15,9 @@ class DynamicRRTStar: public ReplannerBase
 {
 protected:
 
+  bool nodeBeforeObs(const PathPtr& subpath, NodePtr& node_before);
   bool nodeBehindObs(NodePtr& node_behind);
-  bool connectBehindObs(NodePtr& node);
+  bool connectBehindObs(const NodePtr &node);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

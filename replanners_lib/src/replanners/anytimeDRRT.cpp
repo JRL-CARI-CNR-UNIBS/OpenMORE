@@ -111,32 +111,9 @@ bool AnytimeDynamicRRT::replan()
   success_ = false;
   double cost_from_conf = current_path_->getCostFromConf(current_configuration_);
 
-  NodePtr node_replan;
   if(cost_from_conf == std::numeric_limits<double>::infinity())
   {
-    if(verbose_)
-      ROS_WARN("Current path obstructed");
-
-    std::vector<NodePtr> path_nodes = current_path_->getNodes();  //save nodes pointers (the same pointers stored in the tree)
-    assert(path_nodes.front() == current_path_->getTree()->getRoot());
-
-    std::vector<double> connections_costs;
-    for(const ConnectionPtr& conn:current_path_->getConnections())
-      connections_costs.push_back(conn->getCost());
-
-    for(const NodePtr& n:path_nodes)
-      assert(current_path_->getTree()->isInTree(n));
-
-    NodePtr root = current_path_->getTree()->getRoot();
-    assert(root == path_nodes.front());
-
-    ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-    node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,true,is_a_new_node_);
-
-    if(verbose_)
-      ROS_INFO_STREAM("Starting node for replanning: \n"<< *node_replan);
-
-    if(regrowRRT(node_replan))
+    if(DynamicRRT::replan(cost_from_conf))
     {
       success_ = true;
 
@@ -146,7 +123,7 @@ bool AnytimeDynamicRRT::replan()
       solver_->setSolution(current_path_,true);
 
       double max_time_impr = 0.98*max_time_-(ros::WallTime::now()-tic).toSec();
-      if(improvePath(node_replan,max_time_impr)) //if not improved, success_ = true anyway beacuse a new path has been found with regrowRRT()
+      if(improvePath(node_replan_,max_time_impr)) //if not improved, success_ = true anyway beacuse a new path has been found with regrowRRT()
       {
         solver_->setStartTree(replanned_path_->getTree());
         solver_->setSolution(replanned_path_,true);       //should be after setStartTree
@@ -154,8 +131,6 @@ bool AnytimeDynamicRRT::replan()
     }
     else
     {
-      fixTree(node_replan,root,path_nodes,connections_costs);
-
       success_ = false;
       if(verbose_)
         ROS_ERROR("Tree can not be regrown using regrowRRT");
@@ -164,13 +139,13 @@ bool AnytimeDynamicRRT::replan()
   else
   {
     ConnectionPtr conn = current_path_->findConnection(current_configuration_);
-    node_replan = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,false);
+    node_replan_ = current_path_->addNodeAtCurrentConfig(current_configuration_,conn,false);
 
     solver_->setStartTree(current_path_->getTree());
     solver_->setSolution(current_path_,true);       //should be after setStartTree
 
     double max_time_impr = 0.98*max_time_-(ros::WallTime::now()-tic).toSec();
-    if(improvePath(node_replan,max_time_impr))
+    if(improvePath(node_replan_,max_time_impr))
     {
       solver_->setStartTree(replanned_path_->getTree());
       solver_->setSolution(replanned_path_,true);   //should be after setStartTree

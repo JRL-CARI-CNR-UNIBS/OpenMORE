@@ -1,16 +1,16 @@
-#ifndef REPLANNER_MANAGER_AIPRO_H__
-#define REPLANNER_MANAGER_AIPRO_H__
+#ifndef REPLANNER_MANAGER_MARS_H__
+#define REPLANNER_MANAGER_MARS_H__
 
 #include <replanners_lib/replanner_managers/replanner_manager_base.h>
-#include <replanners_lib/replanners/AIPRO.h>
+#include <replanners_lib/replanners/MARS.h>
 #include <future>
 
 namespace pathplan
 {
-class ReplannerManagerAIPRO;
-typedef std::shared_ptr<ReplannerManagerAIPRO> ReplannerManagerAIPROPtr;
+class ReplannerManagerMARS;
+typedef std::shared_ptr<ReplannerManagerMARS> ReplannerManagerMARSPtr;
 
-class ReplannerManagerAIPRO: public ReplannerManagerBase
+class ReplannerManagerMARS: public ReplannerManagerBase
 {
 protected:
   bool full_net_search_;
@@ -43,11 +43,11 @@ protected:
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  ReplannerManagerAIPRO(const PathPtr &current_path,
+  ReplannerManagerMARS(const PathPtr &current_path,
                         const TreeSolverPtr &solver,
                         const ros::NodeHandle &nh);
 
-  ReplannerManagerAIPRO(const PathPtr &current_path,
+  ReplannerManagerMARS(const PathPtr &current_path,
                         const TreeSolverPtr &solver,
                         const ros::NodeHandle &nh,
                         std::vector<PathPtr> &other_paths);
@@ -58,4 +58,4 @@ public:
 
 }
 
-#endif // REPLANNER_MANAGER_AIPRO_H__
+#endif // REPLANNER_MANAGER_MARS_H__

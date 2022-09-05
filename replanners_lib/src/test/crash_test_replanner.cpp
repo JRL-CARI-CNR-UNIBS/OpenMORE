@@ -7,7 +7,7 @@
 #include <replanners_lib/replanners/DRRTStar.h>
 #include <replanners_lib/replanners/DRRT.h>
 #include <replanners_lib/replanners/anytimeDRRT.h>
-#include <replanners_lib/replanners/AIPRO.h>
+#include <replanners_lib/replanners/MARS.h>
 #include <graph_core/parallel_moveit_collision_checker.h>
 
 int main(int argc, char **argv)
@@ -220,22 +220,22 @@ int main(int argc, char **argv)
     {
       replanner =  std::make_shared<pathplan::AnytimeDynamicRRT>(current_configuration,current_path,max_time,solver);
     }
-    else if(replanner_type == "AIPRO")
+    else if(replanner_type == "MARS")
     {
       int n_other_paths;
-      if (!nh.getParam("/aipro/n_other_paths",n_other_paths))
+      if (!nh.getParam("/MARS/n_other_paths",n_other_paths))
       {
         ROS_ERROR("n_other_paths not set, set 1");
         n_other_paths = 1;
       }
       bool reverse;
-      if (!nh.getParam("/aipro/reverse_start_nodes",reverse))
+      if (!nh.getParam("/MARS/reverse_start_nodes",reverse))
       {
         ROS_ERROR("reverse_start_nodes not set, set false");
         reverse = false;
       }
       bool full_search;
-      if (!nh.getParam("/aipro/full_net_search",full_search))
+      if (!nh.getParam("/MARS/full_net_search",full_search))
       {
         ROS_ERROR("full_net_search not set, set true");
         full_search = true;
@@ -260,12 +260,12 @@ int main(int argc, char **argv)
 
       all_paths.insert(all_paths.end(),other_paths.begin(),other_paths.end());
 
-      pathplan::AIPROPtr aipro_replanner = std::make_shared<pathplan::AIPRO>(current_configuration,current_path,max_time,solver);
-      aipro_replanner->setOtherPaths(other_paths);
-      aipro_replanner->reverseStartNodes(reverse);
-      aipro_replanner->setFullNetSearch(full_search);
+      pathplan::MARSPtr MARS_replanner = std::make_shared<pathplan::MARS>(current_configuration,current_path,max_time,solver);
+      MARS_replanner->setOtherPaths(other_paths);
+      MARS_replanner->reverseStartNodes(reverse);
+      MARS_replanner->setFullNetSearch(full_search);
 
-      replanner = aipro_replanner;
+      replanner = MARS_replanner;
     }
     else
     {

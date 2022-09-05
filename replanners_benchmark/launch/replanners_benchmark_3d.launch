@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<launch>
+  <include file="$(find replanners_benchmark)/launch/cell.launch">
+    <arg name="demo_package" value="replanners_bench_3d_moveit_config"/>
+    <arg name="static_scene" value="static_scene_replanners_bench_3d.yaml"/>
+  </include>
+
+  <rosparam command="load" file="$(find replanners_benchmark)/config/replanners_bench_3d.yaml"/>
+  <remap from="/joint_target" to="/joint_states"/>
+
+  <node pkg="replanners_benchmark"
+        name="replanners_benchmark"
+        type="replanners_benchmark"
+        output="screen"
+        launch-prefix="gdb -ex run --args">
+ </node>
+
+</launch>
