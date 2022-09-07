@@ -1,6 +1,6 @@
 #TEST CONFIGURATIONS:
-n_query: 3
-n_iter_per_query: 1
+n_query: 50
+n_iter_per_query: 10
 
 #PLANNING CONFIGURATIONS:
 group_name: "manipulator"

@@ -1259,7 +1259,7 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
                      findValidSolution(already_existing_solutions_map,diff_subpath_cost,cnn,cnn_cost,verbose);
 
                      ROS_WARN("Search again");
-                     net->setVerbosity(true);
+                     //net->setVerbosity(true);
                      already_existing_solutions_map = net->getConnectionBetweenNodes(path1_node,path2_node,diff_subpath_cost,
                      black_list,net_time,search_in_subtree);
 
@@ -2086,10 +2086,10 @@ bool MARS::informedOnlineReplanning(const double &max_time)
     assert(replanned_path_cost == replanned_path->cost());
 
     ros::WallTime tn = ros::WallTime::now();
-    net_->setVerbosity(true);
+    //net_->setVerbosity(true);
     std::multimap<double,std::vector<ConnectionPtr>> best_replanned_path_map  =
         net_->getConnectionBetweenNodes(current_node,goal_node_,replanned_path->cost(),{},0.02); //max 20 milliseconds
-    net_->setVerbosity(false);
+    //net_->setVerbosity(false);
 
     if(informedOnlineReplanning_verbose_)
       ROS_GREEN_STREAM("At the end of replanning, in the graph there are "<<best_replanned_path_map.size()<<" paths better the one found!");

@@ -29,7 +29,6 @@ bool DynamicRRTStar::nodeBeforeObs(const PathPtr& subpath, NodePtr& node_before)
   {
     if(c->getCost() == std::numeric_limits<double>::infinity())
     {
-      ROS_INFO_STREAM("c bef "<<*c); //elimina
       node_before = c->getParent();
       return true;
     }
@@ -54,7 +53,7 @@ bool DynamicRRTStar::nodeBehindObs(NodePtr& node_behind)
     }
   }
 
-  ROS_ERROR("Gaol behind obstacle not found");
+  ROS_ERROR("Goal behind obstacle not found");
   return false;
 }
 

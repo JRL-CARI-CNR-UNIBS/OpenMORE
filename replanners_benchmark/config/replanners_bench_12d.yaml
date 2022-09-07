@@ -1,11 +1,14 @@
 #TEST CONFIGURATIONS:
-n_query: 50
-n_iter_per_query: 10
+n_query: 3
+n_iter_per_query: 1
 
 #PLANNING CONFIGURATIONS:
 group_name: "manipulator"
-start_configuration: [0.0,0.0,0.0]
-stop_configuration:  [3,3,2]
+start_configuration: [1.377, 0.291, -0.327, -0.152, 0.723, 1.504, -0.327, -1.1038, -1.1039, -0.06067, -0.0789, 0.2304]
+end_start_configuration: [1.376, 0.299, -1.57, -0.133, 0.279, 0.928, 0.109, -1.1002, 0.424, 0.291, 0.3456, 0.221]
+stop_configuration: [-1.159, -0.8949, 1.385, -0.3501, -0.9964, -1.3500, -0.0225, 0.8918, 0.1913, 0.041, -0.215, 1.516]
+end_stop_configuration: [-1.4415, 0.5835, 0.8058, -0.0984, -0.4665, -0.487, 0.5335, 0.277, 0.0182, -0.152, -0.5413, 0.3429]
+
 utopia_tolerance: 0.05
 extend: false
 max_distance: 0.3
@@ -22,13 +25,13 @@ max_solver_time: 30
 # - anytimeDRRT
 # - MARS
 
-replanner_type: "MPRRT"
+replanner_type: "MARS"
 dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 benchmark: true
 spawn_objs: true
-spawn_instants: [2,7,12]
+spawn_instants: [0.5,4.5,8.5]
 obj_type: "box"
 obj_max_size: 0.1
 scaling: 0.5
@@ -46,7 +49,7 @@ MARS:
   verbosity_level: 2
 
 #VERBOSITY:
-replanner_verbosity: true
+replanner_verbosity: false
 display_timing_warning: true
 display_replanning_success: true
 display_replan_trj_point: true

@@ -175,6 +175,7 @@ void ReplannerManagerBase::attributeInitialization()
   interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_  ,scaling);
   interpolator_.interpolate(ros::Duration(t_       ),pnt_         ,scaling);
   interpolator_.interpolate(ros::Duration(t_       ),pnt_unscaled_,    1.0);
+  interpolator_.interpolate(ros::Duration(t_+dt_   ),pnt_forward_ ,scaling);
 
   Eigen::VectorXd point2project(joint_names.size());
   for(unsigned int i=0; i<pnt_replan_.positions.size();i++)
@@ -426,11 +427,12 @@ void ReplannerManagerBase::replanningThread()
         paths_mtx_.unlock();
 
         PathPtr trj_path = current_path_replanning_->clone();
-        trj_path->removeNodes(); //remove useless nodes to speed up the trj (does not affect the tree because its a cloned path)
+        bool trj_remove = trj_path->removeNodes(); //remove useless nodes to speed up the trj (does not affect the tree because its a cloned path)
 
         moveit_msgs::RobotTrajectory tmp_trj_msg;
         trajectory_->setPath(trj_path);
-        robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
+        //robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
+        robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_forward_);
         trj->getRobotTrajectoryMsg(tmp_trj_msg);
 
         interpolator_.setTrajectory(tmp_trj_msg);
@@ -645,8 +647,9 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     path2project_on = current_path_shared_->clone();
     paths_mtx_.unlock();
 
-    interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling_);
-    interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,    1.0);
+    interpolator_.interpolate(ros::Duration(t_)    ,pnt_         ,scaling_);
+    interpolator_.interpolate(ros::Duration(t_)    ,pnt_unscaled_,     1.0);
+    interpolator_.interpolate(ros::Duration(t_+dt_),pnt_forward_ ,scaling_);
 
     Eigen::VectorXd point2project(pnt_.positions.size());
     for(unsigned int i=0; i<pnt_.positions.size();i++)
