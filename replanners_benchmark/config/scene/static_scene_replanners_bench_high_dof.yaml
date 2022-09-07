@@ -1,0 +1,7 @@
+scene_objects:
+ - {type: "plane",   frame: "world", position: [0,0,0],   quaternion: [0, 0, 0, 1]}
+ - {type: "mid_box", frame: "world", position: [0.7,0.7,1.2],   quaternion: [0, 0, 0, 1]}
+ - {type: "mid_box", frame: "world", position: [-0.7,0.7,1.5],   quaternion: [0, 0, 0, 1]}
+ - {type: "mid_box", frame: "world", position: [-0.7,-0.7,1.2],  quaternion: [0, 0, 0, 1]}
+ - {type: "mid_box", frame: "world", position: [0.7,-0.7,1.5],  quaternion: [0, 0, 0, 1]}
+ - {type: "mid_box",     frame: "world", position: [0,0,2],   quaternion: [0, 0, 0, 1]}

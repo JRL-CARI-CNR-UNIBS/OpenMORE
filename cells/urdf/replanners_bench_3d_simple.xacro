@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="replanners_bench_3d_simple" >
+
+<xacro:include filename="$(find cartesian_description)/urdf/base_cell.xacro" />
+<xacro:base_cell
+    lb_X   = "  0.0"
+    ub_X   = " 3.0"
+    lb_Y   = "  0.0"
+    ub_Y   = " 3.0"
+    lb_Z   = "  0.0"
+    ub_Z   = " 3.0"
+    radius = "0.05"
+/>
+</robot>

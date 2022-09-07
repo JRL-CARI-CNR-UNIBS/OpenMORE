@@ -1,0 +1,11 @@
+moveit_setup_assistant_config:
+  URDF:
+    package: ""
+    relative_path: /home/riemann/projects/planning_ws/src/motion/replanning_strategies/cells/urdf/replanners_bench_3d_simple.xacro
+    xacro_args: ""
+  SRDF:
+    relative_path: config/replanners_bench_3d_simple.srdf
+  CONFIG:
+    author_name: Cesare Tonola
+    author_email: c.tonola001@unibs.it
+    generated_timestamp: 1662460352

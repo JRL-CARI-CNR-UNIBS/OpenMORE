@@ -47,7 +47,7 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
   Eigen::VectorXd ub = sampler->getUB();
 
   pathplan::PathPtr solution;
-  bool success = solver->computePath(start_node,goal_node,nh_, solution, max_time, 10000);
+  bool success = solver->computePath(start_node,goal_node,nh_,solution,max_time,100000);
 
   if(not success)
   {

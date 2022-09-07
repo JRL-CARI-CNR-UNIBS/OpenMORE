@@ -1139,7 +1139,7 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
   if(solver_has_solved)
   {
     /* Search for the best solution in the subtree which connects path1_node to path2_node_fake */
-    assert(path2_node_fake->getChildConnectionsSize    () == 0);
+    //assert(path2_node_fake->getChildConnectionsSize    () == 0);
     assert(path2_node_fake->getParentConnectionsSize   () == 1);
     assert(path2_node_fake->getNetChildConnectionsSize () == 0);
     assert(path2_node_fake->getNetParentConnectionsSize() == 0);
@@ -1312,7 +1312,7 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
           throw std::exception();
         }
 
-        subtree->removeNode(path2_node_fake); //disconnect and remove the fake node
+        subtree->purgeFromHere(path2_node_fake); //disconnect and remove the fake node
         assert(not tree_->isInTree(path2_node_fake));
 
         return true;

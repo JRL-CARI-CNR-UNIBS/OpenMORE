@@ -1,0 +1,55 @@
+#TEST CONFIGURATIONS:
+n_query: 50
+n_iter_per_query: 10
+
+#PLANNING CONFIGURATIONS:
+group_name: "manipulator"
+start_configuration: [0.0,0.0,0.0]
+stop_configuration:  [3,3,2]
+utopia_tolerance: 0.05
+extend: false
+max_distance: 0.3
+checker_resolution: 0.05
+parallel_checker_n_threads: 20
+max_solver_time: 30
+
+#REPLANNER CONFIGURATIONS:
+
+# Available replanners:
+# - MPRRT
+# - DRRT*
+# - DRRT
+# - anytimeDRRT
+# - MARS
+
+replanner_type: "MPRRT"
+dt_replan: 0.20
+trj_execution_thread_frequency: 500
+collision_checker_thread_frequency: 30
+benchmark: true
+spawn_objs: true
+spawn_instants: [2,7,12]
+obj_type: "box"
+obj_max_size: 0.1
+scaling: 0.5
+read_safe_scaling: false
+read_real_joints_values_: false
+
+MPRRT:
+  n_threads_replan: 5
+
+MARS:
+  n_other_paths: 3
+  reverse_start_nodes: true
+  full_net_search: false
+  dt_replan_relaxed: 0.20
+  verbosity_level: 2
+
+#VERBOSITY:
+replanner_verbosity: true
+display_timing_warning: true
+display_replanning_success: true
+display_replan_trj_point: true
+display_replan_config: true
+display_current_trj_point: true
+display_current_config: true

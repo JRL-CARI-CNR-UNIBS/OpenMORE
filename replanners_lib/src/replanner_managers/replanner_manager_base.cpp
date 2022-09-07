@@ -312,7 +312,7 @@ void ReplannerManagerBase::updatePathCost(const PathPtr& current_path_updated_co
     current_path_shared_->cost();
   }
 
-  if(current_path_shared_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
+  if(current_path_shared_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity() && (display_timing_warning_ || display_replanning_success_))
     ROS_BOLDMAGENTA_STREAM("Obstacle detected!");
 
   paths_mtx_.unlock();
@@ -972,7 +972,7 @@ void ReplannerManagerBase::benchmarkThread()
     toc = ros::WallTime::now();
     cycle_duration = (toc-tic).toSec();
     if(cycle_duration>(1/freq) && display_timing_warning_)
-      ROS_BOLDYELLOW_STREAM("Test thread time expired: duration-> "<<cycle_duration);
+      ROS_BOLDYELLOW_STREAM("Benchmark thread time expired: duration-> "<<cycle_duration);
 
     lp.sleep();
   }

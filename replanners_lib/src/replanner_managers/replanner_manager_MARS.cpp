@@ -748,7 +748,7 @@ void ReplannerManagerMARS::updatePathsCost(const PathPtr& current_path_updated_c
     current_path_shared_->cost();
   }
 
-  if(current_path_shared_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity())
+  if(current_path_shared_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity() && (display_timing_warning_ || display_replanning_success_))
     ROS_BOLDMAGENTA_STREAM("Obstacle detected!");
 
   other_paths_mtx_.lock();

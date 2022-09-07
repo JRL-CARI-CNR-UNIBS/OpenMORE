@@ -37,7 +37,7 @@ protected:
   ros::NodeHandle      nh_                                ;
 
   /* Global variables */
-  bool benchmark_                      ;
+  bool benchmark_                 ;
   bool stop_                      ;
   bool spawn_objs_                ;
   bool read_safe_scaling_         ;

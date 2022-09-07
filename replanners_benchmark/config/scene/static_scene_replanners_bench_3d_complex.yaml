@@ -1,0 +1,11 @@
+scene_objects:
+ - {type: "huge_box", frame: "world", position: [2,2,1.5],       quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [6,6,1.5],       quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [10,10,1.5],     quaternion: [0, 0, 0, 1]}
+ - {type: "big_box", frame: "world", position:  [7,9,1.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "big_box", frame: "world", position:  [9,7,1.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [2,10,1.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "huge_box", frame: "world", position: [10,2,1.5],      quaternion: [0, 0, 0, 1]}
+ - {type: "big_box", frame: "world", position: [3,5,1.5],       quaternion: [0, 0, 0, 1]}
+ - {type: "big_box", frame: "world", position: [5,3,1.5],       quaternion: [0, 0, 0, 1]}
+ - {type: "big_box", frame: "world", position: [7,9,1.5],       quaternion: [0, 0, 0, 1]}

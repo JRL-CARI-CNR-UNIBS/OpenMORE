@@ -1,4 +1,4 @@
-#include <graph_core/solvers/birrt.h>
+#include<graph_core/solvers/birrt.h>
 #include<replanners_lib/replanner_managers/replanner_manager_DRRT.h>
 #include<replanners_lib/replanner_managers/replanner_manager_MARS.h>
 #include<replanners_lib/replanner_managers/replanner_manager_MPRRT.h>
@@ -50,6 +50,18 @@ int main(int argc, char **argv)
     return 0;
   }
 
+  std::vector<double> end_start_configuration;
+  if (!nh.getParam("end_start_configuration",end_start_configuration))
+  {
+    end_start_configuration = stop_configuration;
+  }
+
+  std::vector<double> end_stop_configuration;
+  if (!nh.getParam("end_stop_configuration",end_stop_configuration))
+  {
+    end_stop_configuration = start_configuration;
+  }
+
   double max_distance;
   if(!nh.getParam("max_distance",max_distance))
   {
@@ -61,6 +73,12 @@ int main(int argc, char **argv)
   if (!nh.getParam("display",display))
   {
     display = false;
+  }
+
+  double max_solver_time;
+  if (!nh.getParam("max_solver_time",max_solver_time))
+  {
+    max_solver_time = 20;
   }
 
   //  ///////////////////////////////////UPLOADING THE ROBOT ARM/////////////////////////////////////////////////////////////
@@ -106,6 +124,7 @@ int main(int argc, char **argv)
     return 1;
   }
 
+
   // /////////////////////////////////////////////////////////////////////////////////////////////////////////
   std::string last_link=planning_scene->getRobotModel()->getJointModelGroup(group_name)->getLinkModelNames().back();
   pathplan::TrajectoryPtr trajectory = std::make_shared<pathplan::Trajectory>(nh,planning_scene,group_name);
@@ -116,8 +135,11 @@ int main(int argc, char **argv)
   Eigen::VectorXd start_conf = Eigen::Map<Eigen::VectorXd>(start_configuration.data(), start_configuration.size());
   Eigen::VectorXd goal_conf  = Eigen::Map<Eigen::VectorXd>(stop_configuration .data(), stop_configuration .size());
 
-  Eigen::VectorXd delta = (goal_conf-start_conf)/(std::max(n_query-1,1));
-  delta[0] = 0.0; //move on plane x=0
+  Eigen::VectorXd end_start_conf = Eigen::Map<Eigen::VectorXd>(end_start_configuration.data(), end_start_configuration.size());
+  Eigen::VectorXd end_goal_conf  = Eigen::Map<Eigen::VectorXd>(end_stop_configuration .data(), end_stop_configuration .size());
+
+  Eigen::VectorXd delta_start = (end_start_conf - start_conf)/(std::max(n_query-1,1));
+  Eigen::VectorXd delta_goal  = (end_goal_conf  - goal_conf )/(std::max(n_query-1,1));
 
   pathplan::MetricsPtr metrics;
   pathplan::CollisionCheckerPtr checker;
@@ -128,26 +150,31 @@ int main(int argc, char **argv)
   pathplan::ReplannerManagerBasePtr replanner_manager;
 
   int id_start,id_goal;
+  disp->changeNodeSize();
+  id_start = disp->displayNode(std::make_shared<pathplan::Node>(start_conf),"pathplan",{1.0,0.0,0.0,1.0});
+  id_goal = disp->displayNode(std::make_shared<pathplan::Node>(goal_conf),"pathplan",{1.0,0.0,0.0,1.0});
+  disp->defaultNodeSize();
+
   double distance;
   for(int i=0; i<n_query; i++)
   {
+    distance = (goal_conf-start_conf).norm();
+
+    disp->clearMarker(id_start);
+    disp->clearMarker(id_goal);
+
+    disp->changeNodeSize();
+    id_start = disp->displayNode(std::make_shared<pathplan::Node>(start_conf),"pathplan",{1.0,0.0,0.0,1.0});
+    id_goal = disp->displayNode(std::make_shared<pathplan::Node>(goal_conf),"pathplan",{1.0,0.0,0.0,1.0});
+    disp->defaultNodeSize();
+
     for(int j=0;j<n_iter_per_query;j++)
     {
       ROS_INFO("---------------------------------------------------------------------------------------------------------");
-      distance = (goal_conf-start_conf).norm();
-
       ROS_INFO_STREAM("Query: "<<std::to_string(i)<<" Iter: "<<std::to_string(j)<<" start: "<<start_conf.transpose()<< " goal: "<<goal_conf.transpose()<< " distance: "<<distance);
       std::string test_name = "./replanner_test/test_q_"+std::to_string(i)+"_i_"+std::to_string(j);
 
       nh.setParam("replanner/test_name",test_name); //to save test results
-
-      disp->clearMarker(id_start);
-      disp->clearMarker(id_goal);
-
-      disp->changeNodeSize();
-      id_start = disp->displayNode(std::make_shared<pathplan::Node>(start_conf),"pathplan",{1.0,0.0,0.0,1.0});
-      id_goal = disp->displayNode(std::make_shared<pathplan::Node>(goal_conf),"pathplan",{1.0,0.0,0.0,1.0});
-      disp->defaultNodeSize();
 
       if(display)
         disp->nextButton();
@@ -167,18 +194,16 @@ int main(int argc, char **argv)
       metrics = std::make_shared<pathplan::Metrics>();
       checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
       sampler = std::make_shared<pathplan::InformedSampler>(start_conf,goal_conf,lb,ub);
-      solver = std::make_shared<pathplan::RRT>(metrics,checker,sampler);
+      solver = std::make_shared<pathplan::BiRRT>(metrics,checker,sampler);
       solver->setMaxDistance(max_distance);
 
       std::srand(std::time(NULL));
-      current_path = trajectory->computePath(start_conf,goal_conf,solver,true);
+      current_path = trajectory->computePath(start_conf,goal_conf,solver,true,max_solver_time);
 
-      if(!current_path)
+      if(not current_path)
         continue;
-
-      disp->displayTree(current_path->getTree());
-      ros::Duration(10).sleep();
-      disp->clearMarkers();
+      else
+        ROS_INFO_STREAM("current path cost "<<current_path->cost());
 
       // //////////////////////////////////////////DEFINING THE REPLANNER//////////////////////////////////////////////
       replanner_manager.reset();
@@ -209,18 +234,24 @@ int main(int argc, char **argv)
 
         for(unsigned int i=0;i<n_other_paths;i++)
         {
-          solver = std::make_shared<pathplan::RRT>(metrics,checker,sampler);
-          new_path = trajectory->computePath(start_conf,goal_conf,solver,true);
+          std::srand(std::time(NULL));
+          solver = std::make_shared<pathplan::BiRRT>(metrics,checker,sampler);
+          new_path = trajectory->computePath(start_conf,goal_conf,solver,true,max_solver_time);
 
           other_paths.clear();
           if(new_path)
           {
             other_paths.push_back(new_path);
-            if(!new_path->getTree())
-              assert(0);
+            ROS_INFO_STREAM("other path cost "<<new_path->cost());
+            assert(new_path->getTree());
           }
+          else
+            ROS_INFO("other path not found");
         }
 
+        std::srand(std::time(NULL));
+        solver = std::make_shared<pathplan::BiRRT>(metrics,checker,sampler);
+        solver->config(nh);
         replanner_manager = std::make_shared<pathplan::ReplannerManagerMARS>(current_path,solver,nh,other_paths);
       }
       else
@@ -235,8 +266,8 @@ int main(int argc, char **argv)
       //std::system("clear"); //clear terminal
     }
 
-    start_conf = start_conf+delta;
-    goal_conf = goal_conf-delta;
+    start_conf = start_conf+delta_start;
+    goal_conf  = goal_conf +delta_goal ;
   }
 
   return 0;

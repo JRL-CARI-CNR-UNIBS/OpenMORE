@@ -1,0 +1,10 @@
+controller_list:
+  - name: fake_cartesian_arm_controller
+    type: $(arg fake_execution_type)
+    joints:
+      - joint_X
+      - joint_Y
+      - joint_Z
+initial:  # Define initial robot poses per group
+  - group: cartesian_arm
+    pose: home
