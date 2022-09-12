@@ -3,16 +3,16 @@
 namespace pathplan
 {
 ReplannerManagerMARS::ReplannerManagerMARS(const PathPtr &current_path,
-                                             const TreeSolverPtr &solver,
-                                             const ros::NodeHandle &nh):ReplannerManagerBase(current_path,solver,nh)
+                                           const TreeSolverPtr &solver,
+                                           const ros::NodeHandle &nh):ReplannerManagerBase(current_path,solver,nh)
 {
   ReplannerManagerMARS::additionalParam();
 }
 
 ReplannerManagerMARS::ReplannerManagerMARS(const PathPtr &current_path,
-                                             const TreeSolverPtr &solver,
-                                             const ros::NodeHandle &nh,
-                                             std::vector<PathPtr> &other_paths):ReplannerManagerMARS(current_path,solver,nh)
+                                           const TreeSolverPtr &solver,
+                                           const ros::NodeHandle &nh,
+                                           std::vector<PathPtr> &other_paths):ReplannerManagerMARS(current_path,solver,nh)
 {
   setOtherPaths(other_paths);
 }
@@ -650,10 +650,12 @@ void ReplannerManagerMARS::collisionCheckThread()
     scene_mtx_.unlock();
 
     /* Update paths if they have been changed */
-    replanner_mtx_.lock();
+    //    replanner_mtx_.lock();
+    trj_mtx_.lock();
     paths_mtx_.lock();
 
-    current_configuration_copy = configuration_replan_;
+    current_configuration_copy = current_configuration_;
+    //    current_configuration_copy = configuration_replan_;
 
     if(current_path_sync_needed_)
     {
@@ -689,7 +691,8 @@ void ReplannerManagerMARS::collisionCheckThread()
 
     other_paths_mtx_.unlock();
     paths_mtx_.unlock();
-    replanner_mtx_.unlock();
+    trj_mtx_.unlock();
+    //    replanner_mtx_.unlock();
 
     if((current_configuration_copy-replanner_->getGoal()->getConfiguration()).norm()<goal_tol_)
     {

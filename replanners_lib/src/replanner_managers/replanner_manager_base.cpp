@@ -175,7 +175,6 @@ void ReplannerManagerBase::attributeInitialization()
   interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_  ,scaling);
   interpolator_.interpolate(ros::Duration(t_       ),pnt_         ,scaling);
   interpolator_.interpolate(ros::Duration(t_       ),pnt_unscaled_,    1.0);
-  interpolator_.interpolate(ros::Duration(t_+dt_   ),pnt_forward_ ,scaling);
 
   Eigen::VectorXd point2project(joint_names.size());
   for(unsigned int i=0; i<pnt_replan_.positions.size();i++)
@@ -319,6 +318,43 @@ void ReplannerManagerBase::updatePathCost(const PathPtr& current_path_updated_co
   paths_mtx_.unlock();
 }
 
+void ReplannerManagerBase::updateTrajectory()
+{
+  PathPtr trj_path = current_path_replanning_->clone();
+
+  ROS_INFO_STREAM("TRJ PATH BEFORE"<<*trj_path);
+
+  trj_path->removeNodes(1e-03); //remove useless nodes to speed up the trj (does not affect the tree because its a cloned path)
+
+  assert([&]() ->bool{
+           ConnectionPtr conn1;
+           ConnectionPtr conn2;
+           std::vector<ConnectionPtr> conns = trj_path->getConnectionsConst();
+           for(unsigned int i=0;i<conns.size()-1;i++)
+           {
+             conn1 = trj_path->getConnections().at(i);
+             conn2 = trj_path->getConnections().at(i+1);
+
+             if(conn1->isParallel(conn2,1e-03))
+             {
+               return false;
+             }
+           }
+           return true;
+         }());
+
+  ROS_INFO_STREAM("TRJ PATH "<<*trj_path);
+
+  trajectory_->setPath(trj_path);
+  robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
+  moveit_msgs::RobotTrajectory tmp_trj_msg;
+  trj->getRobotTrajectoryMsg(tmp_trj_msg);
+
+  interpolator_.setTrajectory(tmp_trj_msg);
+  interpolator_.setSplineOrder(1);
+}
+
+
 void ReplannerManagerBase::replanningThread()
 {
   ros::Rate lp(replanning_thread_frequency_);
@@ -426,17 +462,7 @@ void ReplannerManagerBase::replanningThread()
         updateSharedPath();
         paths_mtx_.unlock();
 
-        PathPtr trj_path = current_path_replanning_->clone();
-        bool trj_remove = trj_path->removeNodes(); //remove useless nodes to speed up the trj (does not affect the tree because its a cloned path)
-
-        moveit_msgs::RobotTrajectory tmp_trj_msg;
-        trajectory_->setPath(trj_path);
-        //robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
-        robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_forward_);
-        trj->getRobotTrajectoryMsg(tmp_trj_msg);
-
-        interpolator_.setTrajectory(tmp_trj_msg);
-        interpolator_.setSplineOrder(1);
+        updateTrajectory();
 
         t_=0.0;
         n_conn_ = 0;
@@ -491,10 +517,12 @@ void ReplannerManagerBase::collisionCheckThread()
     checker_cc_->setPlanningSceneMsg(ps_srv.response.scene);
     scene_mtx_.unlock();
 
-    replanner_mtx_.lock();
+    //    replanner_mtx_.lock();
+    trj_mtx_.lock();
     paths_mtx_.lock();
 
-    current_configuration_copy = configuration_replan_;
+    current_configuration_copy = current_configuration_;
+    //    current_configuration_copy = configuration_replan_;
 
     if(current_path_sync_needed_)
     {
@@ -503,7 +531,8 @@ void ReplannerManagerBase::collisionCheckThread()
       current_path_sync_needed_ = false;
     }
     paths_mtx_.unlock();
-    replanner_mtx_.unlock();
+    trj_mtx_.unlock();
+    //    replanner_mtx_.unlock();
 
     if((current_configuration_copy-replanner_->getGoal()->getConfiguration()).norm()<goal_tol_)
     {
@@ -649,7 +678,6 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
     interpolator_.interpolate(ros::Duration(t_)    ,pnt_         ,scaling_);
     interpolator_.interpolate(ros::Duration(t_)    ,pnt_unscaled_,     1.0);
-    interpolator_.interpolate(ros::Duration(t_+dt_),pnt_forward_ ,scaling_);
 
     Eigen::VectorXd point2project(pnt_.positions.size());
     for(unsigned int i=0; i<pnt_.positions.size();i++)
@@ -938,7 +966,7 @@ void ReplannerManagerBase::benchmarkThread()
     distance = (current_configuration-old_current_configuration).norm();
     if(distance>0.3)
     {
-      current_configuration = old_current_configuration;
+      //current_configuration = old_current_configuration;
       ROS_BOLDRED_STREAM("Skipping path length increment! Distance: "<<distance);
     }
     else
@@ -961,11 +989,6 @@ void ReplannerManagerBase::benchmarkThread()
           n_collisions++;
           already_collided_obj.push_back(obj_ids[i]);
           success = false;
-
-          //pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
-          //disp->changeNodeSize();
-          //disp->displayNode(std::make_shared<Node>(current_configuration));
-          //ROS_INFO_STREAM("contact with obj "<<obj_ids[i]<<" distance "<<(current_configuration-obj_pos[i]).norm());
         }
 
         break;
@@ -1001,7 +1024,7 @@ void ReplannerManagerBase::benchmarkThread()
   nh_.getParam("replanner/test_name",test_name);
 
   std::ofstream file;
-  file.open(test_name+"_"+replanner_type+".bin",std::ios::out | std::ios::binary);
+  file.open(test_name+".bin",std::ios::out | std::ios::binary);
 
   const size_t bufsize = 1024 * 1024;
   std::unique_ptr<char[]> buf;

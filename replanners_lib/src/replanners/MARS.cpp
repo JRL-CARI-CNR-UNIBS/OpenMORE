@@ -2085,7 +2085,6 @@ bool MARS::informedOnlineReplanning(const double &max_time)
   {
     assert(replanned_path_cost == replanned_path->cost());
 
-    ros::WallTime tn = ros::WallTime::now();
     //net_->setVerbosity(true);
     std::multimap<double,std::vector<ConnectionPtr>> best_replanned_path_map  =
         net_->getConnectionBetweenNodes(current_node,goal_node_,replanned_path->cost(),{},0.02); //max 20 milliseconds

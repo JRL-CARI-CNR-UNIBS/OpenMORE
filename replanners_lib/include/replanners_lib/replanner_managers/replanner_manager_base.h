@@ -80,7 +80,6 @@ protected:
   trajectory_processing::SplineInterpolator interpolator_            ;
   trajectory_msgs::JointTrajectoryPoint     pnt_                     ;
   trajectory_msgs::JointTrajectoryPoint     pnt_unscaled_            ;
-  trajectory_msgs::JointTrajectoryPoint     pnt_forward_             ;
   trajectory_msgs::JointTrajectoryPoint     pnt_replan_              ;
   sensor_msgs::JointState                   new_joint_state_unscaled_;
   sensor_msgs::JointState                   new_joint_state_         ;
@@ -123,6 +122,7 @@ protected:
   virtual void fromParam();
   virtual void syncPathCost();
   virtual void updateSharedPath();
+  virtual void updateTrajectory();
   virtual void updatePathCost(const PathPtr& current_path_updated_copy);
   virtual void attributeInitialization();
   virtual void replanningThread();

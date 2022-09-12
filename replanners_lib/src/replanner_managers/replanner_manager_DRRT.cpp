@@ -58,7 +58,6 @@ void ReplannerManagerDRRT::startReplannedPathFromNewCurrentConf(const Eigen::Vec
 
   if(abscissa_current_conf < abscissa_replanned_path_start)
   {
-    ROS_INFO("abscissa_current_conf < abscissa_replanned_path_start");
     try
     {
       new_tree_branch = current_path_copy->getSubpathToConf(replanned_path_start->getConfiguration(),false);

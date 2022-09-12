@@ -1,9 +1,8 @@
 <?xml version="1.0"?>
 <launch>
-  <include file="$(find replanners_benchmark)/launch/load_cell_3d.launch"/>
+  <include file="$(find replanners_benchmark)/launch/cell/load_cell_3d.launch"/>
 
   <rosparam command="load" file="$(find replanners_benchmark)/config/replanners_bench_3d.yaml"/>
-  <remap from="/joint_target" to="/joint_states"/>
 
   <node pkg="replanners_benchmark"
         name="replanners_benchmark"

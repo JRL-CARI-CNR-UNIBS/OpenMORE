@@ -144,7 +144,7 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
 
 robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_msgs::JointTrajectoryPoint &pnt)
 {
-  trajectory_msgs::JointTrajectoryPoint::Ptr pnt_ptr(new trajectory_msgs::JointTrajectoryPoint());
+ trajectory_msgs::JointTrajectoryPoint::Ptr pnt_ptr(new trajectory_msgs::JointTrajectoryPoint());
 
   pnt_ptr->positions       = pnt.positions      ;
   pnt_ptr->velocities      = pnt.velocities     ;
@@ -167,20 +167,20 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
   trj_ = std::make_shared<robot_trajectory::RobotTrajectory>(kinematic_model_,group_name_);
   for(unsigned int j=0; j<waypoints.size();j++)
   {
-    if (j==0 && pnt != nullptr)
+    if(j==0 && pnt != nullptr)
     {
       wp_state_vector.at(j).setJointGroupPositions    (group_name_,pnt->positions    );
       wp_state_vector.at(j).setJointGroupVelocities   (group_name_,pnt->velocities   );
       wp_state_vector.at(j).setJointGroupAccelerations(group_name_,pnt->accelerations);
     }
-    trj_->addSuffixWayPoint(wp_state_vector.at(j),0);
+    trj_->addSuffixWayPoint(wp_state_vector.at(j),0.0);
   }
 
   //  Time parametrization
-  //  trajectory_processing::TimeOptimalTrajectoryGeneration iptp(Path::TOLERANCE,0.1,0.001);
-  trajectory_processing::IterativeParabolicTimeParameterization iptp;
-  iptp.computeTimeStamps(*trj_);
+    trajectory_processing::TimeOptimalTrajectoryGeneration iptp;
+//  trajectory_processing::IterativeParabolicTimeParameterization iptp;
 
+  iptp.computeTimeStamps(*trj_);
   return trj_;
 }
 
