@@ -188,9 +188,10 @@ int main(int argc, char **argv)
       {
         ROS_INFO("---------------------------------------------------------------------------------------------------------");
         ROS_INFO_STREAM(replanner_type<<": query: "<<std::to_string(i)<<" Iter: "<<std::to_string(j)<<" start: "<<start_conf.transpose()<< " goal: "<<goal_conf.transpose()<< " distance: "<<distance);
-        std::string test_name = "./replanner_test/"+bench_name+"/"+replanner_type+"/test_q_"+std::to_string(i)+"_i_"+std::to_string(j);
+        //std::string test_name = "./replanner_test/"+bench_name+"/"+replanner_type+"/test_q_"+std::to_string(i)+"_i_"+std::to_string(j);
+        std::string test_name = "test_q_"+std::to_string(i)+"_i_"+std::to_string(j);
 
-        nh.setParam("replanner/test_name",test_name); //to save test results
+        nh.setParam("test_name",test_name); //to save test results
 
         if(display)
           disp->nextButton();

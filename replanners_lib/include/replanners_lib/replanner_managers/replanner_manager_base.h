@@ -8,6 +8,7 @@
 #include <object_loader_msgs/AddObjects.h>
 #include <object_loader_msgs/RemoveObjects.h>
 #include <subscription_notifier/subscription_notifier.h>
+#include <boost/filesystem.hpp>
 #include <thread>
 #include <mutex>
 #include <std_msgs/Float64.h>

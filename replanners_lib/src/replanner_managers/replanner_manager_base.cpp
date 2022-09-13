@@ -1017,14 +1017,28 @@ void ReplannerManagerBase::benchmarkThread()
   unsigned int number_of_objects = obj_ids_.size();
   bench_mtx_.unlock();
 
-  std::string replanner_type;
+  std::string replanner_type = "replanner";
   nh_.getParam("replanner_type",replanner_type);
 
-  std::string test_name = "replanner_test/test";
-  nh_.getParam("replanner/test_name",test_name);
+  std::string test_name = "test";
+  nh_.getParam("test_name",test_name);
+
+  std::string bench_name = "bench";
+  nh_.getParam("bench_name",bench_name);
+
+  std::string path = "./replanners_benchmark";
+  std::string file_name = path+"/"+replanner_type+"/"+test_name+".bin";
+
+  boost::filesystem::path dir(path);
+  if(not (boost::filesystem::exists(dir)))
+    boost::filesystem::create_directory(dir);
+
+  boost::filesystem::path dir2(path+"/"+replanner_type);
+  if(not (boost::filesystem::exists(dir2)))
+    boost::filesystem::create_directory(dir2);
 
   std::ofstream file;
-  file.open(test_name+".bin",std::ios::out | std::ios::binary);
+  file.open(file_name,std::ios::out | std::ios::binary);
 
   const size_t bufsize = 1024 * 1024;
   std::unique_ptr<char[]> buf;
@@ -1044,7 +1058,7 @@ void ReplannerManagerBase::benchmarkThread()
   file.flush();
   file.close();
 
-  ROS_BOLDBLUE_STREAM("\nFile "<<test_name<<" saved!\n* success: "<<success
+  ROS_BOLDBLUE_STREAM("\nFile "<<file_name<<" saved!\n* success: "<<success
                       <<"\n* number_of_objects: "<<number_of_objects
                       <<"\n* number_of_collisions: "<<n_collisions
                       <<"\n* path length: "<<path_length
