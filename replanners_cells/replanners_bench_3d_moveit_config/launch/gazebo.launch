@@ -13,7 +13,7 @@
   </include>
 
   <!-- send robot urdf to param server -->
-  <param name="robot_description" command="xacro  '/home/riemann/projects/planning_ws/src/motion/replanning_strategies/cells/urdf/replanners_bench_3d_complex.xacro'" />
+  <param name="robot_description" command="xacro  '$(find replanners_bench_cells)/urdf/replanners_bench_3d.xacro'" />
 
   <!-- unpause only after loading robot model -->
   <arg name="unpause" value="$(eval '' if arg('paused') else '-unpause')" />
@@ -23,7 +23,7 @@
     respawn="false" output="screen" />
 
   <!-- Load joint controller parameters for Gazebo -->
-  <rosparam file="$(find replanners_bench_3d_complex_moveit_config)/config/gazebo_controllers.yaml" />
+  <rosparam file="$(find replanners_bench_3d_moveit_config)/config/gazebo_controllers.yaml" />
   <!-- Spawn Gazebo ROS controllers -->
   <node name="gazebo_controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="joint_state_controller" />
   <!-- Load ROS controllers -->

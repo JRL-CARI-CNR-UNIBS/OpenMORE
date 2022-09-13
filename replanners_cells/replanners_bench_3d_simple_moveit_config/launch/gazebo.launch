@@ -13,7 +13,7 @@
   </include>
 
   <!-- send robot urdf to param server -->
-  <param name="robot_description" command="xacro  '/home/riemann/projects/planning_ws/src/motion/replanning_strategies/cells/urdf/replanners_bench_3d_simple.xacro'" />
+  <param name="robot_description" command="xacro  '$(find replanners_bench_cells)/urdf/replanners_bench_3d_simple.xacro'" />
 
   <!-- unpause only after loading robot model -->
   <arg name="unpause" value="$(eval '' if arg('paused') else '-unpause')" />

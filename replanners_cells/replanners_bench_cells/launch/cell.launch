@@ -4,8 +4,8 @@
   <arg name="objects" default="object_test_replanner.yaml"       doc="file containing the description of the objects to spawn."/>
   <arg name="static_scene" default="static_scene_cartesian.yaml" doc="file containing the description of the static scene."    />
 
-  <rosparam command="load" file="$(find replanners_benchmark)/config/scene/$(arg objects)"/>
-  <rosparam command="load" file="$(find replanners_benchmark)/config/scene/$(arg static_scene)"/>
+  <rosparam command="load" file="$(find replanners_bench_cells)/config/$(arg objects)"/>
+  <rosparam command="load" file="$(find replanners_bench_cells)/config/$(arg static_scene)"/>
 
   <node pkg="object_loader" name="context_manager_node" type="context_manager_node" respawn="true" output="screen"/>
   <node pkg="object_loader" name="scene_spawner" type="scene_spawner" output="screen"/>

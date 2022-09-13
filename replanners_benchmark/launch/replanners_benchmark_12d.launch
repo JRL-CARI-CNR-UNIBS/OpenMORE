@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <include file="$(find replanners_benchmark)/launch/cell/load_cell_12d.launch"/>
+  <include file="$(find replanners_bench_cells)/launch/load_cell_12d.launch"/>
 
   <rosparam command="load" file="$(find replanners_benchmark)/config/replanners_bench_12d.yaml"/>
 

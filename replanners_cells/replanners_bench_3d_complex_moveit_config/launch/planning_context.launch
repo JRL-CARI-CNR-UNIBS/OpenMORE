@@ -6,20 +6,20 @@
   <arg name="robot_description" default="robot_description"/>
 
   <!-- Load universal robot description format (URDF) -->
-  <param if="$(arg load_robot_description)" name="$(arg robot_description)" command="xacro  '/home/riemann/projects/planning_ws/src/motion/replanning_strategies/cells/urdf/replanners_bench_3d.xacro'"/>
+  <param if="$(arg load_robot_description)" name="$(arg robot_description)" command="xacro  '$(find replanners_bench_cells)/urdf/replanners_bench_3d_complex.xacro'"/>
 
   <!-- The semantic description that corresponds to the URDF -->
-  <param name="$(arg robot_description)_semantic" textfile="$(find replanners_bench_3d_moveit_config)/config/replanners_bench_3d.srdf" />
+  <param name="$(arg robot_description)_semantic" textfile="$(find replanners_bench_3d_complex_moveit_config)/config/replanners_bench_3d_complex.srdf" />
 
   <!-- Load updated joint limits (override information from URDF) -->
   <group ns="$(arg robot_description)_planning">
-    <rosparam command="load" file="$(find replanners_bench_3d_moveit_config)/config/joint_limits.yaml"/>
-    <rosparam command="load" file="$(find replanners_bench_3d_moveit_config)/config/cartesian_limits.yaml"/>
+    <rosparam command="load" file="$(find replanners_bench_3d_complex_moveit_config)/config/joint_limits.yaml"/>
+    <rosparam command="load" file="$(find replanners_bench_3d_complex_moveit_config)/config/cartesian_limits.yaml"/>
   </group>
 
   <!-- Load default settings for kinematics; these settings are overridden by settings in a node's namespace -->
   <group ns="$(arg robot_description)_kinematics">
-    <rosparam command="load" file="$(find replanners_bench_3d_moveit_config)/config/kinematics.yaml"/>
+    <rosparam command="load" file="$(find replanners_bench_3d_complex_moveit_config)/config/kinematics.yaml"/>
 
   </group>
 

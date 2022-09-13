@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-  <include file="$(find replanners_benchmark)/launch/cell/cell.launch">
+  <include file="$(find replanners_bench_cells)/launch/cell.launch">
     <arg name="demo_package" value="replanners_bench_3d_moveit_config"/>
     <arg name="static_scene" value="static_scene_replanners_bench_3d.yaml"/>
   </include>
