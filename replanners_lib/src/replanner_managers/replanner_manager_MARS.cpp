@@ -710,7 +710,13 @@ void ReplannerManagerMARS::collisionCheckThread()
                                  this,other_paths_copy.at(i)));
     }
 
-    current_path_copy->isValidFromConf(current_configuration_copy,checker_cc_);
+    //current_path_copy->isValidFromConf(current_configuration_copy,checker_cc_);
+    int conn_idx;
+    current_path_copy->findConnection(current_configuration_copy,conn_idx);
+    if(conn_idx<0)
+      continue;
+    else
+      current_path_copy->isValidFromConf(current_configuration_copy,conn_idx,checker_cc_);
 
     for(unsigned int i=0; i<tasks.size();i++)
       tasks.at(i).wait();  //wait for the end of each task

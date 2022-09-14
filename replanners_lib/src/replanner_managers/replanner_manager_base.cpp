@@ -322,7 +322,7 @@ void ReplannerManagerBase::updateTrajectory()
 {
   PathPtr trj_path = current_path_replanning_->clone();
 
-  ROS_INFO_STREAM("TRJ PATH BEFORE"<<*trj_path);
+  //ROS_INFO_STREAM("TRJ PATH BEFORE"<<*trj_path);
 
   trj_path->removeNodes(1e-03); //remove useless nodes to speed up the trj (does not affect the tree because its a cloned path)
 
@@ -343,7 +343,7 @@ void ReplannerManagerBase::updateTrajectory()
            return true;
          }());
 
-  ROS_INFO_STREAM("TRJ PATH "<<*trj_path);
+  //ROS_INFO_STREAM("TRJ PATH "<<*trj_path);
 
   trajectory_->setPath(trj_path);
   robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
@@ -426,8 +426,6 @@ void ReplannerManagerBase::replanningThread()
 
       if(haveToReplan(path_obstructed))
       {
-        int n_size_before = current_path_replanning_->getConnectionsSize();
-
         tic_rep=ros::WallTime::now();
         path_changed = replan();      //path may have changed even though replanning was unsuccessful
         toc_rep=ros::WallTime::now();
@@ -519,11 +517,11 @@ void ReplannerManagerBase::collisionCheckThread()
 
     //    replanner_mtx_.lock();
     trj_mtx_.lock();
-    paths_mtx_.lock();
 
     current_configuration_copy = current_configuration_;
     //    current_configuration_copy = configuration_replan_;
 
+    paths_mtx_.lock();
     if(current_path_sync_needed_)
     {
       current_path_copy = current_path_shared_->clone();
@@ -540,7 +538,12 @@ void ReplannerManagerBase::collisionCheckThread()
       break;
     }
 
-    current_path_copy->isValidFromConf(current_configuration_copy,checker_cc_);
+    int conn_idx;
+    current_path_copy->findConnection(current_configuration_copy,conn_idx);
+    if(conn_idx<0)
+      continue;
+    else
+      current_path_copy->isValidFromConf(current_configuration_copy,conn_idx,checker_cc_);
 
     scene_mtx_.lock();
     updatePathCost(current_path_copy);
