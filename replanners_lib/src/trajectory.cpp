@@ -40,6 +40,8 @@ PathPtr Trajectory::computePath(const Eigen::VectorXd& start_conf, const Eigen::
 
 PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_node, const TreeSolverPtr& solver, const bool& optimize, const double &max_time)
 {
+  ros::WallTime tic = ros::WallTime::now();
+
   CollisionCheckerPtr checker = solver->getChecker();
   SamplerPtr sampler = solver->getSampler();
   MetricsPtr metrics = solver->getMetrics();
@@ -47,7 +49,7 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
   Eigen::VectorXd ub = sampler->getUB();
 
   pathplan::PathPtr solution;
-  bool success = solver->computePath(start_node,goal_node,nh_,solution,max_time,100000);
+  bool success = solver->computePath(start_node,goal_node,nh_,solution,max_time,1000000);
 
   if(not success)
   {
@@ -82,21 +84,18 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
     std::vector<pathplan::NodePtr> white_list;
     white_list.push_back(goal_node);
 
-    ros::Duration max_time(3);
-    ros::Time t0 = ros::Time::now();
-
     int stall_gen = 0;
     int max_stall_gen = 200;
 
     std::mt19937 gen;
     std::uniform_int_distribution<> id = std::uniform_int_distribution<>(0, max_stall_gen);
 
-    for (unsigned int idx = 0; idx < 1000; idx++)
+    for (unsigned int idx = 0; idx < 10000; idx++)
     {
-      if (ros::Time::now() - t0 > max_time)
+      if ((ros::WallTime::now() - tic).toSec() > max_time)
         break;
 
-      if (opt_solver.update(solution))
+      if(opt_solver.update(solution)) //rewire
       {
         stall_gen = 0;
         path_solver.setPath(solution);
@@ -121,8 +120,8 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
       }
 
       if (idx % 10 == 0)
-
-        if (id(gen) < stall_gen)
+      {
+        if(id(gen) < stall_gen)
         {
           opt_solver.setSampler(sampler);
         }
@@ -130,6 +129,7 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
         {
           opt_solver.setSampler(local_sampler);
         }
+      }
 
       if (stall_gen >= max_stall_gen)
         break;
@@ -144,7 +144,7 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
 
 robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_msgs::JointTrajectoryPoint &pnt)
 {
- trajectory_msgs::JointTrajectoryPoint::Ptr pnt_ptr(new trajectory_msgs::JointTrajectoryPoint());
+  trajectory_msgs::JointTrajectoryPoint::Ptr pnt_ptr(new trajectory_msgs::JointTrajectoryPoint());
 
   pnt_ptr->positions       = pnt.positions      ;
   pnt_ptr->velocities      = pnt.velocities     ;
@@ -177,8 +177,8 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
   }
 
   //  Time parametrization
-    trajectory_processing::TimeOptimalTrajectoryGeneration iptp;
-//  trajectory_processing::IterativeParabolicTimeParameterization iptp;
+  trajectory_processing::TimeOptimalTrajectoryGeneration iptp;
+  //  trajectory_processing::IterativeParabolicTimeParameterization iptp;
 
   iptp.computeTimeStamps(*trj_);
   return trj_;
