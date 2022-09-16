@@ -1030,15 +1030,19 @@ void ReplannerManagerBase::benchmarkThread()
   nh_.getParam("bench_name",bench_name);
 
   std::string path = "./replanners_benchmark";
-  std::string file_name = path+"/"+replanner_type+"/"+test_name+".bin";
+  std::string file_name = path+"/"+bench_name+"/"+replanner_type+"/"+test_name+".bin";
 
   boost::filesystem::path dir(path);
   if(not (boost::filesystem::exists(dir)))
     boost::filesystem::create_directory(dir);
 
-  boost::filesystem::path dir2(path+"/"+replanner_type);
+  boost::filesystem::path dir2(path+"/"+bench_name);
   if(not (boost::filesystem::exists(dir2)))
     boost::filesystem::create_directory(dir2);
+
+  boost::filesystem::path dir3(path+"/"+bench_name+"/"+replanner_type);
+  if(not (boost::filesystem::exists(dir3)))
+    boost::filesystem::create_directory(dir3);
 
   std::ofstream file;
   file.open(file_name,std::ios::out | std::ios::binary);
@@ -1069,6 +1073,9 @@ void ReplannerManagerBase::benchmarkThread()
                       <<"\n* time: "<<real_time_
                       <<"\n* replanning time mean: "<<mean
                       <<"\n* replanning time std dev: "<<std_dev);
+
+  if(n_collisions == 0 && not success)
+    throw std::runtime_error("no collisions but success false!");
 
   ROS_BOLDCYAN_STREAM("Benchamrk thread is over");
 
