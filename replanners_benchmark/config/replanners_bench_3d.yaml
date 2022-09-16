@@ -1,7 +1,7 @@
 #TEST CONFIGURATIONS:
 n_query: 50
 n_iter_per_query: 10
-bench_name: "replanners_bench_3d"
+bench_name: "3d_mid"
 
 #PLANNING CONFIGURATIONS:
 group_name: "cartesian_arm"
@@ -24,13 +24,13 @@ parallel_checker_n_threads: 20
 # - anytimeDRRT
 # - MARS
 
-replanner_type_vector: ["MPRRT","DRRTStar","DRRT","anytimeDRRT","MARS"]
+replanner_type_vector: ["MARS","DRRTStar","DRRT","anytimeDRRT","MPRRT"]
 dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 benchmark: true
 spawn_objs: true
-spawn_instants: [2,7,12,17,22] 
+spawn_instants: [2,7,12,17,22]
 obj_type: "box"
 obj_max_size: 0.1
 scaling: 0.5

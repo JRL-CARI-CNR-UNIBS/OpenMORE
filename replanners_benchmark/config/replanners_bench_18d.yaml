@@ -1,7 +1,7 @@
 #TEST CONFIGURATIONS:
 n_query: 3
 n_iter_per_query: 1
-bench_name: "replanners_bench_18d"
+bench_name: "18d"
 
 #PLANNING CONFIGURATIONS:
 group_name: "manipulator"
@@ -26,7 +26,7 @@ max_solver_time: 30
 # - anytimeDRRT
 # - MARS
 
-replanner_type_vector: ["MPRRT","DRRTStar","DRRT","anytimeDRRT","MARS"]
+replanner_type_vector: ["MARS","DRRTStar","DRRT","anytimeDRRT","MPRRT"]
 dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
