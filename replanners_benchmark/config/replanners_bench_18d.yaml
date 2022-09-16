@@ -1,6 +1,6 @@
 #TEST CONFIGURATIONS:
-n_query: 3
-n_iter_per_query: 1
+n_query: 20
+n_iter_per_query: 10
 bench_name: "18d"
 
 #PLANNING CONFIGURATIONS:
@@ -32,10 +32,10 @@ trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 benchmark: true
 spawn_objs: true
-spawn_instants: [0.5,2,3.5]
+spawn_instants: [1,3,6,12]
 obj_type: "box"
 obj_max_size: 0.1
-scaling: 0.5
+scaling: 0.7
 read_safe_scaling: false
 read_real_joints_values_: false
 
@@ -43,7 +43,7 @@ MPRRT:
   n_threads_replan: 5
 
 MARS:
-  n_other_paths: 3
+  n_other_paths: 2
   reverse_start_nodes: true
   full_net_search: false
   dt_replan_relaxed: 0.20
@@ -53,7 +53,7 @@ MARS:
 replanner_verbosity: false
 display_timing_warning: false
 display_replanning_success: false
-display_replan_trj_point: false
-display_replan_config: false
-display_current_trj_point: false
-display_current_config: false
+display_replan_trj_point: true
+display_replan_config: true
+display_current_trj_point: true
+display_current_config: true

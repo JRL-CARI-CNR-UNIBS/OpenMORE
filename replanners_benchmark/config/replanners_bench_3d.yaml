@@ -1,5 +1,5 @@
 #TEST CONFIGURATIONS:
-n_query: 50
+n_query: 20
 n_iter_per_query: 10
 bench_name: "3d_mid"
 
@@ -9,6 +9,7 @@ start_configuration: [0,0,0]
 end_start_configuration: [0,7,2]
 stop_configuration:  [7,7,2]
 end_stop_configuration:  [7,0,0]
+
 utopia_tolerance: 0.05
 extend: false
 max_distance: 0.3
@@ -33,7 +34,7 @@ spawn_objs: true
 spawn_instants: [2,7,12,17,22]
 obj_type: "box"
 obj_max_size: 0.1
-scaling: 0.5
+scaling: 0.7
 read_safe_scaling: false
 read_real_joints_values_: false
 
@@ -41,7 +42,7 @@ MPRRT:
   n_threads_replan: 5
 
 MARS:
-  n_other_paths: 3
+  n_other_paths: 2
   reverse_start_nodes: true
   full_net_search: false
   dt_replan_relaxed: 0.20
