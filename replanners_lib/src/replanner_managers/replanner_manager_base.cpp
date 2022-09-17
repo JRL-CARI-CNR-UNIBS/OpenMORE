@@ -322,8 +322,6 @@ void ReplannerManagerBase::updateTrajectory()
 {
   PathPtr trj_path = current_path_replanning_->clone();
 
-  //ROS_INFO_STREAM("TRJ PATH BEFORE"<<*trj_path);
-
   trj_path->removeNodes(1e-03); //remove useless nodes to speed up the trj (does not affect the tree because its a cloned path)
 
   assert([&]() ->bool{
@@ -342,8 +340,6 @@ void ReplannerManagerBase::updateTrajectory()
            }
            return true;
          }());
-
-  //ROS_INFO_STREAM("TRJ PATH "<<*trj_path);
 
   trajectory_->setPath(trj_path);
   robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
@@ -426,6 +422,8 @@ void ReplannerManagerBase::replanningThread()
 
       if(haveToReplan(path_obstructed))
       {
+        int n_size_before = current_path_replanning_->getConnectionsSize();
+
         tic_rep=ros::WallTime::now();
         path_changed = replan();      //path may have changed even though replanning was unsuccessful
         toc_rep=ros::WallTime::now();
@@ -858,7 +856,7 @@ void ReplannerManagerBase::spawnObjectsThread()
 
         do
         {
-          while(obj_abscissa<0.1 || obj_abscissa>0.8) //to not obstruct goal and current robot position
+          while(obj_abscissa<0.2 || obj_abscissa>0.8) //to not obstruct goal and current robot position
             obj_abscissa = double(rand())/double(RAND_MAX);
 
           obj_abscissa = obj_abscissa*path_copy->length();
@@ -922,6 +920,8 @@ void ReplannerManagerBase::benchmarkThread()
 {
   bool success = true;
   double path_length = 0.0;
+  PathPtr current_path;
+  ConnectionPtr current_conn;
   std::vector<std::string>     obj_ids;
   std::vector<Eigen::VectorXd> obj_pos;
   std::vector<std::string>::iterator it;
@@ -953,8 +953,11 @@ void ReplannerManagerBase::benchmarkThread()
     tic = ros::WallTime::now();
 
     trj_mtx_.lock();
+    paths_mtx_.lock();
     old_current_configuration = current_configuration;
     current_configuration = current_configuration_;
+    current_path = current_path_shared_->clone();
+    paths_mtx_.unlock();
     trj_mtx_.unlock();
 
     /* Replanning time */
@@ -983,17 +986,20 @@ void ReplannerManagerBase::benchmarkThread()
 
     for(unsigned int i=0;i<obj_pos.size();i++)
     {
-      if((current_configuration-obj_pos[i]).norm()<obj_max_size_)
+      if((current_configuration-obj_pos[i]).norm()<obj_max_size_ && ((goal-obj_pos[i]).norm()>obj_max_size_))
       {
         it = std::find(already_collided_obj.begin(),already_collided_obj.end(),obj_ids[i]);
 
         if(it>=already_collided_obj.end())
         {
-          n_collisions++;
-          already_collided_obj.push_back(obj_ids[i]);
-          success = false;
+          current_conn = current_path->findConnection(current_configuration);
+          if(current_conn && (current_conn->getCost() == std::numeric_limits<double>::infinity()))
+          {
+            n_collisions++;
+            already_collided_obj.push_back(obj_ids[i]);
+            success = false;
+          }
         }
-
         break;
       }
     }
