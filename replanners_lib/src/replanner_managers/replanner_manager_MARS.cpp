@@ -196,18 +196,28 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
                }
                ());
 
+        ROS_INFO("QUA0");
         std::vector<ConnectionPtr> new_conns = current_path->getConnections();
         new_conns.insert(new_conns.begin(),parent_conn);
         current_path->setConnections(new_conns);
+        ROS_INFO("QUA1");
+
 
         ConnectionPtr restored_conn;
         if(current_path->removeNode(old_current_node_,{},restored_conn))
         {
+          ROS_INFO("QUA2");
+
           std::vector<PathPtr> paths = other_paths_;
           paths.push_back(replanned_path);
           for(PathPtr& p:paths)
           {
+            ROS_INFO("QUA3");
+
             p->restoreConnection(restored_conn,old_current_node_);
+
+            ROS_INFO("QUA3.1");
+
 
             for(const NodePtr& n:p->getNodes())
               assert(n != old_current_node_);
@@ -215,6 +225,7 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
             assert(not tree->isInTree(old_current_node_));
           }
         }
+        ROS_INFO("QUA4");
       }
     }
   }
@@ -237,11 +248,15 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
          }());
 
 
+  ROS_INFO("QUA5");
+
   int conn_idx;
   bool is_a_new_node;
   PathPtr tmp_p = current_path->clone();
   ConnectionPtr conn = current_path->findConnection(configuration,conn_idx);
   NodePtr current_node = current_path->addNodeAtCurrentConfig(configuration,conn,true,is_a_new_node);
+  ROS_INFO("QUA6");
+
 
   assert([&]() ->bool{
            if((current_node == node_replan && ((configuration-node_replan->getConfiguration()).norm()>TOLERANCE)) || (current_node != node_replan && ((configuration-node_replan->getConfiguration()).norm()<=TOLERANCE)))
@@ -268,17 +283,29 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
     old_current_node_ = current_node;
     for(PathPtr &p:other_paths_)
     {
+      ROS_INFO("QUA7");
+
       if(p->splitConnection(current_path->getConnectionsConst().at(conn_idx),
                             current_path->getConnectionsConst().at(conn_idx+1),conn));
+      ROS_INFO("QUA7.1");
+
     }
   }
   else
     old_current_node_ = nullptr;
 
   if(not replanner->getSuccess())
+  {
+    ROS_INFO("QUA8");
+
     replanned_path->setConnections(current_path->getSubpathFromNode(current_node)->getConnections());
+    ROS_INFO("QUA9");
+
+  }
   else
   {
+    ROS_INFO("QUA10");
+
     std::vector<NodePtr> nodes = current_path->getNodes();
 
     std::vector<NodePtr>::iterator it_current_node = std::find(nodes.begin(),nodes.end(),current_node);
@@ -316,8 +343,12 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
       }
       std::vector<ConnectionPtr> new_conns = tmp_subpath->getConnections();
 
+      ROS_INFO("QUA11");
+
       new_conns.insert(new_conns.end(),replanned_path->getConnectionsConst().begin(),replanned_path->getConnectionsConst().end());
       replanned_path->setConnections(new_conns);
+      ROS_INFO("QUA12");
+
     }
   }
 
@@ -340,16 +371,24 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
 
   if(replanner->replanNodeIsANewNode() && ((node_replan->getConfiguration()-configuration).norm()>TOLERANCE))
   {
+    ROS_INFO("QUA13");
+
     ConnectionPtr restored_conn;
     if(replanned_path->removeNode(node_replan,{},restored_conn))
     {
+      ROS_INFO("QUA14");
+
       std::vector<PathPtr> paths = other_paths_;
       paths.push_back(current_path);
 
       for(PathPtr& p:paths)
       {
+        ROS_INFO("QUA15");
+
         assert(p->getTree() != nullptr);
         p->restoreConnection(restored_conn,node_replan);
+        ROS_INFO("QUA15.1");
+
 
         assert(not tree->isInTree(node_replan));
         assert([&]()->bool{
@@ -366,6 +405,8 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
 
       }
     }
+    ROS_INFO("QUA16");
+
   }
 
   assert([&]() ->bool{
@@ -473,6 +514,8 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
            }
            return true;
          }());
+  ROS_INFO("QUA17");
+
 }
 
 bool ReplannerManagerMARS::haveToReplan(const bool path_obstructed)
