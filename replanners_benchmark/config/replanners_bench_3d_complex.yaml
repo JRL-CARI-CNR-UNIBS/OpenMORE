@@ -31,7 +31,7 @@ collision_checker_thread_frequency: 30
 benchmark: true
 spawn_objs: true
 spawn_instants: [2,6,10,14,18,22,26,30,34,38]
-obj_type: "mid_box"
+obj_type: "mid_red_box"
 obj_max_size: 0.15
 scaling: 0.7
 read_safe_scaling: false
