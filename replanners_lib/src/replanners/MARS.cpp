@@ -2085,10 +2085,23 @@ bool MARS::informedOnlineReplanning(const double &max_time)
   {
     assert(replanned_path_cost == replanned_path->cost());
 
-    //net_->setVerbosity(true);
+    available_time_ = MAX_TIME-(ros::WallTime::now()-tic).toSec();
+    double net_search_time = available_time_;
+    if(net_search_time<0.02)
+      net_search_time = 0.02; //max 20 milliseconds
+
+    if(informedOnlineReplanning_verbose_)
+      ROS_GREEN_STREAM("Time before net search: "<<available_time_<<", max net time: "<<net_search_time);
+
+    ros::WallTime tic_net_search = ros::WallTime::now();
+    net_->setVerbosity(true);
     std::multimap<double,std::vector<ConnectionPtr>> best_replanned_path_map  =
-        net_->getConnectionBetweenNodes(current_node,goal_node_,replanned_path->cost(),{},0.02); //max 20 milliseconds
-    //net_->setVerbosity(false);
+        net_->getConnectionBetweenNodes(current_node,goal_node_,replanned_path->cost(),{},net_search_time*0.8);
+    net_->setVerbosity(false);
+    ros::WallTime toc_net_search = ros::WallTime::now();
+    if((toc_net_search-tic_net_search).toSec()>net_search_time/0.5)
+      throw std::runtime_error("net too much time");
+
 
     if(informedOnlineReplanning_verbose_)
       ROS_GREEN_STREAM("At the end of replanning, in the graph there are "<<best_replanned_path_map.size()<<" paths better the one found!");

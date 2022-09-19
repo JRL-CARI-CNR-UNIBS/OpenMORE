@@ -33,7 +33,7 @@ spawn_objs: true
 spawn_instants: [2,6,10,14,18,22,26,30,34,38]
 obj_type: "mid_red_box"
 obj_max_size: 0.15
-scaling: 0.7
+scaling: 1
 read_safe_scaling: false
 read_real_joints_values_: false
 
@@ -48,7 +48,7 @@ MARS:
   verbosity_level: 2
 
 #VERBOSITY:
-replanner_verbosity: true
+replanner_verbosity: false
 display_timing_warning: false
 display_replanning_success: true
 display_replan_trj_point: true
