@@ -25,13 +25,13 @@ parallel_checker_n_threads: 20
 # - anytimeDRRT
 # - MARS
 
-replanner_type_vector: ["MARS","DRRTStar","DRRT","anytimeDRRT","MPRRT"]
+replanner_type_vector: ["MPRRT"] #["MARS","DRRTStar","DRRT","anytimeDRRT","MPRRT"]
 dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 benchmark: true
 spawn_objs: true
-spawn_instants: [2,7,12,17,22]
+spawn_instants: [1,4,8,12,16,18]
 obj_type: "red_box"
 obj_max_size: 0.1
 scaling: 0.7
@@ -49,9 +49,9 @@ MARS:
   verbosity_level: 2
 
 #VERBOSITY:
-replanner_verbosity: false
+replanner_verbosity: true
 display_timing_warning: false
-display_replanning_success: false
+display_replanning_success: true
 display_replan_trj_point: true
 display_replan_config: true
 display_current_trj_point: true
