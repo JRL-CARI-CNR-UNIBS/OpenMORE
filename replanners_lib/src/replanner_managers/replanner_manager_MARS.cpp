@@ -175,6 +175,9 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
         (old_current_node_->getParentConnectionsSize()>0)? (parent_conn = old_current_node_->parentConnection(0)):
                                                            (parent_conn = old_current_node_->netParentConnection(0));
 
+        ROS_INFO_STREAM("old current node "<<*old_current_node_<<old_current_node_); //elimina
+        ROS_INFO_STREAM("parent connection "<<*parent_conn); //elimina
+        ROS_INFO_STREAM("current path before adding parent conn "<<*current_path);
 
         assert([&]() ->bool{
                  if(tree->isInTree(parent_conn->getParent()))
@@ -219,8 +222,16 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
             ROS_INFO("QUA3.1");
 
 
-            for(const NodePtr& n:p->getNodes())
-              assert(n != old_current_node_);
+            assert([&]() ->bool{
+                     for(const NodePtr& n:p->getNodes())
+                     if(n == old_current_node_)
+                     {
+                       return false;
+                     }
+
+                     return true;
+                   }());
+
 
             assert(not tree->isInTree(old_current_node_));
           }
@@ -315,10 +326,14 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
 
     if(distance==0)
     {
+      ROS_INFO("QUA10.0");
+
       assert(node_replan == current_node);
     }
     else if(distance<0)
     {
+      ROS_INFO("QUA10.1");
+
       //if the current node is ahead of replan node, consider current_node = replan node (so keep replanned path unchanged)
     }
     else //distance>0
@@ -369,7 +384,7 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
            return true;
          }());
 
-  if(replanner->replanNodeIsANewNode() && ((node_replan->getConfiguration()-configuration).norm()>TOLERANCE))
+  if(replanner->replanNodeIsANewNode() && ((node_replan->getConfiguration()-configuration).norm()>TOLERANCE) && node_replan != old_current_node_)
   {
     ROS_INFO("QUA13");
 
@@ -515,6 +530,18 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
            return true;
          }());
   ROS_INFO("QUA17");
+
+  if(old_current_node_ != nullptr)
+  {
+    std::vector<NodePtr> pn = replanned_path->getNodes();
+    if(std::find(pn.begin(),pn.end(),old_current_node_)>=pn.end())
+    {
+      ROS_INFO_STREAM("rp "<<*replanned_path);
+      ROS_INFO_STREAM("old cur node "<<*old_current_node_<<old_current_node_);
+
+      throw std::runtime_error("error");
+    }
+  }
 
 }
 

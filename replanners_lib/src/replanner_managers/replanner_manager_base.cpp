@@ -116,9 +116,9 @@ void ReplannerManagerBase::attributeInitialization()
 {
   stop_                            = false;
   current_path_sync_needed_        = false;
-  n_conn_                          = 0    ;
-  abscissa_current_configuration_  = 0.0  ;
-  abscissa_replan_configuration_   = 0.0  ;
+//  n_conn_                          = 0    ;
+//  abscissa_current_configuration_  = 0.0  ;
+//  abscissa_replan_configuration_   = 0.0  ;
   replanning_time_                 = 0.0  ;
   scaling_                         = 1.0  ;
   real_time_                       = 0.0  ;
@@ -182,6 +182,7 @@ void ReplannerManagerBase::attributeInitialization()
 
   configuration_replan_  = current_path_shared_->projectOnClosestConnection(point2project);
   current_configuration_ = current_path_shared_->getStartNode()->getConfiguration();
+  past_current_configuration_ = current_configuration_;
 
   initReplanner();
   replanner_->setVerbosity(replanner_verbosity_);
@@ -356,7 +357,7 @@ void ReplannerManagerBase::replanningThread()
   ros::Rate lp(replanning_thread_frequency_);
   ros::WallTime tic,tic_rep,toc_rep;
 
-  double abscissa;
+//  double abscissa;
   PathPtr path2project_on;
   Eigen::VectorXd projection, current_configuration;
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
@@ -387,12 +388,14 @@ void ReplannerManagerBase::replanningThread()
       path2project_on = current_path_shared_->clone();
       paths_mtx_.unlock();
 
-      projection = path2project_on->projectOnClosestConnection(point2project);
-      abscissa = path2project_on->curvilinearAbscissaOfPoint(projection);
+      projection = path2project_on->projectKeepingAbscissa(point2project,past_current_configuration_);
+
+//      projection = path2project_on->projectOnClosestConnection(point2project);
+//      abscissa = path2project_on->curvilinearAbscissaOfPoint(projection);
 
       replanner_mtx_.lock();
       configuration_replan_ = projection;
-      abscissa_replan_configuration_ = abscissa;
+//      abscissa_replan_configuration_ = abscissa;
       replanner_mtx_.unlock();
 
       scene_mtx_.lock();
@@ -460,11 +463,13 @@ void ReplannerManagerBase::replanningThread()
 
         updateTrajectory();
 
+        past_current_configuration_ = current_configuration_;
+
         t_=0.0;
-        n_conn_ = 0;
-        abscissa_current_configuration_ = 0.0;
-        abscissa_replan_configuration_  = 0.0;
         t_replan_=t_+replan_offset_;
+//        n_conn_ = 0;
+//        abscissa_current_configuration_ = 0.0;
+//        abscissa_replan_configuration_  = 0.0;
 
         trj_mtx_.unlock();
         replanner_mtx_.unlock();
@@ -648,9 +653,9 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   ros::WallTime tic,toc;
   PathPtr path2project_on;
   Eigen::VectorXd configuration_replan;
-  double past_abscissa, abscissa_replan_configuration, duration;
+  double past_abscissa, abscissa_replan_configuration, abscissa_current_configuration, duration;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
-  Eigen::VectorXd past_current_configuration = current_configuration_;
+  //Eigen::VectorXd past_current_configuration = current_configuration_;
 
   ros::Rate lp(trj_exec_thread_frequency_);
 
@@ -661,7 +666,7 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
     replanner_mtx_.lock();
     configuration_replan = configuration_replan_;
-    abscissa_replan_configuration = abscissa_replan_configuration_;
+    //abscissa_replan_configuration = abscissa_replan_configuration_;
     replanner_mtx_.unlock();
 
     trj_mtx_.lock();
@@ -684,16 +689,18 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     for(unsigned int i=0; i<pnt_.positions.size();i++)
       point2project(i) = pnt_.positions.at(i);
 
-    past_abscissa = abscissa_current_configuration_;
-    past_current_configuration = current_configuration_;
-    current_configuration_ = path2project_on->projectOnClosestConnection(point2project);
+    current_configuration_ = path2project_on->projectKeepingAbscissa(point2project,past_current_configuration_);
+
+//    past_abscissa = abscissa_current_configuration_;
+//    past_current_configuration = current_configuration_;
+    //current_configuration_ = path2project_on->projectOnClosestConnection(point2project);
     //    current_configuration_ = path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_current_configuration,abscissa_current_configuration_,past_abscissa,n_conn_);
 
-    abscissa_current_configuration_ = path2project_on->curvilinearAbscissaOfPoint(current_configuration_);
-    if(abscissa_current_configuration_>abscissa_replan_configuration) //the current confgiruation must not surpass that of replanning
+    abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(configuration_replan);
+    abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration_);
+    if(abscissa_current_configuration>abscissa_replan_configuration) //the current confgiruation must not surpass that of replanning
     {
       current_configuration_ = configuration_replan;
-      abscissa_current_configuration_ = abscissa_replan_configuration;
     }
 
     trj_mtx_.unlock();
@@ -932,6 +939,7 @@ void ReplannerManagerBase::benchmarkThread()
   paths_mtx_.lock();
   Eigen::VectorXd start = current_path_shared_->getStartNode()->getConfiguration();
   Eigen::VectorXd goal  = current_path_shared_->getGoalNode ()->getConfiguration();
+  double initial_path_length = current_path_shared_->length();
   paths_mtx_.unlock();
 
   double distance;
@@ -1064,6 +1072,7 @@ void ReplannerManagerBase::benchmarkThread()
   file.write((char*) &n_collisions,        sizeof(n_collisions       ));
   file.write((char*) &path_length,         sizeof(path_length        ));
   file.write((char*) &distance_start_goal, sizeof(distance_start_goal));
+  file.write((char*) &initial_path_length, sizeof(initial_path_length));
   file.write((char*) &real_time_,          sizeof(real_time_         ));
   file.write((char*) &mean,                sizeof(mean               ));
   file.write((char*) &std_dev,             sizeof(std_dev            ));
@@ -1076,6 +1085,7 @@ void ReplannerManagerBase::benchmarkThread()
                       <<"\n* number_of_collisions: "<<n_collisions
                       <<"\n* path length: "<<path_length
                       <<"\n* distance start-goal: "<<distance_start_goal
+                      <<"\n* initial path length: "<<initial_path_length
                       <<"\n* time: "<<real_time_
                       <<"\n* replanning time mean: "<<mean
                       <<"\n* replanning time std dev: "<<std_dev);
