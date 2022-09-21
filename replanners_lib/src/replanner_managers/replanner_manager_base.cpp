@@ -116,9 +116,9 @@ void ReplannerManagerBase::attributeInitialization()
 {
   stop_                            = false;
   current_path_sync_needed_        = false;
-//  n_conn_                          = 0    ;
-//  abscissa_current_configuration_  = 0.0  ;
-//  abscissa_replan_configuration_   = 0.0  ;
+  //  n_conn_                          = 0    ;
+  //  abscissa_current_configuration_  = 0.0  ;
+  //  abscissa_replan_configuration_   = 0.0  ;
   replanning_time_                 = 0.0  ;
   scaling_                         = 1.0  ;
   real_time_                       = 0.0  ;
@@ -357,7 +357,7 @@ void ReplannerManagerBase::replanningThread()
   ros::Rate lp(replanning_thread_frequency_);
   ros::WallTime tic,tic_rep,toc_rep;
 
-//  double abscissa;
+  //  double abscissa;
   PathPtr path2project_on;
   Eigen::VectorXd projection, current_configuration;
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
@@ -390,12 +390,12 @@ void ReplannerManagerBase::replanningThread()
 
       projection = path2project_on->projectKeepingAbscissa(point2project,past_current_configuration_);
 
-//      projection = path2project_on->projectOnClosestConnection(point2project);
-//      abscissa = path2project_on->curvilinearAbscissaOfPoint(projection);
+      //      projection = path2project_on->projectOnClosestConnection(point2project);
+      //      abscissa = path2project_on->curvilinearAbscissaOfPoint(projection);
 
       replanner_mtx_.lock();
       configuration_replan_ = projection;
-//      abscissa_replan_configuration_ = abscissa;
+      //      abscissa_replan_configuration_ = abscissa;
       replanner_mtx_.unlock();
 
       scene_mtx_.lock();
@@ -467,9 +467,9 @@ void ReplannerManagerBase::replanningThread()
 
         t_=0.0;
         t_replan_=t_+replan_offset_;
-//        n_conn_ = 0;
-//        abscissa_current_configuration_ = 0.0;
-//        abscissa_replan_configuration_  = 0.0;
+        //        n_conn_ = 0;
+        //        abscissa_current_configuration_ = 0.0;
+        //        abscissa_replan_configuration_  = 0.0;
 
         trj_mtx_.unlock();
         replanner_mtx_.unlock();
@@ -691,8 +691,8 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
     current_configuration_ = path2project_on->projectKeepingAbscissa(point2project,past_current_configuration_);
 
-//    past_abscissa = abscissa_current_configuration_;
-//    past_current_configuration = current_configuration_;
+    //    past_abscissa = abscissa_current_configuration_;
+    //    past_current_configuration = current_configuration_;
     //current_configuration_ = path2project_on->projectOnClosestConnection(point2project);
     //    current_configuration_ = path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_current_configuration,abscissa_current_configuration_,past_abscissa,n_conn_);
 
@@ -927,6 +927,7 @@ void ReplannerManagerBase::benchmarkThread()
 {
   bool success = true;
   double path_length = 0.0;
+  double max_replanning_time = 0.0;
   PathPtr current_path;
   ConnectionPtr current_conn;
   std::vector<std::string>     obj_ids;
@@ -971,7 +972,11 @@ void ReplannerManagerBase::benchmarkThread()
     /* Replanning time */
     bench_mtx_.lock();
     if(replanning_time_ != 0.0)
+    {
       replanning_time_vector.push_back(replanning_time_);
+      if(max_replanning_time<replanning_time_)
+        max_replanning_time = replanning_time_;
+    }
 
     replanning_time_ = 0.0;
     bench_mtx_.unlock();
@@ -1076,6 +1081,7 @@ void ReplannerManagerBase::benchmarkThread()
   file.write((char*) &real_time_,          sizeof(real_time_         ));
   file.write((char*) &mean,                sizeof(mean               ));
   file.write((char*) &std_dev,             sizeof(std_dev            ));
+  file.write((char*) &max_replanning_time, sizeof(max_replanning_time));
 
   file.flush();
   file.close();
@@ -1088,7 +1094,8 @@ void ReplannerManagerBase::benchmarkThread()
                       <<"\n* initial path length: "<<initial_path_length
                       <<"\n* time: "<<real_time_
                       <<"\n* replanning time mean: "<<mean
-                      <<"\n* replanning time std dev: "<<std_dev);
+                      <<"\n* replanning time std dev: "<<std_dev
+                      <<"\n* max replanning time: "<<max_replanning_time);
 
   if(n_collisions == 0 && not success)
     throw std::runtime_error("no collisions but success false!");
