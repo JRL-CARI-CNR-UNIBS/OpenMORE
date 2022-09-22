@@ -1,3 +1,41 @@
 - git:
-    local-name: motion/replanning_strategies
+    local-name: replanning_strategies
     uri: https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies.git
+- git:
+    local-name: human_aware_motion_planners
+    uri: https://github.com/JRL-CARI-CNR-UNIBS/cari_motion_planning.git
+    version: cesare-devel
+- git:
+    local-name: utils/binary_logger
+    uri: https://github.com/CNR-STIIMA-IRAS/binary_logger.git
+- git:
+    local-name: utils/eigen_control_toolbox
+    uri: https://github.com/CNR-STIIMA-IRAS/eigen_control_toolbox
+- git:
+    local-name: utils/eigen_utils
+    uri: https://github.com/CNR-STIIMA-IRAS/eigen_utils
+- git:
+    local-name: utils/name_sorting
+    uri: https://github.com/CNR-STIIMA-IRAS/name_sorting
+- git:
+    local-name: utils/rosparam_utilities
+    uri: https://github.com/CNR-STIIMA-IRAS/rosparam_utilities.git
+- git:
+    local-name: utils/moveit_planning_helper
+    uri: https://github.com/CNR-STIIMA-IRAS/moveit_planning_helper
+- git:
+    local-name: utils/rosdyn
+    uri: https://github.com/CNR-STIIMA-IRAS/rosdyn
+    version: master
+- git:
+    local-name: utils/subscription_notifier
+    uri: https://github.com/CNR-STIIMA-IRAS/subscription_notifier
+- git:
+    local-name: utils/cnr_control_toolbox
+    uri: https://github.com/CNR-STIIMA-IRAS/cnr_control_toolbox
+- git:
+    local-name: utils/cnr_logger
+    uri: https://github.com/CNR-STIIMA-IRAS/cnr_logger
+- git:
+    local-name: utils/high_dof_snake_robots
+    uri: https://github.com/JRL-CARI-CNR-UNIBS/high_dof_snake_robots.git
