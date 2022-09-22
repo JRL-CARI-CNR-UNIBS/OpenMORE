@@ -182,7 +182,6 @@ void ReplannerManagerBase::attributeInitialization()
 
   configuration_replan_  = current_path_shared_->projectOnClosestConnection(point2project);
   current_configuration_ = current_path_shared_->getStartNode()->getConfiguration();
-  past_current_configuration_ = current_configuration_;
 
   initReplanner();
   replanner_->setVerbosity(replanner_verbosity_);
@@ -359,14 +358,14 @@ void ReplannerManagerBase::replanningThread()
 
   //  double abscissa;
   PathPtr path2project_on;
-  Eigen::VectorXd projection, current_configuration;
+  Eigen::VectorXd past_configuration_replan, current_configuration;
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
 
   bool success = false;
   bool path_changed = false;
   bool path_obstructed = true;
   double replanning_duration = 0.0;
-  Eigen::VectorXd past_configuration_replan = configuration_replan_;
+  Eigen::VectorXd projection = configuration_replan_;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
 
   while((not stop_) && ros::ok())
@@ -384,11 +383,21 @@ void ReplannerManagerBase::replanningThread()
     if((point2project-goal_conf).norm()>goal_tol_)
     {
       paths_mtx_.lock();
-      past_configuration_replan = configuration_replan_;
       path2project_on = current_path_shared_->clone();
       paths_mtx_.unlock();
 
-      projection = path2project_on->projectKeepingAbscissa(point2project,past_current_configuration_);
+      ROS_INFO("PRIMA DI PROIETTO REPL TRHEAD");
+      past_configuration_replan = projection;
+      double abs = path2project_on->curvilinearAbscissaOfPoint(past_configuration_replan);
+      ROS_INFO_STREAM("past abs "<<abs<<" past prj: "<<past_configuration_replan.transpose());
+
+
+      projection = path2project_on->projectKeepingAbscissa(point2project,past_configuration_replan,true);
+      ROS_INFO_STREAM("dist "<<(projection-point2project).norm());
+      if((projection-point2project).norm()>0.2)
+        throw std::runtime_error("err");
+      ROS_INFO("DOPO DI PROIETTO REPL TRHEAD");
+
 
       //      projection = path2project_on->projectOnClosestConnection(point2project);
       //      abscissa = path2project_on->curvilinearAbscissaOfPoint(projection);
@@ -463,7 +472,7 @@ void ReplannerManagerBase::replanningThread()
 
         updateTrajectory();
 
-        past_current_configuration_ = current_configuration_;
+//        past_current_configuration_ = current_configuration_;
 
         t_=0.0;
         t_replan_=t_+replan_offset_;
@@ -657,6 +666,8 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
   //Eigen::VectorXd past_current_configuration = current_configuration_;
 
+  past_current_configuration_ = current_configuration_;
+
   ros::Rate lp(trj_exec_thread_frequency_);
 
   while((not stop_) && ros::ok())
@@ -689,7 +700,9 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     for(unsigned int i=0; i<pnt_.positions.size();i++)
       point2project(i) = pnt_.positions.at(i);
 
-    current_configuration_ = path2project_on->projectKeepingAbscissa(point2project,past_current_configuration_);
+//    ROS_INFO("PRIMA DI PROIETTO TRJ TRHEAD");
+    current_configuration_ = path2project_on->projectKeepingAbscissa(point2project,current_configuration_,false);
+//    ROS_INFO("DOPO DI PROIETTO TRJ TRHEAD");
 
     //    past_abscissa = abscissa_current_configuration_;
     //    past_current_configuration = current_configuration_;
@@ -927,7 +940,6 @@ void ReplannerManagerBase::benchmarkThread()
 {
   bool success = true;
   double path_length = 0.0;
-  double max_replanning_time = 0.0;
   PathPtr current_path;
   ConnectionPtr current_conn;
   std::vector<std::string>     obj_ids;
@@ -972,11 +984,7 @@ void ReplannerManagerBase::benchmarkThread()
     /* Replanning time */
     bench_mtx_.lock();
     if(replanning_time_ != 0.0)
-    {
       replanning_time_vector.push_back(replanning_time_);
-      if(max_replanning_time<replanning_time_)
-        max_replanning_time = replanning_time_;
-    }
 
     replanning_time_ = 0.0;
     bench_mtx_.unlock();
@@ -1025,7 +1033,7 @@ void ReplannerManagerBase::benchmarkThread()
     lp.sleep();
   }
 
-  double sum, mean, std_dev, variance;
+  double sum, mean, std_dev, variance, max_replanning_time;
   sum = std::accumulate(replanning_time_vector.begin(),replanning_time_vector.end(),0.0);
   mean = sum/replanning_time_vector.size();
 
@@ -1034,6 +1042,11 @@ void ReplannerManagerBase::benchmarkThread()
     variance += std::pow(d - mean, 2);
 
   std_dev = std::sqrt(variance / replanning_time_vector.size());
+
+  if(not replanning_time_vector.empty())
+    max_replanning_time = *(std::max_element(replanning_time_vector.begin(),replanning_time_vector.end()));
+  else
+    max_replanning_time = 0.0;
 
   bench_mtx_.lock();
   unsigned int number_of_objects = obj_ids_.size();
