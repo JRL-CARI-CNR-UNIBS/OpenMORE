@@ -358,7 +358,7 @@ void ReplannerManagerBase::replanningThread()
 
   //  double abscissa;
   PathPtr path2project_on;
-  Eigen::VectorXd past_configuration_replan, current_configuration;
+  Eigen::VectorXd current_configuration;
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
 
   bool success = false;
@@ -366,6 +366,7 @@ void ReplannerManagerBase::replanningThread()
   bool path_obstructed = true;
   double replanning_duration = 0.0;
   Eigen::VectorXd projection = configuration_replan_;
+  Eigen::VectorXd past_configuration_replan = projection;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
 
   while((not stop_) && ros::ok())
@@ -387,12 +388,12 @@ void ReplannerManagerBase::replanningThread()
       paths_mtx_.unlock();
 
       ROS_INFO("PRIMA DI PROIETTO REPL TRHEAD");
-      past_configuration_replan = projection;
       double abs = path2project_on->curvilinearAbscissaOfPoint(past_configuration_replan);
       ROS_INFO_STREAM("past abs "<<abs<<" past prj: "<<past_configuration_replan.transpose());
 
 
       projection = path2project_on->projectKeepingAbscissa(point2project,past_configuration_replan,true);
+      past_configuration_replan = projection;
       ROS_INFO_STREAM("dist "<<(projection-point2project).norm());
       if((projection-point2project).norm()>0.2)
         throw std::runtime_error("err");
@@ -472,7 +473,8 @@ void ReplannerManagerBase::replanningThread()
 
         updateTrajectory();
 
-//        past_current_configuration_ = current_configuration_;
+        //        past_current_configuration_ = current_configuration_;
+        past_configuration_replan = current_configuration_;
 
         t_=0.0;
         t_replan_=t_+replan_offset_;
@@ -700,9 +702,9 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     for(unsigned int i=0; i<pnt_.positions.size();i++)
       point2project(i) = pnt_.positions.at(i);
 
-//    ROS_INFO("PRIMA DI PROIETTO TRJ TRHEAD");
+    //    ROS_INFO("PRIMA DI PROIETTO TRJ TRHEAD");
     current_configuration_ = path2project_on->projectKeepingAbscissa(point2project,current_configuration_,false);
-//    ROS_INFO("DOPO DI PROIETTO TRJ TRHEAD");
+    //    ROS_INFO("DOPO DI PROIETTO TRJ TRHEAD");
 
     //    past_abscissa = abscissa_current_configuration_;
     //    past_current_configuration = current_configuration_;
