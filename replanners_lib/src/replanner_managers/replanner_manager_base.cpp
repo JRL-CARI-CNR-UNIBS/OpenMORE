@@ -390,16 +390,16 @@ void ReplannerManagerBase::replanningThread()
       path2project_on->setChecker(checker);
 
       path2project_on = path2project_on->getSubpathFromConf(past_configuration_replan,true);
-      if(path2project_on->getConnectionsSize()>4)
-        path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(3)->getChild());
+//      if(path2project_on->getConnectionsSize()>4)
+//        path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(3)->getChild());
 
       ROS_INFO("PRIMA DI PROIETTO REPL TRHEAD");
       double abs = path2project_on->curvilinearAbscissaOfPoint(past_configuration_replan);
       ROS_INFO_STREAM("past abs "<<abs<<" past prj: "<<past_configuration_replan.transpose());
 
       projection = path2project_on->projectKeepingAbscissa(point2project,past_configuration_replan,0.5,true);
-      if((projection - point2project).norm() > 2*(past_configuration_replan-point2project).norm())
-        projection = past_configuration_replan;
+//      if((projection - point2project).norm() > 2*(past_configuration_replan-point2project).norm())
+//        projection = past_configuration_replan;
 
       past_configuration_replan = projection;
       double dist = (projection-point2project).norm();
@@ -712,12 +712,12 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     current_path_copy->setChecker(checker);
 
     path2project_on = current_path_copy->getSubpathFromConf(past_current_configuration,true);
-    if(path2project_on->getConnectionsSize()>4)
-      path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(3)->getChild());
+//    if(path2project_on->getConnectionsSize()>4)
+//      path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(3)->getChild());
 
     current_configuration_ = path2project_on->projectKeepingAbscissa(point2project,past_current_configuration,0.5,false);
-    if((current_configuration_ - point2project).norm() > 2*(past_current_configuration-point2project).norm())
-      current_configuration_ = past_current_configuration;
+//    if((current_configuration_ - point2project).norm() > 2*(past_current_configuration-point2project).norm())
+//      current_configuration_ = past_current_configuration;
 
     past_current_configuration = current_configuration_;
 
@@ -964,12 +964,15 @@ void ReplannerManagerBase::benchmarkThread()
   double path_length = 0.0;
   PathPtr current_path;
   ConnectionPtr current_conn;
-  std::vector<std::string>     obj_ids;
+  std::vector<std::string> obj_ids;
   std::vector<Eigen::VectorXd> obj_pos;
   std::vector<std::string>::iterator it;
+  trajectory_msgs::JointTrajectoryPoint pnt;
   std::vector<double> replanning_time_vector;
   std::vector<std::string> already_collided_obj;
-  Eigen::VectorXd old_current_configuration, current_configuration;
+  Eigen::VectorXd old_current_configuration, current_configuration, old_pnt_conf, pnt_conf;
+
+  MoveitUtilsPtr util = std::make_shared<MoveitUtils>(planning_scn_cc_,group_name_);
 
   paths_mtx_.lock();
   Eigen::VectorXd start = current_path_shared_->getStartNode()->getConfiguration();
@@ -977,14 +980,13 @@ void ReplannerManagerBase::benchmarkThread()
   double initial_path_length = current_path_shared_->length();
   paths_mtx_.unlock();
 
+  pnt_conf = start;
+  current_configuration = start;
+
   double distance;
   double distance_start_goal = (goal-start).norm();
 
   int n_collisions = 0;
-
-  trj_mtx_.lock();
-  current_configuration = current_configuration_;
-  trj_mtx_.unlock();
 
   double cycle_duration;
   ros::WallTime tic, toc;
@@ -995,13 +997,19 @@ void ReplannerManagerBase::benchmarkThread()
   {
     tic = ros::WallTime::now();
 
+    old_pnt_conf = pnt_conf;
+    old_current_configuration = current_configuration;
+
     trj_mtx_.lock();
     paths_mtx_.lock();
-    old_current_configuration = current_configuration;
+    pnt = pnt_;
     current_configuration = current_configuration_;
     current_path = current_path_shared_->clone();
     paths_mtx_.unlock();
     trj_mtx_.unlock();
+
+    for(unsigned int i=0; i<pnt.positions.size();i++)
+      pnt_conf(i) = pnt.positions[i];
 
     /* Replanning time */
     bench_mtx_.lock();
@@ -1012,7 +1020,8 @@ void ReplannerManagerBase::benchmarkThread()
     bench_mtx_.unlock();
 
     /* Path length */
-    distance = (current_configuration-old_current_configuration).norm();
+//    distance = (current_configuration-old_current_configuration).norm();
+    distance = (pnt_conf-old_pnt_conf).norm();
     if(distance>0.3)
     {
       //current_configuration = old_current_configuration;
@@ -1026,6 +1035,8 @@ void ReplannerManagerBase::benchmarkThread()
     obj_ids = obj_ids_;
     obj_pos = obj_pos_;
     bench_mtx_.unlock();
+
+    //util->fromWaypoints2State(current_configuration) sistema qui sotto
 
     for(unsigned int i=0;i<obj_pos.size();i++)
     {
