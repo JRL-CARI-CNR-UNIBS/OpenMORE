@@ -66,13 +66,10 @@ protected:
   double checker_resolution_            ;
   double goal_tol_                      ;
   double scaling_                       ;
-//  double abscissa_replan_configuration_ ;
-//  double abscissa_current_configuration_;
 
   ReplannerBasePtr                          replanner_                 ;
   Eigen::VectorXd                           current_configuration_     ;
   Eigen::VectorXd                           configuration_replan_      ;
-  Eigen::VectorXd                           past_current_configuration_;
   CollisionCheckerPtr                       checker_cc_                ;
   CollisionCheckerPtr                       checker_replanning_        ;
   TrajectoryPtr                             trajectory_                ;

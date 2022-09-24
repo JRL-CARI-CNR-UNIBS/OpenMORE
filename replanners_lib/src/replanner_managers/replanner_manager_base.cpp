@@ -1,4 +1,4 @@
-#include "replanners_lib/replanner_managers/replanner_manager_base.h"
+﻿#include "replanners_lib/replanner_managers/replanner_manager_base.h"
 
 namespace pathplan
 {
@@ -356,7 +356,6 @@ void ReplannerManagerBase::replanningThread()
   ros::Rate lp(replanning_thread_frequency_);
   ros::WallTime tic,tic_rep,toc_rep;
 
-  //  double abscissa;
   PathPtr path2project_on;
   Eigen::VectorXd current_configuration;
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
@@ -368,7 +367,6 @@ void ReplannerManagerBase::replanningThread()
   Eigen::VectorXd projection = configuration_replan_;
   Eigen::VectorXd past_configuration_replan = projection;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
-
   CollisionCheckerPtr checker = current_path_shared_->getChecker()->clone();
 
   while((not stop_) && ros::ok())
@@ -391,13 +389,15 @@ void ReplannerManagerBase::replanningThread()
 
       path2project_on->setChecker(checker);
 
+      path2project_on = path2project_on->getSubpathFromConf(past_configuration_replan,true);
+      if(path2project_on->getConnectionsSize()>3)
+        path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(2)->getChild());
 
       ROS_INFO("PRIMA DI PROIETTO REPL TRHEAD");
       double abs = path2project_on->curvilinearAbscissaOfPoint(past_configuration_replan);
       ROS_INFO_STREAM("past abs "<<abs<<" past prj: "<<past_configuration_replan.transpose());
 
-
-      projection = path2project_on->getSubpathFromConf(past_configuration_replan,true)->projectKeepingAbscissa(point2project,past_configuration_replan,true);
+      projection = path2project_on->projectKeepingAbscissa(point2project,past_configuration_replan,true);
       if((projection - point2project).norm() > 2*(past_configuration_replan-point2project).norm())
         projection = past_configuration_replan;
 
@@ -416,11 +416,9 @@ void ReplannerManagerBase::replanningThread()
 
 
       //      projection = path2project_on->projectOnClosestConnection(point2project);
-      //      abscissa = path2project_on->curvilinearAbscissaOfPoint(projection);
 
       replanner_mtx_.lock();
       configuration_replan_ = projection;
-      //      abscissa_replan_configuration_ = abscissa;
       replanner_mtx_.unlock();
 
       scene_mtx_.lock();
@@ -488,14 +486,10 @@ void ReplannerManagerBase::replanningThread()
 
         updateTrajectory();
 
-        //        past_current_configuration_ = current_configuration_;
         past_configuration_replan = current_configuration_;
 
         t_=0.0;
         t_replan_=t_+replan_offset_;
-        //        n_conn_ = 0;
-        //        abscissa_current_configuration_ = 0.0;
-        //        abscissa_replan_configuration_  = 0.0;
 
         trj_mtx_.unlock();
         replanner_mtx_.unlock();
@@ -677,15 +671,12 @@ double ReplannerManagerBase::readScalingTopics()
 void ReplannerManagerBase::trajectoryExecutionThread()
 {
   ros::WallTime tic,toc;
-  PathPtr path2project_on;
   Eigen::VectorXd configuration_replan;
-  double past_abscissa, abscissa_replan_configuration, abscissa_current_configuration, duration;
+  PathPtr path2project_on, current_path_copy;
+  Eigen::VectorXd past_current_configuration = current_configuration_;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
-  //Eigen::VectorXd past_current_configuration = current_configuration_;
-
   CollisionCheckerPtr checker = current_path_shared_->getChecker()->clone();
-
-  past_current_configuration_ = current_configuration_;
+  double abscissa_replan_configuration, abscissa_current_configuration, duration;
 
   ros::Rate lp(trj_exec_thread_frequency_);
 
@@ -696,7 +687,6 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
     replanner_mtx_.lock();
     configuration_replan = configuration_replan_;
-    //abscissa_replan_configuration = abscissa_replan_configuration_;
     replanner_mtx_.unlock();
 
     trj_mtx_.lock();
@@ -708,12 +698,6 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     t_+= scaling_*dt_;
     t_replan_ = t_+replan_offset_;
 
-    paths_mtx_.lock();
-    path2project_on = current_path_shared_->clone();
-    paths_mtx_.unlock();
-
-    path2project_on->setChecker(checker);
-
     interpolator_.interpolate(ros::Duration(t_)    ,pnt_         ,scaling_);
     interpolator_.interpolate(ros::Duration(t_)    ,pnt_unscaled_,     1.0);
 
@@ -721,25 +705,26 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     for(unsigned int i=0; i<pnt_.positions.size();i++)
       point2project(i) = pnt_.positions.at(i);
 
-    //    ROS_INFO("PRIMA DI PROIETTO TRJ TRHEAD");
-    past_current_configuration_ = current_configuration_;
+    paths_mtx_.lock();
+    current_path_copy = current_path_shared_->clone();
+    paths_mtx_.unlock();
 
-    current_configuration_ = path2project_on->getSubpathFromConf(past_current_configuration_,true)->projectKeepingAbscissa(point2project,past_current_configuration_,false);
-    if((current_configuration_ - point2project).norm() > 2*(past_current_configuration_-point2project).norm())
-      current_configuration_ = past_current_configuration_;
-    //    ROS_INFO("DOPO DI PROIETTO TRJ TRHEAD");
+    current_path_copy->setChecker(checker);
 
-    //    past_abscissa = abscissa_current_configuration_;
-    //    past_current_configuration = current_configuration_;
-    //current_configuration_ = path2project_on->projectOnClosestConnection(point2project);
-    //    current_configuration_ = path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_current_configuration,abscissa_current_configuration_,past_abscissa,n_conn_);
+    path2project_on = current_path_copy->getSubpathFromConf(past_current_configuration,true);
+    if(path2project_on->getConnectionsSize()>3)
+      path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(2)->getChild());
 
-    abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(configuration_replan);
-    abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration_);
+    current_configuration_ = path2project_on->projectKeepingAbscissa(point2project,past_current_configuration,false);
+    if((current_configuration_ - point2project).norm() > 2*(past_current_configuration-point2project).norm())
+      current_configuration_ = past_current_configuration;
+
+    past_current_configuration = current_configuration_;
+
+    abscissa_replan_configuration  = current_path_copy->curvilinearAbscissaOfPoint(configuration_replan);
+    abscissa_current_configuration = current_path_copy->curvilinearAbscissaOfPoint(current_configuration_);
     if(abscissa_current_configuration>abscissa_replan_configuration) //the current confgiruation must not surpass that of replanning
-    {
       current_configuration_ = configuration_replan;
-    }
 
     trj_mtx_.unlock();
 
