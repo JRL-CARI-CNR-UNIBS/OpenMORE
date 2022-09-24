@@ -390,14 +390,14 @@ void ReplannerManagerBase::replanningThread()
       path2project_on->setChecker(checker);
 
       path2project_on = path2project_on->getSubpathFromConf(past_configuration_replan,true);
-      if(path2project_on->getConnectionsSize()>3)
-        path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(2)->getChild());
+      if(path2project_on->getConnectionsSize()>4)
+        path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(3)->getChild());
 
       ROS_INFO("PRIMA DI PROIETTO REPL TRHEAD");
       double abs = path2project_on->curvilinearAbscissaOfPoint(past_configuration_replan);
       ROS_INFO_STREAM("past abs "<<abs<<" past prj: "<<past_configuration_replan.transpose());
 
-      projection = path2project_on->projectKeepingAbscissa(point2project,past_configuration_replan,0.2,true);
+      projection = path2project_on->projectKeepingAbscissa(point2project,past_configuration_replan,0.5,true);
       if((projection - point2project).norm() > 2*(past_configuration_replan-point2project).norm())
         projection = past_configuration_replan;
 
@@ -712,10 +712,10 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     current_path_copy->setChecker(checker);
 
     path2project_on = current_path_copy->getSubpathFromConf(past_current_configuration,true);
-    if(path2project_on->getConnectionsSize()>3)
-      path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(2)->getChild());
+    if(path2project_on->getConnectionsSize()>4)
+      path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(3)->getChild());
 
-    current_configuration_ = path2project_on->projectKeepingAbscissa(point2project,past_current_configuration,0.2,false);
+    current_configuration_ = path2project_on->projectKeepingAbscissa(point2project,past_current_configuration,0.5,false);
     if((current_configuration_ - point2project).norm() > 2*(past_current_configuration-point2project).norm())
       current_configuration_ = past_current_configuration;
 
