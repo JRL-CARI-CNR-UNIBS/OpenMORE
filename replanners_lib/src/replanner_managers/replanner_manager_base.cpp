@@ -389,22 +389,23 @@ void ReplannerManagerBase::replanningThread()
 
       path2project_on->setChecker(checker);
 
-      path2project_on = path2project_on->getSubpathFromConf(past_configuration_replan,true);
-//      if(path2project_on->getConnectionsSize()>4)
-//        path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(3)->getChild());
+//      ConnectionPtr conn = path2project_on->findConnection(past_configuration_replan);
+//      path2project_on = path2project_on->getSubpathFromNode(conn->getParent());
+      //      if(path2project_on->getConnectionsSize()>4)
+      //        path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(3)->getChild());
 
       ROS_INFO("PRIMA DI PROIETTO REPL TRHEAD");
       double abs = path2project_on->curvilinearAbscissaOfPoint(past_configuration_replan);
       ROS_INFO_STREAM("past abs "<<abs<<" past prj: "<<past_configuration_replan.transpose());
 
       projection = path2project_on->projectKeepingAbscissa(point2project,past_configuration_replan,0.5,true);
-//      if((projection - point2project).norm() > 2*(past_configuration_replan-point2project).norm())
-//        projection = past_configuration_replan;
+      //      if((projection - point2project).norm() > 2*(past_configuration_replan-point2project).norm())
+      //        projection = past_configuration_replan;
 
       past_configuration_replan = projection;
       double dist = (projection-point2project).norm();
       ROS_INFO_STREAM("dist "<<dist);
-      if(dist>0.2)
+      if(dist>0.3)
       {
         pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
         disp->displayNode(std::make_shared<Node>(projection),66666);
@@ -698,8 +699,8 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     t_+= scaling_*dt_;
     t_replan_ = t_+replan_offset_;
 
-    interpolator_.interpolate(ros::Duration(t_)    ,pnt_         ,scaling_);
-    interpolator_.interpolate(ros::Duration(t_)    ,pnt_unscaled_,     1.0);
+    interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling_);
+    interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,     1.0);
 
     Eigen::VectorXd point2project(pnt_.positions.size());
     for(unsigned int i=0; i<pnt_.positions.size();i++)
@@ -710,14 +711,18 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     paths_mtx_.unlock();
 
     current_path_copy->setChecker(checker);
+    path2project_on = current_path_copy;
 
-    path2project_on = current_path_copy->getSubpathFromConf(past_current_configuration,true);
-//    if(path2project_on->getConnectionsSize()>4)
-//      path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(3)->getChild());
+//    ConnectionPtr conn = current_path_copy->findConnection(past_current_configuration);
+//    path2project_on = path2project_on->getSubpathFromNode(conn->getParent());
+
+    //    path2project_on = current_path_copy->getSubpathFromConf(past_current_configuration,true);
+    //    if(path2project_on->getConnectionsSize()>4)
+    //      path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(3)->getChild());
 
     current_configuration_ = path2project_on->projectKeepingAbscissa(point2project,past_current_configuration,0.5,false);
-//    if((current_configuration_ - point2project).norm() > 2*(past_current_configuration-point2project).norm())
-//      current_configuration_ = past_current_configuration;
+    //    if((current_configuration_ - point2project).norm() > 2*(past_current_configuration-point2project).norm())
+    //      current_configuration_ = past_current_configuration;
 
     past_current_configuration = current_configuration_;
 
@@ -1020,7 +1025,7 @@ void ReplannerManagerBase::benchmarkThread()
     bench_mtx_.unlock();
 
     /* Path length */
-//    distance = (current_configuration-old_current_configuration).norm();
+    //    distance = (current_configuration-old_current_configuration).norm();
     distance = (pnt_conf-old_pnt_conf).norm();
     if(distance>0.3)
     {
