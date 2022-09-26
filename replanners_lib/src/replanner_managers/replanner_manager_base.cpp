@@ -116,9 +116,6 @@ void ReplannerManagerBase::attributeInitialization()
 {
   stop_                            = false;
   current_path_sync_needed_        = false;
-  //  n_conn_                          = 0    ;
-  //  abscissa_current_configuration_  = 0.0  ;
-  //  abscissa_replan_configuration_   = 0.0  ;
   replanning_time_                 = 0.0  ;
   scaling_                         = 1.0  ;
   real_time_                       = 0.0  ;
@@ -475,6 +472,7 @@ void ReplannerManagerBase::replanningThread()
 
         updateTrajectory();
 
+        configuration_replan_ = configuration_replan_;
         past_configuration_replan = current_configuration_;
 
         t_=0.0;
@@ -694,10 +692,7 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     path2project_on = current_path_shared_->clone();
     paths_mtx_.unlock();
 
-
-    ros::WallTime tic_p  = ros::WallTime::now();
     current_configuration_ = path2project_on->projectOnPath(point2project,past_current_configuration,false);
-    ROS_INFO_STREAM("tc "<<(ros::WallTime::now()-tic_p).toSec());
 
     past_current_configuration = current_configuration_;
 

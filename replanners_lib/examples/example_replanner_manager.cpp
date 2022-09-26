@@ -1,11 +1,5 @@
 #include <ros/ros.h>
-#include <moveit/robot_state/robot_state.h>
-#include <graph_core/parallel_moveit_collision_checker.h>
-#include <replanners_lib/trajectory.h>
-#include <replanners_lib/replanner_managers/replanner_manager_MPRRT.h>
-#include <replanners_lib/replanner_managers/replanner_manager_DRRTStar.h>
 #include <replanners_lib/replanner_managers/replanner_manager_DRRT.h>
-#include <replanners_lib/replanner_managers/replanner_manager_anytimeDRRT.h>
 
 int main(int argc, char **argv)
 {
@@ -15,14 +9,7 @@ int main(int argc, char **argv)
 
   ros::NodeHandle nh;
 
-  //  ////////////////////////////////////////// GETTING ROS PARAM ///////////////////////////////////////////////
-
-  std::string replanner_type;
-  if (!nh.getParam("replanner_type",replanner_type))
-  {
-    ROS_INFO("replanner_type not set");
-    return 0;
-  }
+  /* GET ROS PARAM */
 
   std::string group_name;
   if (!nh.getParam("group_name",group_name))
@@ -45,7 +32,7 @@ int main(int argc, char **argv)
     return 0;
   }
 
-  //  ///////////////////////////////////UPLOADING THE ROBOT ARM/////////////////////////////////////////////////////////////
+  /* UPLOAD ROBOT DESCRIPTION */
 
   moveit::planning_interface::MoveGroupInterface move_group(group_name);
   robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
@@ -69,29 +56,32 @@ int main(int argc, char **argv)
     }
   }
 
-  //  /////////////////////////////////////UPDATING THE PLANNING STATIC SCENE////////////////////////////////////
+  /* UPDATE PLANNING STATIC SCENE */
+
   ros::ServiceClient ps_client=nh.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
   moveit_msgs::GetPlanningScene ps_srv;
 
   if (!ps_client.waitForExistence(ros::Duration(10)))
   {
     ROS_ERROR("unable to connect to /get_planning_scene");
-    return 1;
+    return 0;
   }
 
   if (!ps_client.call(ps_srv))
   {
     ROS_ERROR("call to srv not ok");
-    return 1;
+    return 0;
   }
 
   if (!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
   {
     ROS_ERROR("unable to update planning scene");
-    return 1;
+    return 0;
   }
 
-  //  ////////////////////////////////////////////PATH PLAN & VISUALIZATION////////////////////////////////////////////////////////
+
+  /* PATH PLAN & VISUALIZATION */
+
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
   pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
 
@@ -103,36 +93,11 @@ int main(int argc, char **argv)
   pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
   pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler);
 
-  pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true);
+  pathplan::PathPtr current_path = trajectory.computePath(start_conf,goal_conf,solver,true); //optimize = true to optimize with RRT* rewire and shortcutting
 
-  //    ////////////////////////////////////////// REPLAN ////////////////////////////////////////////////////////////////
+  /* REPLAN */
 
-  pathplan::ReplannerManagerBasePtr replanner_manager = nullptr;
-
-  if(replanner_type == "MPRRT")
-  {
-    replanner_manager = std::make_shared<pathplan::ReplannerManagerMPRRT>(current_path,solver,nh);
-  }
-  else if(replanner_type ==  "DRRT*")
-  {
-    replanner_manager =  std::make_shared<pathplan::ReplannerManagerDRRTStar>(current_path,solver,nh);
-  }
-  else if(replanner_type == "DRRT")
-  {
-    replanner_manager =  std::make_shared<pathplan::ReplannerManagerDRRT>(current_path,solver,nh);
-  }
-  else if(replanner_type == "anytimeDRRT")
-  {
-    replanner_manager =  std::make_shared<pathplan::ReplannerManagerAnytimeDRRT>(current_path,solver,nh);
-  }
-  else
-  {
-    ROS_ERROR("Replanner %s does not exist",replanner_type.c_str());
-    return 0;
-  }
-
-  ROS_INFO_STREAM("Launching replanner of type: "<<replanner_type.c_str());
-
+  pathplan::ReplannerManagerBasePtr replanner_manager =  std::make_shared<pathplan::ReplannerManagerDRRT>(current_path,solver,nh);
   replanner_manager->start();
 
   return 0;

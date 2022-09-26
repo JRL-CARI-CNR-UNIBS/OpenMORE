@@ -1,0 +1,9 @@
+#PLANNING CONFIGURATIONS:
+group_name: "cartesian_arm"
+start_configuration: [0.2, 0.2, 0.2]
+stop_configuration: [2.8, 2.8, 2]
+max_distance: 0.2 #max connections length
+
+#REPLANNING CONFIGURATIONS:
+max_time: 0.2 #max replanning time
+verbose: true #replanner verbosity

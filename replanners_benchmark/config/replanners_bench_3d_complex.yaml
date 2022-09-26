@@ -35,7 +35,6 @@ obj_type: "mid_red_box"
 obj_max_size: 0.15
 scaling: 0.7
 read_safe_scaling: false
-read_real_joints_values_: false
 
 MPRRT:
   n_threads_replan: 5
@@ -48,7 +47,7 @@ MARS:
   verbosity_level: 2
 
 #VERBOSITY:
-replanner_verbosity: true
+replanner_verbosity: false
 display_timing_warning: false
 display_replanning_success: true
 display_replan_trj_point: true

@@ -15,10 +15,10 @@ It contains two main repositories:
  4. [DRRT*](https://ieeexplore.ieee.org/document/8122814)
  5. [MPRRT](https://ieeexplore.ieee.org/document/7027233)
 
-This library depends mainly on [*graph_core*](https://github.com/JRL-CARI-CNR-UNIBS/cari_motion_planning/tree/cesare-devel/graph_core), another library containing the path planning solvers and the definition of the necessary classes (Node, Connection, Path, Tree and so on). Warning: in order to use **replanners_lib**, the branch of graph_core must be *cesare-devel*.
+This library depends on [*graph_core*](https://github.com/JRL-CARI-CNR-UNIBS/cari_motion_planning/tree/cesare-devel/graph_core), which contains definition of the necessary classes of a path planning problem and the path planning solvers. Warning: in order to use **replanners_lib**, the branch of graph_core must be *cesare-devel*.
 
 ## replanners
-It contains the abstract class *replanner_base.cpp* from which you you need to inherit to implement your replanner.
+It contains the abstract class *replanner_base.cpp* from which you need to inherit to implement your replanner.
 Mainly, you have to implement the pure virtual function
 ```cpp
 virtual bool replan() = 0;
@@ -66,7 +66,7 @@ Eigen::VectorXd start_conf;  //NB: INITIALIZE THIS VALUE WITH THE PATH START CON
 Eigen::VectorXd goal_conf;   //NB: INITIALIZE THIS VALUE WITH THE PATH STOP CONFIGURATION
 
 pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
-pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler); //NB: you can chose a different planner among those of graph_core
+pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler); //NB: you can chose a different planner among those of graph_core
 pathplan::PathPtr current_path = trajectory.computePath(start_conf, goal_conf,solver,optimize); //optimize = true to optimize with RRT* rewire and shortcutting
 ```
 Define the current robot configuration, for example:
@@ -136,7 +136,7 @@ Eigen::VectorXd start_conf;  //NB: INITIALIZE THIS VALUE WITH THE PATH START CON
 Eigen::VectorXd goal_conf;   //NB: INITIALIZE THIS VALUE WITH THE PATH STOP CONFIGURATION
 
 pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
-pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
+pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler);
 pathplan::PathPtr current_path = trajectory.computePath(start_conf, goal_conf,solver,optimize); //optimize = true to optimize with RRT* rewire and shortcutting
 ```
 Finally, create the replanner manager and start the execution:

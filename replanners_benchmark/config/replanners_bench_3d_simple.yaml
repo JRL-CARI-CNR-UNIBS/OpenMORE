@@ -35,7 +35,6 @@ obj_type: "red_box"
 obj_max_size: 0.1
 scaling: 0.7
 read_safe_scaling: false
-read_real_joints_values_: false
 
 MPRRT:
   n_threads_replan: 5

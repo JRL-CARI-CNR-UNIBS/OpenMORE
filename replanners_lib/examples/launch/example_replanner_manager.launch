@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+  <include file="$(find replanners_bench_cells)/launch/load_cell_3d_simple.launch"/>
+
+  <rosparam command="load" file="$(find replanners_lib)/examples/config/example_replanner_manager.yaml"/>
+
+  <node pkg="replanners_lib"
+        name="example_replanner_manager"
+        type="example_replanner_manager"
+        output="screen"
+        launch-prefix="gdb -ex run --args">
+
+ </node>
+
+</launch>
