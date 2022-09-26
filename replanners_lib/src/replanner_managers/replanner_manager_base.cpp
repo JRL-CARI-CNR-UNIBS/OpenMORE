@@ -657,7 +657,6 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   ros::WallTime tic,toc;
   PathPtr path2project_on;
   Eigen::VectorXd configuration_replan;
-  Eigen::VectorXd past_current_configuration = current_configuration_;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
   double abscissa_replan_configuration, abscissa_current_configuration, duration;
 
@@ -692,9 +691,7 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     path2project_on = current_path_shared_->clone();
     paths_mtx_.unlock();
 
-    current_configuration_ = path2project_on->projectOnPath(point2project,past_current_configuration,false);
-
-    past_current_configuration = current_configuration_;
+    current_configuration_ = path2project_on->projectOnPath(point2project,current_configuration_,false);
 
     abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(configuration_replan);
     abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration_);

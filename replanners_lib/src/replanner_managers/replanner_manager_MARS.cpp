@@ -199,28 +199,18 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
                }
                ());
 
-        ROS_INFO("QUA0");
         std::vector<ConnectionPtr> new_conns = current_path->getConnections();
         new_conns.insert(new_conns.begin(),parent_conn);
         current_path->setConnections(new_conns);
-        ROS_INFO("QUA1");
-
 
         ConnectionPtr restored_conn;
         if(current_path->removeNode(old_current_node_,{},restored_conn))
         {
-          ROS_INFO("QUA2");
-
           std::vector<PathPtr> paths = other_paths_;
           paths.push_back(replanned_path);
           for(PathPtr& p:paths)
           {
-            ROS_INFO("QUA3");
-
             p->restoreConnection(restored_conn,old_current_node_);
-
-            ROS_INFO("QUA3.1");
-
 
             assert([&]() ->bool{
                      for(const NodePtr& n:p->getNodes())
@@ -236,38 +226,15 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
             assert(not tree->isInTree(old_current_node_));
           }
         }
-        ROS_INFO("QUA4");
       }
     }
   }
-
-  assert([&]() ->bool{ //ELIMINA
-                       for(const NodePtr& n:replanned_path->getNodes())
-                       {
-                         if(n->getParentConnectionsSize()!=1)
-                         {
-                           for(const NodePtr& nn:replanned_path->getNodes())
-                           {
-                             ROS_INFO_STREAM(nn<<" "<<*nn);
-                           }
-                           ROS_INFO_STREAM(*replanned_path);
-
-                           return false;
-                         }
-                       }
-                       return true;
-         }());
-
-
-  ROS_INFO("QUA5");
 
   int conn_idx;
   bool is_a_new_node;
   PathPtr tmp_p = current_path->clone();
   ConnectionPtr conn = current_path->findConnection(configuration,conn_idx);
   NodePtr current_node = current_path->addNodeAtCurrentConfig(configuration,conn,true,is_a_new_node);
-  ROS_INFO("QUA6");
-
 
   assert([&]() ->bool{
            if((current_node == node_replan && ((configuration-node_replan->getConfiguration()).norm()>TOLERANCE)) || (current_node != node_replan && ((configuration-node_replan->getConfiguration()).norm()<=TOLERANCE)))
@@ -294,12 +261,8 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
     old_current_node_ = current_node;
     for(PathPtr &p:other_paths_)
     {
-      ROS_INFO("QUA7");
-
       if(p->splitConnection(current_path->getConnectionsConst().at(conn_idx),
                             current_path->getConnectionsConst().at(conn_idx+1),conn));
-      ROS_INFO("QUA7.1");
-
     }
   }
   else
@@ -307,16 +270,10 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
 
   if(not replanner->getSuccess())
   {
-    ROS_INFO("QUA8");
-
     replanned_path->setConnections(current_path->getSubpathFromNode(current_node)->getConnections());
-    ROS_INFO("QUA9");
-
   }
   else
   {
-    ROS_INFO("QUA10");
-
     std::vector<NodePtr> nodes = current_path->getNodes();
 
     std::vector<NodePtr>::iterator it_current_node = std::find(nodes.begin(),nodes.end(),current_node);
@@ -326,14 +283,10 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
 
     if(distance==0)
     {
-      ROS_INFO("QUA10.0");
-
       assert(node_replan == current_node);
     }
     else if(distance<0)
     {
-      ROS_INFO("QUA10.1");
-
       //if the current node is ahead of replan node, consider current_node = replan node (so keep replanned path unchanged)
     }
     else //distance>0
@@ -358,12 +311,8 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
       }
       std::vector<ConnectionPtr> new_conns = tmp_subpath->getConnections();
 
-      ROS_INFO("QUA11");
-
       new_conns.insert(new_conns.end(),replanned_path->getConnectionsConst().begin(),replanned_path->getConnectionsConst().end());
       replanned_path->setConnections(new_conns);
-      ROS_INFO("QUA12");
-
     }
   }
 
@@ -386,24 +335,16 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
 
   if(replanner->replanNodeIsANewNode() && ((node_replan->getConfiguration()-configuration).norm()>TOLERANCE) && node_replan != old_current_node_)
   {
-    ROS_INFO("QUA13");
-
     ConnectionPtr restored_conn;
     if(replanned_path->removeNode(node_replan,{},restored_conn))
     {
-      ROS_INFO("QUA14");
-
       std::vector<PathPtr> paths = other_paths_;
       paths.push_back(current_path);
 
       for(PathPtr& p:paths)
       {
-        ROS_INFO("QUA15");
-
         assert(p->getTree() != nullptr);
         p->restoreConnection(restored_conn,node_replan);
-        ROS_INFO("QUA15.1");
-
 
         assert(not tree->isInTree(node_replan));
         assert([&]()->bool{
@@ -420,8 +361,6 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
 
       }
     }
-    ROS_INFO("QUA16");
-
   }
 
   assert([&]() ->bool{
@@ -441,78 +380,6 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
            return true;
          }());
 
-  //  NodePtr repeated_node = nullptr;
-  //  std::vector<NodePtr> replanned_path_nodes = replanned_path->getNodes();
-  //  std::reverse(replanned_path_nodes.begin(),replanned_path_nodes.end());
-
-  //  for(const NodePtr& n: replanned_path_nodes)
-  //  {
-  //    if(std::count(replanned_path_nodes.begin(),replanned_path_nodes.end(),n)>1)
-  //    {
-  //      repeated_node = n;  //break the path at the last repeated node
-  //      break;
-  //    }
-  //  }
-
-  //  if(repeated_node)
-  //  {
-  //    NodePtr parent = nullptr;
-  //    std::vector<ConnectionPtr> conns_before, conns_after;
-  //    std::vector<ConnectionPtr> replanned_path_conns = replanned_path->getConnections();
-
-  //    if(repeated_node != current_node)
-  //      conns_before = replanned_path->getSubpathToNode(repeated_node)->getConnections(); //the subpath to the first appearance of repeated node
-
-  //    if(repeated_node != replanned_path->getGoalNode())
-  //    {
-  //      int i = replanned_path_conns.size()-1;
-  //      while(repeated_node != parent)
-  //      {
-  //        if(i<0)
-  //        {
-  //          ROS_INFO_STREAM("replanned path: "<<*replanned_path);
-  //          ROS_INFO_STREAM("current node: "<<current_node->getConfiguration().transpose()<<" "<<current_node);
-  //          ROS_INFO_STREAM("replan node: "<<node_replan->getConfiguration().transpose()<<" "<<node_replan);
-  //          ROS_INFO_STREAM("repeated node: "<<repeated_node->getConfiguration().transpose()<<" "<<repeated_node);
-
-  //          throw std::runtime_error("repeated_node node not found");
-  //        }
-
-  //        conns_after.push_back(replanned_path_conns[i]);
-  //        parent = replanned_path_conns[i]->getParent();
-  //        i--;
-  //      }
-
-  //      if(not conns_after.empty())
-  //        std::reverse(conns_after.begin(),conns_after.end());
-  //      else
-  //        throw std::runtime_error("conns after is empty");
-  //    }
-
-  //    conns_before.insert(conns_before.end(),conns_after.begin(),conns_after.end());
-  //    replanned_path->setConnections(conns_before);
-  //  }
-
-  //  assert([&]()->bool{
-  //           std::vector<NodePtr> rp_nodes = replanned_path->getNodes();
-  //           for(const NodePtr& n:rp_nodes)
-  //           {
-  //             if(std::count(rp_nodes.begin(),rp_nodes.end(),n)>1)
-  //             {
-  //               ROS_WARN_STREAM("node replicated: "<<n->getConfiguration().transpose()<<" "<<n);
-  //               ROS_INFO_STREAM("replanned path: "<<*replanned_path);
-  //               ROS_INFO_STREAM("current node: "<<current_node->getConfiguration().transpose()<<" "<<current_node);
-  //               ROS_INFO_STREAM("replan node: "<<node_replan->getConfiguration().transpose()<<" "<<node_replan);
-
-  //               pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
-  //               disp->displayPath(replanned_path);
-
-  //               return false;
-  //             }
-  //           }
-  //           return true;
-  //         }());
-
   assert([&]() ->bool{
            for(const NodePtr& n:replanned_path->getNodes())
            {
@@ -529,7 +396,6 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
            }
            return true;
          }());
-  ROS_INFO("QUA17");
 
   if(old_current_node_ != nullptr)
   {
