@@ -73,7 +73,10 @@ replanner->replan();
 if(replanner->getSuccess())
   pathplan::PathPtr replanned_path = replanner->getReplannedPath();
 ```
-You can find a complete example code [here] FAIIIIIIIIIIIIIIIIIIIIIIIIIIIIII.
+You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/example_replanner.cpp). To launch the example:
+```
+roslaunch replanners_lib example_replanner.launch
+```
 
 ## replanner_managers
 The replanner manager manages the whole motion from a starting robot configuration to a goal configuration in a dynamic environment. It interpolates the robot trajectory, sends the new robot states and continuously calls the replanner to avoid obstacles or to optimize the current path. To do this, it uses three threads:
@@ -86,7 +89,7 @@ The replanning framework listens to three speed overrides topics, `/speed_ovr`, 
 It subscribes a service (`moveit_msgs::GetPlanningScene`) to update the information about the planning scene.
 It continuously interpolates the trajectory computed starting from the replanned path and sends the new robot state, publishing a `sensor_msgs::JointState` message on topic `/joint_target`, and the unscaled state on topic `/unscaled_joint_target`.
 
-Here you can find a complete description of parameters required.
+[Here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/config/complete_list_of_parameters_for_replanner_manager.yaml) you can find a complete description of parameters required.
 
 This is a brief explanation to create a replanner manager object. In this example we will consider the manager of DRRT.
 You need to include:
@@ -128,7 +131,7 @@ Eigen::VectorXd start_conf;  //NB: INITIALIZE THIS VALUE WITH THE PATH START CON
 Eigen::VectorXd goal_conf;   //NB: INITIALIZE THIS VALUE WITH THE PATH STOP CONFIGURATION
 
 pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
-pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
+pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics, checker, sampler);
 pathplan::PathPtr current_path = trajectory.computePath(start_conf, goal_conf,solver,optimize); //optimize = true to optimize with RRT* rewire and shortcutting
 ```
 Finally, create the replanner manager and start the execution:
@@ -136,4 +139,7 @@ Finally, create the replanner manager and start the execution:
 pathplan::ReplannerManagerDRRTPtr replanner_manager = std::make_shared<pathplan::ReplannerManagerDRRT>(current_path, solver, nh);
 replanner_manager->start();
 ```
-You can find a complete example code FAIIIIIIIIIIIIIIIIIIIIIIIIIIIII
+You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/example_replanner_manager.cpp). To launch the example:
+```
+roslaunch replanners_lib example_replanner_manager.launch
+```
