@@ -11,7 +11,7 @@ MoveitUtils::MoveitUtils(const planning_scene::PlanningScenePtr &planning_scene,
   group_name_ = group_name;
 }
 
-std::vector<moveit::core::RobotState> MoveitUtils::fromWaypoints2State(const std::vector<Eigen::VectorXd> waypoints)
+std::vector<moveit::core::RobotState> MoveitUtils::fromWaypoints2State(const std::vector<Eigen::VectorXd> waypoints) const
 {
   std::vector<moveit::core::RobotState> wp_state_vector;
   for(const Eigen::VectorXd& waypoint: waypoints)
@@ -22,7 +22,7 @@ std::vector<moveit::core::RobotState> MoveitUtils::fromWaypoints2State(const std
   return wp_state_vector;
 }
 
-moveit::core::RobotState MoveitUtils::fromWaypoints2State(Eigen::VectorXd waypoint)
+moveit::core::RobotState MoveitUtils::fromWaypoints2State(const Eigen::VectorXd& waypoint) const
 {
   moveit::core::RobotState wp_state=planning_scene_->getCurrentState();
   wp_state.setJointGroupPositions(group_name_,waypoint);

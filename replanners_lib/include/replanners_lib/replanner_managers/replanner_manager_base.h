@@ -131,9 +131,11 @@ protected:
   virtual void spawnObjectsThread();
   virtual void trajectoryExecutionThread();
   virtual double readScalingTopics();
-
   virtual void initReplanner()=0         ;
   virtual bool haveToReplan(const bool path_obstructed)=0;
+
+  Eigen::Vector3d forwardIk(const Eigen::VectorXd& conf, const std::string& last_link, const MoveitUtils& util);
+  Eigen::Vector3d forwardIk(const Eigen::VectorXd& conf, const std::string& last_link, const MoveitUtils& util, geometry_msgs::Pose &pose);
 
   bool alwaysReplan()
   {

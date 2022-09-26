@@ -367,7 +367,6 @@ void ReplannerManagerBase::replanningThread()
   Eigen::VectorXd projection = configuration_replan_;
   Eigen::VectorXd past_configuration_replan = projection;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
-  CollisionCheckerPtr checker = current_path_shared_->getChecker()->clone();
 
   while((not stop_) && ros::ok())
   {
@@ -387,21 +386,13 @@ void ReplannerManagerBase::replanningThread()
       path2project_on = current_path_shared_->clone();
       paths_mtx_.unlock();
 
-      path2project_on->setChecker(checker);
+      //      double abs = path2project_on->curvilinearAbscissaOfPoint(past_configuration_replan);
+      //      ROS_INFO_STREAM("past abs "<<abs<<" past prj: "<<past_configuration_replan.transpose());
 
-//      ConnectionPtr conn = path2project_on->findConnection(past_configuration_replan);
-//      path2project_on = path2project_on->getSubpathFromNode(conn->getParent());
-      //      if(path2project_on->getConnectionsSize()>4)
-      //        path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(3)->getChild());
+      projection = path2project_on->projectOnPath(point2project,past_configuration_replan,false);
 
-      ROS_INFO("PRIMA DI PROIETTO REPL TRHEAD");
-      double abs = path2project_on->curvilinearAbscissaOfPoint(past_configuration_replan);
-      ROS_INFO_STREAM("past abs "<<abs<<" past prj: "<<past_configuration_replan.transpose());
-
-      projection = path2project_on->projectOnPath(point2project,past_configuration_replan,true);
-//      projection = path2project_on->projectKeepingAbscissa(point2project,past_configuration_replan,0.5,true);
-      //      if((projection - point2project).norm() > 2*(past_configuration_replan-point2project).norm())
-      //        projection = past_configuration_replan;
+      if(not path2project_on->findConnection(projection))
+        throw std::runtime_error("nn");
 
       past_configuration_replan = projection;
       double dist = (projection-point2project).norm();
@@ -414,10 +405,6 @@ void ReplannerManagerBase::replanningThread()
 
         throw std::runtime_error(std::to_string(dist));
       }
-      ROS_INFO("DOPO DI PROIETTO REPL TRHEAD");
-
-
-      //      projection = path2project_on->projectOnClosestConnection(point2project);
 
       replanner_mtx_.lock();
       configuration_replan_ = projection;
@@ -540,11 +527,9 @@ void ReplannerManagerBase::collisionCheckThread()
     checker_cc_->setPlanningSceneMsg(ps_srv.response.scene);
     scene_mtx_.unlock();
 
-    //    replanner_mtx_.lock();
     trj_mtx_.lock();
 
     current_configuration_copy = current_configuration_;
-    //    current_configuration_copy = configuration_replan_;
 
     paths_mtx_.lock();
     if(current_path_sync_needed_)
@@ -555,7 +540,6 @@ void ReplannerManagerBase::collisionCheckThread()
     }
     paths_mtx_.unlock();
     trj_mtx_.unlock();
-    //    replanner_mtx_.unlock();
 
     if((current_configuration_copy-replanner_->getGoal()->getConfiguration()).norm()<goal_tol_)
     {
@@ -673,11 +657,10 @@ double ReplannerManagerBase::readScalingTopics()
 void ReplannerManagerBase::trajectoryExecutionThread()
 {
   ros::WallTime tic,toc;
+  PathPtr path2project_on;
   Eigen::VectorXd configuration_replan;
-  PathPtr path2project_on, current_path_copy;
   Eigen::VectorXd past_current_configuration = current_configuration_;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
-  CollisionCheckerPtr checker = current_path_shared_->getChecker()->clone();
   double abscissa_replan_configuration, abscissa_current_configuration, duration;
 
   ros::Rate lp(trj_exec_thread_frequency_);
@@ -708,29 +691,18 @@ void ReplannerManagerBase::trajectoryExecutionThread()
       point2project(i) = pnt_.positions.at(i);
 
     paths_mtx_.lock();
-    current_path_copy = current_path_shared_->clone();
+    path2project_on = current_path_shared_->clone();
     paths_mtx_.unlock();
 
-    current_path_copy->setChecker(checker);
-    path2project_on = current_path_copy;
 
-//    ConnectionPtr conn = current_path_copy->findConnection(past_current_configuration);
-//    path2project_on = path2project_on->getSubpathFromNode(conn->getParent());
-
-    //    path2project_on = current_path_copy->getSubpathFromConf(past_current_configuration,true);
-    //    if(path2project_on->getConnectionsSize()>4)
-    //      path2project_on = path2project_on->getSubpathToNode(path2project_on->getConnections().at(3)->getChild());
-
+    ros::WallTime tic_p  = ros::WallTime::now();
     current_configuration_ = path2project_on->projectOnPath(point2project,past_current_configuration,false);
-//    current_configuration_ = path2project_on->projectKeepingAbscissa(point2project,past_current_configuration,0.5,false);
-
-    //    if((current_configuration_ - point2project).norm() > 2*(past_current_configuration-point2project).norm())
-    //      current_configuration_ = past_current_configuration;
+    ROS_INFO_STREAM("tc "<<(ros::WallTime::now()-tic_p).toSec());
 
     past_current_configuration = current_configuration_;
 
-    abscissa_replan_configuration  = current_path_copy->curvilinearAbscissaOfPoint(configuration_replan);
-    abscissa_current_configuration = current_path_copy->curvilinearAbscissaOfPoint(current_configuration_);
+    abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(configuration_replan);
+    abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration_);
     if(abscissa_current_configuration>abscissa_replan_configuration) //the current confgiruation must not surpass that of replanning
       current_configuration_ = configuration_replan;
 
@@ -764,8 +736,9 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 void ReplannerManagerBase::displayThread()
 {
   PathPtr initial_path = current_path_shared_->clone();
+  planning_scene::PlanningScenePtr planning_scene = planning_scene::PlanningScene::clone(planning_scn_cc_);
 
-  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
+  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_);
 
   int path_id,node_id,wp_id;
   std::vector<double> marker_scale(3,0.01);
@@ -863,13 +836,16 @@ void ReplannerManagerBase::spawnObjectsThread()
   object_loader_msgs::RemoveObjects srv_remove_object;
 
   CollisionCheckerPtr checker = checker_cc_->clone();
-  MoveitUtils moveit_utils(planning_scn_cc_,group_name_);
-  std::string last_link = planning_scn_cc_->getRobotModel()->getJointModelGroup(group_name_)->getLinkModelNames().back();
+  planning_scene::PlanningScenePtr planning_scene = planning_scene::PlanningScene::clone(planning_scn_cc_);
 
-  bool obj_ok;
+  MoveitUtils moveit_utils(planning_scene,group_name_);
+  std::string last_link = planning_scene->getRobotModel()->getJointModelGroup(group_name_)->getLinkModelNames().back();
+
   PathPtr path_copy;
-  Eigen::VectorXd conf, obj_pos;
-  Eigen::VectorXd goal = current_path_shared_->getGoalNode()->getConfiguration();
+  Eigen::VectorXd conf, obj_pos, obj_conf;
+
+  Eigen::Vector3d conf_3d, obj_pos_3d;
+  Eigen::Vector3d goal_3d = forwardIk(current_path_shared_->getGoalNode()->getConfiguration(),last_link,moveit_utils);
 
   geometry_msgs::Quaternion q;
   q.x = 0.0; q.y = 0.0; q.z = 0.0; q.w = 1.0;
@@ -893,14 +869,15 @@ void ReplannerManagerBase::spawnObjectsThread()
 
         replanner_mtx_.lock();
         paths_mtx_.lock();
-        path_copy = (current_path_shared_->clone());
+        conf = configuration_replan_;
+        path_copy = current_path_shared_->clone();
         path_copy->setChecker(checker);
         path_copy = path_copy->getSubpathFromConf(configuration_replan_,true);
-        conf = configuration_replan_;
         paths_mtx_.unlock();
         replanner_mtx_.unlock();
 
-        obj_ok = true;
+        conf_3d = forwardIk(conf,last_link,moveit_utils);
+
         double obj_abscissa = 0.0;
         std::srand(std::time(NULL));
 
@@ -909,19 +886,22 @@ void ReplannerManagerBase::spawnObjectsThread()
           while(obj_abscissa<0.2 || obj_abscissa>0.8) //to not obstruct goal and current robot position
             obj_abscissa = double(rand())/double(RAND_MAX);
 
-          obj_abscissa = obj_abscissa*path_copy->length();
-          obj_pos = path_copy->pointOnCurvilinearAbscissa(obj_abscissa);
+          obj_conf = path_copy->pointOnCurvilinearAbscissa(obj_abscissa);
+          obj_pos_3d = forwardIk(obj_conf,last_link,moveit_utils,obj.pose.pose);
 
-          if((obj_pos-conf).norm()<=obj_max_size_ || (obj_pos-goal).norm()<=obj_max_size_)
-            obj_ok = false;
+          if((obj_pos_3d-conf_3d).norm()>obj_max_size_ && (obj_conf-conf).norm()>obj_max_size_ && (obj_pos_3d-goal_3d).norm()>obj_max_size_)
+          {
+            obj_pos = obj_pos_3d;
+            break;
+          }
 
-        }while(not obj_ok && (not stop_) && ros::ok());
+        }while((not stop_) && ros::ok());
 
         if(stop_ || not ros::ok())
           break;
 
-        moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
-        tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
+        //        moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
+        //        tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
 
         srv_add_object.request.objects.clear();
         srv_add_object.request.objects.push_back(obj);
@@ -978,15 +958,20 @@ void ReplannerManagerBase::benchmarkThread()
   trajectory_msgs::JointTrajectoryPoint pnt;
   std::vector<double> replanning_time_vector;
   std::vector<std::string> already_collided_obj;
-  Eigen::VectorXd old_current_configuration, current_configuration, old_pnt_conf, pnt_conf;
+  Eigen::VectorXd old_current_configuration, current_configuration, current_configuration_3d, old_pnt_conf, pnt_conf;
 
-  MoveitUtilsPtr util = std::make_shared<MoveitUtils>(planning_scn_cc_,group_name_);
+  planning_scene::PlanningScenePtr planning_scene = planning_scene::PlanningScene::clone(planning_scn_cc_);
+
+  MoveitUtils moveit_utils(planning_scene,group_name_);
+  std::string last_link = planning_scene->getRobotModel()->getJointModelGroup(group_name_)->getLinkModelNames().back();
 
   paths_mtx_.lock();
   Eigen::VectorXd start = current_path_shared_->getStartNode()->getConfiguration();
   Eigen::VectorXd goal  = current_path_shared_->getGoalNode ()->getConfiguration();
   double initial_path_length = current_path_shared_->length();
   paths_mtx_.unlock();
+
+  Eigen::VectorXd goal_3d = forwardIk(goal,last_link,moveit_utils);
 
   pnt_conf = start;
   current_configuration = start;
@@ -1011,10 +996,12 @@ void ReplannerManagerBase::benchmarkThread()
     trj_mtx_.lock();
     paths_mtx_.lock();
     pnt = pnt_;
-    current_configuration = current_configuration_;
     current_path = current_path_shared_->clone();
+    current_configuration = current_configuration_;
     paths_mtx_.unlock();
     trj_mtx_.unlock();
+
+    current_configuration_3d = forwardIk(current_configuration,last_link,moveit_utils);
 
     for(unsigned int i=0; i<pnt.positions.size();i++)
       pnt_conf(i) = pnt.positions[i];
@@ -1048,7 +1035,7 @@ void ReplannerManagerBase::benchmarkThread()
 
     for(unsigned int i=0;i<obj_pos.size();i++)
     {
-      if((current_configuration-obj_pos[i]).norm()<obj_max_size_ && ((goal-obj_pos[i]).norm()>obj_max_size_))
+      if((current_configuration_3d-obj_pos[i]).norm()<obj_max_size_ && ((goal_3d-obj_pos[i]).norm()>obj_max_size_))
       {
         it = std::find(already_collided_obj.begin(),already_collided_obj.end(),obj_ids[i]);
 
@@ -1157,5 +1144,30 @@ void ReplannerManagerBase::benchmarkThread()
   ROS_BOLDCYAN_STREAM("Benchamrk thread is over");
 
 }
+
+Eigen::Vector3d ReplannerManagerBase::forwardIk(const Eigen::VectorXd& conf, const std::string& last_link, const MoveitUtils& util)
+{
+  geometry_msgs::Pose pose;
+  return forwardIk(conf,last_link,util,pose);
+}
+
+
+Eigen::Vector3d ReplannerManagerBase::forwardIk(const Eigen::VectorXd& conf, const std::string& last_link, const MoveitUtils& util,geometry_msgs::Pose& pose)
+{
+  moveit::core::RobotState obj_pos_state = util.fromWaypoints2State(conf);
+  tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),pose);
+
+  std::vector<double> v(3);
+  v[0] = pose.position.x;
+  v[1] = pose.position.y;
+  v[2] = pose.position.z;
+
+  Eigen::Vector3d obj_conf(v.size());
+  for(unsigned int i=0;i<v.size();i++)
+    obj_conf[i] = v[i];
+
+  return obj_conf;
+}
+
 
 }

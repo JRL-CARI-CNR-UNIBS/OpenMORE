@@ -7,6 +7,14 @@ It contains two main repositories:
 
  The replanner managers take care of the robot trajectory execution with continuous replanning using one of the replanner implemented.
 
+ This is a list of the implemented replanners:
+
+ 1. MARS
+ 2. [DRRT](https://ieeexplore.ieee.org/document/1641879)
+ 3. [Anytime DRRT](https://ieeexplore.ieee.org/document/4209270)
+ 4. [DRRT*](https://ieeexplore.ieee.org/document/8122814)
+ 5. [MPRRT](https://ieeexplore.ieee.org/document/7027233)
+
 This library depends mainly on [*graph_core*](https://github.com/JRL-CARI-CNR-UNIBS/cari_motion_planning/tree/cesare-devel/graph_core), another library containing the path planning solvers and the definition of the necessary classes (Node, Connection, Path, Tree and so on). Warning: in order to use **replanners_lib**, the branch of graph_core must be *cesare-devel*.
 
 ## replanners

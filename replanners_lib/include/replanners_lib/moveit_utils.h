@@ -34,8 +34,8 @@ public:
     return shared_from_this();
   }
 
-  std::vector<moveit::core::RobotState> fromWaypoints2State(const std::vector<Eigen::VectorXd> waypoints);
-  moveit::core::RobotState fromWaypoints2State(Eigen::VectorXd waypoint);
+  std::vector<moveit::core::RobotState> fromWaypoints2State(const std::vector<Eigen::VectorXd> waypoints) const;
+  moveit::core::RobotState fromWaypoints2State(const Eigen::VectorXd &waypoint) const;
 
 };
 }
