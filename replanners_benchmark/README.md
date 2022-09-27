@@ -29,5 +29,5 @@ To launch a test as example:
 roslaunch replanners_benchmark replanners_benchmark_3d_simple.launch
 ```
 You can create your benchmark test:
- - define your test configuration, see this [yaml file](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_benchmark/config/how_to_configure_benchmark.yaml);
+ - define your test configuration, see this [yaml file](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_benchmark/config/how_to_configure_benchmark.yaml) and save it in `replanners_benchmark/config`;
  - create your [launch file](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_benchmark/launch/how_to_launch_benchmark.launch). Note that this launch file needs the launch file of your cell, see [replanners_cells](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/tree/master/replanners_cells) to get more info.
