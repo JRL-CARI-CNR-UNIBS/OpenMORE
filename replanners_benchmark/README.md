@@ -2,7 +2,7 @@
 
 The package **replanners_benchmark** contains a node to benchmark the available replanners.
 It uses the environments defined in [*replanners_cells*](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/tree/master/replanners_cells).
-To configure your benchmark, look at this [yaml file]() which contains an explanation of all the parameters needed.
+To configure your benchmark, look at this [yaml file](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_benchmark/config/how_to_configure_benchmark.yaml) which contains an explanation of all the parameters needed.
 
 Each individual test is executed in the following way:
 - Initially, a planner calculates a path from start to goal.
