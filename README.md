@@ -22,17 +22,17 @@ wstool update -t src
 rosdep install --from-paths src --ignore-src -r -y
 ```
 ## Packages
-### **replanners_lib [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/README.md)**
+### **replanners_lib [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib)**
 It contains two main repository:
  1. **replanners**: contains the implementation of some sample-based replanning algorithms.
  2. **replanner_managers**: contains the implementation of a framework to manage the trajectory execution with continuous replanning for each of the available replanners.
 
  You can implement your replanning algorithm and integrate it into the framework.
 
-### **replanners_benchmark [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_benchmark/README.md)**
+### **replanners_benchmark [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_benchmark)**
 It contains a node to benchmark the available replanners and useful *launch* files. You can configure your benchmark or add new tests.
 
-### **replanners_cells [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_cells/README.md)**
+### **replanners_cells [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_cells)**
 It contains the urdf and *moveit_config* packages of the environments used for benchmarking. You can add your scenario.
 
 ## Work in progress
