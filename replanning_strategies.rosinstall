@@ -40,9 +40,6 @@
     local-name: utils/high_dof_snake_robots
     uri: https://github.com/JRL-CARI-CNR-UNIBS/high_dof_snake_robots.git
 - git:
-    local-name: utils/ssm_safety
-    uri: https://github.com/CNR-STIIMA-IRAS/ssm_safety.git
-- git:
     local-name: utils/cell_cartesin
     uri: https://github.com/JRL-CARI-CNR-UNIBS/cell_cartesian.git
     version: cesare-devel
