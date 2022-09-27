@@ -42,3 +42,7 @@
 - git:
     local-name: utils/ssm_safety
     uri: https://github.com/CNR-STIIMA-IRAS/ssm_safety.git
+- git:
+    local-name: utils/cell_cartesin
+    uri: https://github.com/JRL-CARI-CNR-UNIBS/cell_cartesian.git
+    version: cesare-devel
