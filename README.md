@@ -6,21 +6,35 @@ The repository contains the implementation of a library of sample-based path rep
 The software can be installed using rosinstall files.
 
 1. Install ROS: follow the steps described in http://wiki.ros.org/ROS/Installation.
-2. Install wstool and initialize the workspace: follow the steps described in http://wiki.ros.org/wstool.
-3. Install and configure rosdep: follow the steps described in http://wiki.ros.org/rosdep.
+2. Install wstool: follow the steps described in http://wiki.ros.org/wstool.
+3. Install: follow the steps described in http://wiki.ros.org/rosdep.
+
+Create your workspace:
+```
+mkdir -p ~/replanning_ws/src
+cd ~/replanning_ws
+catkin init
+wstool init src
+```
 
 Then, download and merge the rosinstall file:
 ```
-cd ~/catkin_ws
+cd ~/replanning_ws
 wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/replanning_strategies/master/replanning_strategies.rosinstall
 wstool merge -t src ./replanning_strategies.rosinstall
 ```
 Download and install the packages specified in the rosinstall file and the other system dipendencies:
 ```
-cd ~/catkin_ws
+cd ~/replanning_ws
 wstool update -t src
 rosdep install --from-paths src --ignore-src -r -y
 ```
+Finally, compile the workspace:
+```
+cd ~/replanning_ws
+catkin build -cs
+```
+
 ## Packages
 ### **replanners_lib [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib)**
 It contains two main repository:
