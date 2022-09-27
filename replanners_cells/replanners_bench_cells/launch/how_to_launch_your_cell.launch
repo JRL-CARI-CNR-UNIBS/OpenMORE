@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+  <include file="$(find replanners_bench_cells)/launch/cell.launch">
+    <arg name="demo_package" value="YOUR_PACKAGE_NAME"/>
+    <arg name="static_scene" value="YOUR_YAML_FILE_WITH_STATIC_OBSTACLES.yaml"/>
+    <arg name="objects"      value="YOUR_YAML_FILE_WITH_RANDOM_OBSTACLES.yaml"/>
+  </include>
+
+</launch>

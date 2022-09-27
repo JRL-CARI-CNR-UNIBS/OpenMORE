@@ -12,7 +12,7 @@ Each individual test is executed in the following way:
 Therefore, a pair of start and end configurations, the number of queries and the number of iterations per query must be defined to run the tests. During testing, the start is moved from the start position to the end position in a number of steps equal to the number of queries. The same is done for the goal. For each query (start and goal pair), multiple tests equal to the number of iterations are performed.
 
 The tests are saved in the *.ros/replanners_benchmark* folder as *.bin* files.
-To run benchmarks, the replanner manager runs a dedicated thread ([benchmarkThread](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/include/replanners_lib/replanner_managers/replanner_manager_base.h)) that calculates and saves the following data:
+To run benchmarks, the replanner manager launches a dedicated thread ([benchmarkThread](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/include/replanners_lib/replanner_managers/replanner_manager_base.h)) that calculates and saves the following data:
 - success (true if the robot moved from start to goal without colliding with any object).
 - number of objects generated
 - number of objects the robot collided with
@@ -23,3 +23,8 @@ To run benchmarks, the replanner manager runs a dedicated thread ([benchmarkThre
 - average time it took the replanner to find a solution
 - standard deviation of the time it took the replanner to find a solution
 - maximum time taken by the replanner
+
+To launch a test as example:
+```
+roslaunch replanners_benchmark replanners_benchmark_3d_simple.launch
+```
