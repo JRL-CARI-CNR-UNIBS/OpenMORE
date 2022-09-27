@@ -89,12 +89,22 @@ The replanner manager manages the whole motion from a starting robot configurati
 - `collision checking thread`: continuously updates the planning scene to check if the current path is colliding and to provide updated information about the state of the environment to the replanner.
 - `replanning thread`: it continuously tries to find new paths from the robot current configuration to avoid obstacles or to optimizes the current one calling `replan` function.
 
-The replanning framework listens to three speed overrides topics, `/speed_ovr`, `/safe_ovr_1` and `/safe_ovr_2` (but you can choose different ones), in which the overrides must be published as values between 0 (robot static) and 100 (nominal velocity).
+The replanning framework optionally can listen to three speed overrides topics, `/speed_ovr`, `/safe_ovr_1` and `/safe_ovr_2` (but you can choose different ones), in which the overrides must be published as values between 0 (robot static) and 100 (nominal velocity).
 
 It subscribes a service (`moveit_msgs::GetPlanningScene`) to update the information about the planning scene.
 It continuously interpolates the trajectory computed starting from the replanned path and sends the new robot state, publishing a `sensor_msgs::JointState` message on topic `/joint_target`, and the unscaled state on topic `/unscaled_joint_target`.
 
 Here you can find a complete description of parameters required.
+
+If you have implemented a new replanner, you must implement also its manager. There are three pure virtual function to define:
+```cpp
+virtual void initReplanner()=0;
+virtual bool haveToReplan(const bool path_obstructed)=0;
+virtual void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)=0;
+```
+ 1) `void initReplanner()`: initialize the replanner object;
+ 2) `bool haveToReplan(const bool path_obstructed)`: define when the replan must take place (always or only when current path is obstructed);
+ 3) `void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)`: the replanning algorithm starts from a point that is slightly forward along the trajectory with respect to the current position of the robot. When the replanning algorithm finds a solution, it is necessary to connect in some way the current configuration of the robot with the replanning one (which corresponds to the first point of the solution found).
 
 This is a brief explanation to create a replanner manager object. In this example we will consider the manager of DRRT.
 You need to include:

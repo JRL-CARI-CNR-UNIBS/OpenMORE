@@ -386,7 +386,7 @@ void ReplannerManagerBase::replanningThread()
       //      double abs = path2project_on->curvilinearAbscissaOfPoint(past_configuration_replan);
       //      ROS_INFO_STREAM("past abs "<<abs<<" past prj: "<<past_configuration_replan.transpose());
 
-      projection = path2project_on->projectOnPath(point2project,past_configuration_replan,false);
+      projection = path2project_on->projectOnPath(point2project,past_configuration_replan,true);
 
       if(not path2project_on->findConnection(projection))
         throw std::runtime_error("nn");

@@ -16,7 +16,7 @@ spawn_instants: [0.5,3.5,6.5] #instants of time in which to generate random obje
 obj_type: "red_box" #object to generate (see object_test_replanner.yaml in replanners_bench_cell to see a list of available objects)
 obj_max_size: 0.1  #min distance between robot end-effector and object center point to detect collision (used only in benchmark thread to speedup)
 scaling: 0.7  #scaling factor of robot trajectory (value between 0 and 1)
-read_safe_scaling: false #read scaling factor from topics (defaults /speed_ovr, /safe_ovr_1, /safe_ovr_2)
+read_safe_scaling: false #read scaling factor from topics (defaults /speed_ovr, /safe_ovr_1, /safe_ovr_2), must be a valure between 0 and 100
 ovverides: [/speed_ovr, /safe_ovr_1, /safe_ovr_2] #topics from which read the scaling factors
 
 replanner_verbosity: true #replanner verbosity

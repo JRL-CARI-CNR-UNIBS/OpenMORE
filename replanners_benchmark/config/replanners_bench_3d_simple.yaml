@@ -24,7 +24,7 @@ parallel_checker_n_threads: 20
 # - anytimeDRRT
 # - MARS
 
-replanner_type_vector: ["MARS","DRRTStar","DRRT","anytimeDRRT","MPRRT"]
+replanner_type_vector: ["DRRT","anytimeDRRT","MPRRT"]   #["MARS","DRRTStar","DRRT","anytimeDRRT","MPRRT"]
 dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
