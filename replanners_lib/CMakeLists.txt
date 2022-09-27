@@ -11,12 +11,12 @@ roscpp
 object_loader_msgs
 moveit_planning_helper
 geometry_msgs
-configuration_msgs
+subscription_notifier
 )
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS graph_core roscpp object_loader_msgs moveit_planning_helper geometry_msgs configuration_msgs
+  CATKIN_DEPENDS graph_core roscpp object_loader_msgs moveit_planning_helper geometry_msgs subscription_notifier
   DEPENDS
   )
 include_directories(

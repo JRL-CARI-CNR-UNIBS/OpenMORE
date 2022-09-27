@@ -3,7 +3,6 @@
 
 #include <ros/ros.h>
 #include <graph_core/metrics.h>
-#include <graph_core/occupancy_metrics.h>
 #include <graph_core/graph/path.h>
 #include <graph_core/graph/tree.h>
 #include <graph_core/solvers/tree_solver.h>

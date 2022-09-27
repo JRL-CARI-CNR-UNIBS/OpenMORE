@@ -18,7 +18,7 @@
   <depend>object_loader_msgs</depend>
   <depend>moveit_planning_helper</depend>
   <depend>geometry_msgs</depend>
-  <depend>configuration_msgs</depend>
+  <depend>subscription_notifier</depend>
 
   <export>
 
