@@ -46,3 +46,6 @@
     local-name: utils/cell_cartesin
     uri: https://github.com/JRL-CARI-CNR-UNIBS/cell_cartesian.git
     version: cesare-devel
+- git:
+    local-name: utils/object_loader
+    uri: https://github.com/CNR-STIIMA-IRAS/object_loader.git
