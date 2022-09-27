@@ -4,7 +4,7 @@
 - git:
     local-name: human_aware_motion_planners
     uri: https://github.com/JRL-CARI-CNR-UNIBS/cari_motion_planning.git
-    version: cesare-devel
+    version: replanning_devel
 - git:
     local-name: utils/binary_logger
     uri: https://github.com/CNR-STIIMA-IRAS/binary_logger.git
