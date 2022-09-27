@@ -34,6 +34,11 @@ Finally, compile the workspace:
 cd ~/replanning_ws
 catkin build -cs
 ```
+And source the workspace:
+```
+echo "source /home/$USER/replanning_ws/devel/setup.bash" >> ~/.bashrc
+source ~/.bashrc
+```
 
 ## Packages
 ### **replanners_lib [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib)**
