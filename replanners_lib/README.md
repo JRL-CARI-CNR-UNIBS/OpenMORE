@@ -105,9 +105,9 @@ virtual void initReplanner()=0;
 virtual bool haveToReplan(const bool path_obstructed)=0;
 virtual void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)=0;
 ```
- 1) `void initReplanner()`: initialize the replanner object;
- 2) `bool haveToReplan(const bool path_obstructed)`: define when the replan must take place (always or only when current path is obstructed);
- 3) `void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)`: the replanning algorithm starts from a point that is slightly forward along the trajectory with respect to the current position of the robot. When the replanning algorithm finds a solution, it is necessary to connect in some way the current configuration of the robot with the replanning one (which corresponds to the first point of the solution found).
+ - `void initReplanner()`: initialize the replanner object;
+ - `bool haveToReplan(const bool path_obstructed)`: define when replanning should take place (always or only when the current path is obstructed);
+ - `void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)`: the replanning algorithm starts from a point that is slightly forward along the trajectory with respect to the current position of the robot. When the replanning algorithm finds a solution, it is necessary to connect in some way the current configuration of the robot with the replanning one (which corresponds to the first point of the solution found).
 
 This is a brief explanation to create a replanner manager object. In this example we will consider the manager of DRRT.
 You need to include:

@@ -1,0 +1,56 @@
+#TEST CONFIGURATIONS:
+n_query: 20 #number of queries
+n_iter_per_query: 10 #number of iterations per query
+bench_name: "my_benchmark"  #choose a name for your benchmark test
+
+#PLANNING CONFIGURATIONS:
+group_name: "YOUR_GROUP_NAME" #group name of your robot (defined during creation of moveit_confi package)
+start_configuration: [0,0,0] #initial start configuration
+end_start_configuration: [0,3,2] #initial goal configuration
+stop_configuration:  [3,3,2] #final start configuration
+end_stop_configuration:  [3,0,0] #final goal configuration
+utopia_tolerance: 0.05 #tolerance with respect to the planner utopia (for example, when the coast function is the length of the path, the utopia is obtained when the path is a straight line)
+extend: false #extend or connect for RRT-like planners
+max_distance: 0.3 #max connections(edges) length
+checker_resolution: 0.05 #collision checker resolution
+parallel_checker_n_threads: 20 #number of parallel threads of ParallelMoveitCollisionChecker
+
+#REPLANNER CONFIGURATIONS:
+
+# Available replanners:
+# - MPRRT
+# - DRRTStar
+# - DRRT
+# - anytimeDRRT
+# - MARS
+
+replanner_type_vector: ["MARS","DRRTStar","DRRT","anytimeDRRT","MPRRT"] #which replanners use and in what order
+dt_replan: 0.20 #max replanning time
+trj_execution_thread_frequency: 500    #trajectory execution thread frequency
+collision_checker_thread_frequency: 30 #collision check thread frequency
+benchmark: true  #to launch the benchmark thread during trajectory execution+replanning
+spawn_objs: true  #to start a thread that will generate random objects on the current path
+spawn_instants: [0.5,3.5,6.5] #instants of time in which to generate random objects
+obj_type: "red_box" #object to generate (see object_test_replanner.yaml in replanners_bench_cell to see a list of available objects)
+obj_max_size: 0.1  #min distance between robot end-effector and object center point to detect collision (used only in benchmark thread to speedup)
+scaling: 0.7  #scaling factor of robot trajectory (value between 0 and 1)
+
+#REPLANNER-SPECIFIC PARAMETERS
+MPRRT:
+  n_threads_replan: 5
+
+MARS:
+  n_other_paths: 2
+  reverse_start_nodes: true
+  full_net_search: false
+  dt_replan_relaxed: 0.20
+  verbosity_level: 2
+
+#VERBOSITY:
+replanner_verbosity: true #replanner verbosity
+display_timing_warning: false #show warning when a thread is taking longer than it should
+display_replanning_success: true #shows when the replanner is successful
+display_replan_trj_point: false #show starting point for replanning on trajectory
+display_replan_config: false #show projection of starting point of replanning on current path
+display_current_trj_point: true #show robot end effector position on trajectory
+display_current_config: false #show projection of robot position on current path
