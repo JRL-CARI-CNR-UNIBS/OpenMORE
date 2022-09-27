@@ -15,7 +15,7 @@ It contains two main repositories:
  4. [DRRT*](https://ieeexplore.ieee.org/document/8122814)
  5. [MPRRT](https://ieeexplore.ieee.org/document/7027233)
 
-This library depends on [*graph_core*](https://github.com/JRL-CARI-CNR-UNIBS/cari_motion_planning/tree/cesare-devel/graph_core), which contains definition of the necessary classes of a path planning problem and the path planning solvers. Warning: in order to use **replanners_lib**, the branch of graph_core must be *cesare-devel*.
+This library depends on [*graph_core*](https://github.com/JRL-CARI-CNR-UNIBS/cari_motion_planning/tree/cesare-devel/graph_core), which contains definition of the necessary classes of a path planning problem and the path planning solvers. Warning: in order to use **replanners_lib**, the branch of graph_core must be *replanning_strategies_devel*.
 
 ## replanners
 It contains the abstract class *replanner_base.cpp* from which you need to inherit to implement your replanner.
