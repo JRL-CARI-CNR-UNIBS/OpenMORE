@@ -12,7 +12,7 @@ The software can be installed using rosinstall files.
 Then, download and merge the rosinstall file:
 ```
 cd ~/catkin_ws
-wget https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanning_strategies.rosinstall
+wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/replanning_strategies/master/replanning_strategies.rosinstall
 wstool merge -t src ./replanning_strategies.rosinstall
 ```
 Download and install the packages specified in the rosinstall file and the other system dipendencies:
