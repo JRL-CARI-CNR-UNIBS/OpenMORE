@@ -1,4 +1,10 @@
 # **replanners_cells**
 
-This repository contains the definition of some environments for running tests.
-Creating your own cell is simple. Use the [moveit setup assistant](http://docs.ros.org/en/kinetic/api/moveit_tutorials/html/doc/setup_assistant/setup_assistant_tutorial.html) to create your cell package. 
+This repository contains the definition of some environments for running tests. [Here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/tree/master/replanners_cells/replanners_bench_cells/launch) you can find a set of launch files to load some already defined environments.
+Each launch file in turn loads `cell.launch`, which takes care of launching the necessary nodes. One of its advantages is that it can dynamically load the obstacles in the cell, including static ones, using the [object_loader](https://github.com/CNR-STIIMA-IRAS/object_loader.git). Static obstacles are often defined in the urdf file. Thanks to the object_loader they can be loaded afterwards. It is necessary to define a yaml file containing the description of the obstacles and a yaml file containing the list of obstacles that you want to load into the scene. The first file should also define the "moving" obstacles that you want to randomly generate in the scene during the robot's movement.
+To create the launcher of your environment:
+ - use the [moveit setup assistant](http://docs.ros.org/en/kinetic/api/moveit_tutorials/html/doc/setup_assistant/setup_assistant_tutorial.html) to create your *moveit_config* package.
+ - create a launch file like [this one](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_cells/replanners_bench_cells/launch/how_to_launch_your_cell.launch):
+    - `demo_package`: is the name of your `moveit_config` package;
+    - `static_scene`: is the name of the yaml file containing the description of the static part of your environment. [Here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/tree/master/replanners_cells/replanners_bench_cells/config) some examples.
+    - `objects`: is the name of the yaml file containing the description of the available obstacles. [Here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_cells/replanners_bench_cells/config/object_test_replanner.yaml) an example.

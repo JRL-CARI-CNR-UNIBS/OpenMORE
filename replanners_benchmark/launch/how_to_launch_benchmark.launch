@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+  <include file="$(find replanners_bench_cells)/launch/LOAD_YOUR_CELL.launch"/>
+
+  <rosparam command="load" file="$(find replanners_benchmark)/config/LOAD_YOUR_CONFIGURATIONS.yaml"/>
+
+  <node pkg="replanners_benchmark"
+        name="replanners_benchmark"
+        type="replanners_benchmark"
+        output="screen"
+        launch-prefix="gdb -ex run --args">
+ </node>
+
+</launch>
