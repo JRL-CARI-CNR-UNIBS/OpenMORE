@@ -387,21 +387,21 @@ void ReplannerManagerBase::replanningThread()
       //      ROS_INFO_STREAM("past abs "<<abs<<" past prj: "<<past_configuration_replan.transpose());
 
       projection = path2project_on->projectOnPath(point2project,past_configuration_replan,true);
+      past_configuration_replan = projection;
 
       if(not path2project_on->findConnection(projection))
         throw std::runtime_error("nn");
 
-      past_configuration_replan = projection;
-      double dist = (projection-point2project).norm();
-      ROS_INFO_STREAM("dist "<<dist);
-      if(dist>0.3)
-      {
-        pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
-        disp->displayNode(std::make_shared<Node>(projection),66666);
-        disp->displayNode(std::make_shared<Node>(projection),66666);
+//      double dist = (projection-point2project).norm();
+//      ROS_INFO_STREAM("dist "<<dist);
+//      if(dist>0.3)
+//      {
+//        pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
+//        disp->displayNode(std::make_shared<Node>(projection),66666);
+//        disp->displayNode(std::make_shared<Node>(projection),66666);
 
-        throw std::runtime_error(std::to_string(dist));
-      }
+//        throw std::runtime_error(std::to_string(dist));
+//      }
 
       replanner_mtx_.lock();
       configuration_replan_ = projection;
