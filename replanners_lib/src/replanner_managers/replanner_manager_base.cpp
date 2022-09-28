@@ -892,13 +892,9 @@ void ReplannerManagerBase::spawnObjectsThread()
         if(stop_ || not ros::ok())
           break;
 
-        //        moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
-        //        tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
-
         srv_add_object.request.objects.clear();
         srv_add_object.request.objects.push_back(obj);
 
-        //        scene_mtx_.lock();
         ROS_BOLDMAGENTA_STREAM("Obstacle spawned!");
         if(not add_obj_.call(srv_add_object))
         {
@@ -920,20 +916,16 @@ void ReplannerManagerBase::spawnObjectsThread()
           for (const std::string& str:srv_add_object.response.ids)
             srv_remove_object.request.obj_ids.push_back(str);
         }
-
-        //        scene_mtx_.unlock();
       }
     }
 
     lp.sleep();
   }
 
-  //  scene_mtx_.lock();
   if (not remove_obj_.call(srv_remove_object))
     ROS_ERROR("call to remove obj srv not ok");
   if(not srv_remove_object.response.success)
     ROS_ERROR("remove obj srv error");
-  //  scene_mtx_.unlock();
 
   ROS_BOLDCYAN_STREAM("Spawn objects thread is over");
 }
@@ -1022,8 +1014,6 @@ void ReplannerManagerBase::benchmarkThread()
     obj_ids = obj_ids_;
     obj_pos = obj_pos_;
     bench_mtx_.unlock();
-
-    //util->fromWaypoints2State(current_configuration) sistema qui sotto
 
     for(unsigned int i=0;i<obj_pos.size();i++)
     {
