@@ -63,7 +63,7 @@ This repository is continuously evolving. If you find errors or if you have some
 - Manuel Beschi (<mailto::manuel.beschi@unibs.it>)
 
 ## How to cite
-Bibtex:
+BibTex:
 ```
 @misc{replanner_code,
   author = {Cesare Tonola},
