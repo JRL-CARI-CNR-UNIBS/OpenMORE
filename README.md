@@ -62,6 +62,14 @@ This repository is continuously evolving. If you find errors or if you have some
 - Cesare Tonola (<mailto::c.tonola001@unibs.it>)
 - Manuel Beschi (<mailto::manuel.beschi@unibs.it>)
 
+## How to cite
+Bibtex:
+@misc{replanner_code,
+  author = {Cesare Tonola},
+  title = {{An open-source replanning strategies library}},
+  url = {https://github.com/JRL-CARI-CNR-UNIBS/replanning\_strategies}
+}
+
 ## Acknowledgements
 **replanning_strategies** is developed by CNR-STIIMA (http://www.stiima.cnr.it/)
 
