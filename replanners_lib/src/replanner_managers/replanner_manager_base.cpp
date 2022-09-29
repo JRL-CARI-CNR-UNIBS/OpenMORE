@@ -386,7 +386,7 @@ void ReplannerManagerBase::replanningThread()
       //      double abs = path2project_on->curvilinearAbscissaOfPoint(past_configuration_replan);
       //      ROS_INFO_STREAM("past abs "<<abs<<" past prj: "<<past_configuration_replan.transpose());
 
-      projection = path2project_on->projectOnPath(point2project,past_configuration_replan,true);
+      projection = path2project_on->projectOnPath(point2project,past_configuration_replan,false);
       past_configuration_replan = projection;
 
       if(not path2project_on->findConnection(projection))
@@ -472,7 +472,6 @@ void ReplannerManagerBase::replanningThread()
 
         updateTrajectory();
 
-        configuration_replan_ = configuration_replan_;
         past_configuration_replan = current_configuration_;
 
         t_=0.0;
