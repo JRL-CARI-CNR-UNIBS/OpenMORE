@@ -175,9 +175,9 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
         (old_current_node_->getParentConnectionsSize()>0)? (parent_conn = old_current_node_->parentConnection(0)):
                                                            (parent_conn = old_current_node_->netParentConnection(0));
 
-        ROS_INFO_STREAM("old current node "<<*old_current_node_<<old_current_node_); //elimina
-        ROS_INFO_STREAM("parent connection "<<*parent_conn); //elimina
-        ROS_INFO_STREAM("current path before adding parent conn "<<*current_path);
+//        ROS_INFO_STREAM("old current node "<<*old_current_node_<<old_current_node_); //elimina
+//        ROS_INFO_STREAM("parent connection "<<*parent_conn); //elimina
+//        ROS_INFO_STREAM("current path before adding parent conn "<<*current_path);
 
         assert([&]() ->bool{
                  if(tree->isInTree(parent_conn->getParent()))

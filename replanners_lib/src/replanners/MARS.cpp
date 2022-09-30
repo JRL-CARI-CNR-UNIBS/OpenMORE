@@ -601,8 +601,16 @@ bool MARS::findValidSolution(const std::multimap<double,std::vector<ConnectionPt
           solution = solution_pair.second;
           cost = updated_cost;
 
-          assert(std::abs(updated_cost-solution_pair.first)<=NET_ERROR_TOLERANCE); //updated_cost != solution_pair.first can happen only with updated_cost == infinity and solution_pair.first not
+          //updated_cost != solution_pair.first can happen only with updated_cost == infinity and solution_pair.first not
           assert(cost < std::numeric_limits<double>::infinity());
+          assert([&]() ->bool{
+                   if(std::abs(updated_cost-solution_pair.first)>NET_ERROR_TOLERANCE)
+                   {
+                     ROS_INFO_STREAM("updated cost "<<updated_cost<<" solution_pair.first "<<solution_pair.first <<" NET_ERROR_TOLERANCE "<<NET_ERROR_TOLERANCE);
+                     return false;
+                   }
+                   return true;
+                 }());
 
           return true;
         }
@@ -844,153 +852,153 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
                                                                                                                    black_list,net_time,search_in_subtree);
   double time_search = (ros::WallTime::now()-tic_search).toSec();
 
-//  if(already_existing_solutions_map.size()>100)
-//  {
-//    ROS_BOLDMAGENTA_STREAM("SIZE MAP "<<already_existing_solutions_map.size());
-//    disp_->changeNodeSize();
-//    disp_->displayNode(path1_node);
-//    disp_->displayNode(path2_node);
-//    disp_->defaultNodeSize();
+  //  if(already_existing_solutions_map.size()>100)
+  //  {
+  //    ROS_BOLDMAGENTA_STREAM("SIZE MAP "<<already_existing_solutions_map.size());
+  //    disp_->changeNodeSize();
+  //    disp_->displayNode(path1_node);
+  //    disp_->displayNode(path2_node);
+  //    disp_->defaultNodeSize();
 
-//    std::vector<PathPtr> paths, short_paths;
-//    for(const std::pair<double,std::vector<ConnectionPtr>>& p:already_existing_solutions_map)
-//    {
-//      PathPtr path = std::make_shared<Path>(p.second,metrics_,checker_);
-//      paths.push_back(path);
-//      //disp_->displayPath(path);
-//    }
+  //    std::vector<PathPtr> paths, short_paths;
+  //    for(const std::pair<double,std::vector<ConnectionPtr>>& p:already_existing_solutions_map)
+  //    {
+  //      PathPtr path = std::make_shared<Path>(p.second,metrics_,checker_);
+  //      paths.push_back(path);
+  //      //disp_->displayPath(path);
+  //    }
 
-//    disp_->displaySubtree(subtree,"pathplan",{0,0,1,1});
+  //    disp_->displaySubtree(subtree,"pathplan",{0,0,1,1});
 
-//    int counter2 = 0;
-//    for(unsigned int ii=0;ii<paths.size();ii++)
-//    {
-//      PathPtr p = paths.at(ii);
-//      short_paths.clear();
-//      short_paths.assign(paths.begin()+ii,paths.end());
+  //    int counter2 = 0;
+  //    for(unsigned int ii=0;ii<paths.size();ii++)
+  //    {
+  //      PathPtr p = paths.at(ii);
+  //      short_paths.clear();
+  //      short_paths.assign(paths.begin()+ii,paths.end());
 
-//      for(const PathPtr& pp: short_paths)
-//      {
-//        if(p == pp)
-//          continue;
-//        else
-//        {
-//          if(std::abs(p->cost() - pp->cost())<1e-06)
-//          {
-//            if(p->getConnectionsSize() != pp->getConnectionsSize())
-//              continue;
-//            else
-//            {
-//              counter2++;
-//              bool equal = true;
-//              for(unsigned int idxx = 0;idxx<p->getConnectionsSize()-1;idxx++)
-//              {
-//                if((p->getConnections().at(idxx)->getChild()->getConfiguration() - pp->getConnections().at(idxx)->getChild()->getConfiguration()).norm()>1e-06)
-//                {
-//                  equal = false;
-//                  break;
-//                }
-//              }
+  //      for(const PathPtr& pp: short_paths)
+  //      {
+  //        if(p == pp)
+  //          continue;
+  //        else
+  //        {
+  //          if(std::abs(p->cost() - pp->cost())<1e-06)
+  //          {
+  //            if(p->getConnectionsSize() != pp->getConnectionsSize())
+  //              continue;
+  //            else
+  //            {
+  //              counter2++;
+  //              bool equal = true;
+  //              for(unsigned int idxx = 0;idxx<p->getConnectionsSize()-1;idxx++)
+  //              {
+  //                if((p->getConnections().at(idxx)->getChild()->getConfiguration() - pp->getConnections().at(idxx)->getChild()->getConfiguration()).norm()>1e-06)
+  //                {
+  //                  equal = false;
+  //                  break;
+  //                }
+  //              }
 
-//              if(equal)
-//              {
-//                disp_->displayPath(p);
-//                disp_->displayPath(pp);
-//                ROS_INFO_STREAM(*p);
-//                ROS_INFO_STREAM(*pp);
-//                assert(0);
-//              }
-//            }
-//          }
-//        }
-//      }
-//    }
+  //              if(equal)
+  //              {
+  //                disp_->displayPath(p);
+  //                disp_->displayPath(pp);
+  //                ROS_INFO_STREAM(*p);
+  //                ROS_INFO_STREAM(*pp);
+  //                assert(0);
+  //              }
+  //            }
+  //          }
+  //        }
+  //      }
+  //    }
 
 
-//    int counter = 0;
-//    for(const PathPtr p:paths)
-//    {
-//      std::vector<NodePtr> nodes = p->getNodes();
-//      for(const NodePtr& n:nodes)
-//      {
-//        if(n == path2_node)
-//          continue;
+  //    int counter = 0;
+  //    for(const PathPtr p:paths)
+  //    {
+  //      std::vector<NodePtr> nodes = p->getNodes();
+  //      for(const NodePtr& n:nodes)
+  //      {
+  //        if(n == path2_node)
+  //          continue;
 
-//        if(not subtree->isInTree(n))
-//        {
-//          counter++;
-//          disp_->displayNode(n,"pathplan",{0,0,0,1});
-//        }
-//      }
-//      disp_->displayPath(p);
-//    }
+  //        if(not subtree->isInTree(n))
+  //        {
+  //          counter++;
+  //          disp_->displayNode(n,"pathplan",{0,0,0,1});
+  //        }
+  //      }
+  //      disp_->displayPath(p);
+  //    }
 
-//    ROS_BOLDMAGENTA_STREAM("SIZE MAP vbut all ok "<<already_existing_solutions_map.size());
-//    ROS_BOLDMAGENTA_STREAM("COUNTER "<<counter<<" counter2 "<<counter2);
+  //    ROS_BOLDMAGENTA_STREAM("SIZE MAP vbut all ok "<<already_existing_solutions_map.size());
+  //    ROS_BOLDMAGENTA_STREAM("COUNTER "<<counter<<" counter2 "<<counter2);
 
-//    assert(0);
-//  }
+  //    assert(0);
+  //  }
 
   //elimina
-//  if(already_existing_solutions_map.size() == 1)
-//  {
-//    for(const std::pair<double,std::vector<ConnectionPtr>>& p:already_existing_solutions_map)
-//    {
-//      if(p.second.size() == 1)
-//      {
-//        std::vector<ConnectionPtr> connections = current_path_->getConnections();
-//        for(const PathPtr& pt:other_paths_)
-//          connections.insert(connections.end(),pt->getConnectionsConst().begin(),pt->getConnectionsConst().end());
+  //  if(already_existing_solutions_map.size() == 1)
+  //  {
+  //    for(const std::pair<double,std::vector<ConnectionPtr>>& p:already_existing_solutions_map)
+  //    {
+  //      if(p.second.size() == 1)
+  //      {
+  //        std::vector<ConnectionPtr> connections = current_path_->getConnections();
+  //        for(const PathPtr& pt:other_paths_)
+  //          connections.insert(connections.end(),pt->getConnectionsConst().begin(),pt->getConnectionsConst().end());
 
-//        if(std::find(connections.begin(),connections.end(),p.second.front())<connections.end())
-//        {
-//          continue;
-//        }
-//        else
-//        {
-//          bool check = checker_->checkConnection(p.second.front());
-//          ROS_INFO_STREAM(*p.second.front()<<" "<<p.second.front());
-//          ROS_INFO_STREAM("check: "<<check);
+  //        if(std::find(connections.begin(),connections.end(),p.second.front())<connections.end())
+  //        {
+  //          continue;
+  //        }
+  //        else
+  //        {
+  //          bool check = checker_->checkConnection(p.second.front());
+  //          ROS_INFO_STREAM(*p.second.front()<<" "<<p.second.front());
+  //          ROS_INFO_STREAM("check: "<<check);
 
-//          if(check == true && p.first == std::numeric_limits<double>::infinity())
-//          {
-//            disp_->displayNode(p.second.front()->getParent());
-//            disp_->displayNode(p.second.front()->getChild(),"pathplan",{0.0,0.0,1.0,1.0});
-//            disp_->displayConnection(p.second.front());
-//            disp_->displayNode(p.second.front()->getParent());
-//            disp_->displayNode(p.second.front()->getChild(),"pathplan",{0.0,0.0,1.0,1.0});
-//            disp_->displayConnection(p.second.front());
+  //          if(check == true && p.first == std::numeric_limits<double>::infinity())
+  //          {
+  //            disp_->displayNode(p.second.front()->getParent());
+  //            disp_->displayNode(p.second.front()->getChild(),"pathplan",{0.0,0.0,1.0,1.0});
+  //            disp_->displayConnection(p.second.front());
+  //            disp_->displayNode(p.second.front()->getParent());
+  //            disp_->displayNode(p.second.front()->getChild(),"pathplan",{0.0,0.0,1.0,1.0});
+  //            disp_->displayConnection(p.second.front());
 
-//            if(std::find(checked_connections_.begin(),checked_connections_.end(),p.second.front())>=checked_connections_.end())
-//            {
-//              ROS_WARN("conn to path2_node is NOT in checked connections");
-//            }
-//            else
-//            {
-//              ROS_WARN("conn to path2_node is in checked connections");
-//            }
+  //            if(std::find(checked_connections_.begin(),checked_connections_.end(),p.second.front())>=checked_connections_.end())
+  //            {
+  //              ROS_WARN("conn to path2_node is NOT in checked connections");
+  //            }
+  //            else
+  //            {
+  //              ROS_WARN("conn to path2_node is in checked connections");
+  //            }
 
-//            bool found = false;
-//            for(const invalid_connection& s:invalid_connections_)
-//            {
-//              if(s.connection == p.second.front())
-//              {
-//                found = true;
-//                ROS_WARN_STREAM("conn to path2_node found into invalid connections, saved cost: "<<s.cost);
-//                break;
-//              }
-//            }
+  //            bool found = false;
+  //            for(const invalid_connection& s:invalid_connections_)
+  //            {
+  //              if(s.connection == p.second.front())
+  //              {
+  //                found = true;
+  //                ROS_WARN_STREAM("conn to path2_node found into invalid connections, saved cost: "<<s.cost);
+  //                break;
+  //              }
+  //            }
 
-//            if(not found)
-//              ROS_WARN_STREAM("conn to path2_node NOT found into invalid connections");
+  //            if(not found)
+  //              ROS_WARN_STREAM("conn to path2_node NOT found into invalid connections");
 
-//            assert(0);
-//          }
-//        }
-//      }
-//    }
-//  }
-//  //
+  //            assert(0);
+  //          }
+  //        }
+  //      }
+  //    }
+  //  }
+  //  //
 
   assert([&]() ->bool{
            if(already_existing_solutions_map.empty())
@@ -2094,10 +2102,10 @@ bool MARS::informedOnlineReplanning(const double &max_time)
       ROS_GREEN_STREAM("Time before net search: "<<available_time_<<", max net time: "<<net_search_time);
 
     ros::WallTime tic_net_search = ros::WallTime::now();
-    net_->setVerbosity(true);
+//    net_->setVerbosity(true);
     std::multimap<double,std::vector<ConnectionPtr>> best_replanned_path_map  =
         net_->getConnectionBetweenNodes(current_node,goal_node_,replanned_path->cost(),{},net_search_time*0.8);
-    net_->setVerbosity(false);
+//    net_->setVerbosity(false);
     ros::WallTime toc_net_search = ros::WallTime::now();
     if((toc_net_search-tic_net_search).toSec()>net_search_time/0.5)
       throw std::runtime_error("net too much time: "+std::to_string((toc_net_search-tic_net_search).toSec())+ " max time "+std::to_string(net_search_time));
