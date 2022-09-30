@@ -1040,7 +1040,7 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
   double already_existing_solution_cost;
   std::vector<ConnectionPtr> already_existing_solution_conn;
   if(findValidSolution(already_existing_solutions_map,diff_subpath_cost,already_existing_solution_conn,
-                       already_existing_solution_cost,number_of_candidates,true))
+                       already_existing_solution_cost,number_of_candidates,false))
   {
     connecting_path = std::make_shared<Path>(already_existing_solution_conn,metrics_,checker_);
     connecting_path->setTree(tree_);
