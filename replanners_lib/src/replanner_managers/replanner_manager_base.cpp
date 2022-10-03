@@ -947,6 +947,7 @@ void ReplannerManagerBase::benchmarkThread()
 
   MoveitUtils moveit_utils(planning_scene,group_name_);
   std::string last_link = planning_scene->getRobotModel()->getJointModelGroup(group_name_)->getLinkModelNames().back();
+  CollisionCheckerPtr checker = std::make_shared<MoveitCollisionChecker>(planning_scene,group_name_);
 
   paths_mtx_.lock();
   Eigen::VectorXd start = current_path_shared_->getStartNode()->getConfiguration();
@@ -1019,6 +1020,13 @@ void ReplannerManagerBase::benchmarkThread()
       if((current_configuration_3d-obj_pos[i]).norm()<obj_max_size_ && ((goal_3d-obj_pos[i]).norm()>obj_max_size_))
       {
         it = std::find(already_collided_obj.begin(),already_collided_obj.end(),obj_ids[i]);
+
+        scene_mtx_.lock();
+        checker->setPlanningSceneMsg(planning_scene_msg_);
+        scene_mtx_.unlock();
+
+        if(checker->check(current_configuration))
+          throw std::runtime_error("current conf not in collision");
 
         if(it>=already_collided_obj.end())
         {
@@ -1135,20 +1143,18 @@ Eigen::Vector3d ReplannerManagerBase::forwardIk(const Eigen::VectorXd& conf, con
 
 Eigen::Vector3d ReplannerManagerBase::forwardIk(const Eigen::VectorXd& conf, const std::string& last_link, const MoveitUtils& util,geometry_msgs::Pose& pose)
 {
-  moveit::core::RobotState obj_pos_state = util.fromWaypoints2State(conf);
-  tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),pose);
+  moveit::core::RobotState state = util.fromWaypoints2State(conf);
+  tf::poseEigenToMsg(state.getGlobalLinkTransform(last_link),pose);
 
   std::vector<double> v(3);
   v[0] = pose.position.x;
   v[1] = pose.position.y;
   v[2] = pose.position.z;
 
-  Eigen::Vector3d obj_conf(v.size());
+  Eigen::Vector3d position(v.size());
   for(unsigned int i=0;i<v.size();i++)
-    obj_conf[i] = v[i];
+    position[i] = v[i];
 
-  return obj_conf;
+  return position;
 }
-
-
 }
