@@ -40,6 +40,17 @@ echo "source /home/$USER/replanning_ws/devel/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ```
 
+## Quick examples
+If you want to take a look at how the library works, you can run these two quick examples in which the robot follows a trajectory and replans it when a random object obstructs its path. The simulation is repeated with different replanning algorithms.
+To use a Cartesian point robot, launch:
+```
+roslaunch replanners_lib quick_example_3d.launch
+```
+To use a 6 dof anthropomorphic robot, launch:
+```
+roslaunch replanners_lib quick_example_6d.launch
+```
+
 ## Packages
 ### **replanners_lib [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib)**
 It contains two main repository:

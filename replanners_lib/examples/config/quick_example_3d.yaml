@@ -1,6 +1,6 @@
 #TEST CONFIGURATIONS:
-n_query: 20
-n_iter_per_query: 10
+n_query: 3
+n_iter_per_query: 1
 bench_name: "3d_simple"
 
 #PLANNING CONFIGURATIONS:
@@ -28,7 +28,7 @@ replanner_type_vector: ["MARS","DRRTStar","DRRT","anytimeDRRT","MPRRT"]
 dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
-benchmark: true
+benchmark: false
 spawn_objs: true
 spawn_instants: [0.5,3.5,6.5]
 obj_type: "red_box"
@@ -50,7 +50,7 @@ MARS:
 replanner_verbosity: false
 display_timing_warning: false
 display_replanning_success: true
-display_replan_trj_point: false
-display_replan_config: false
+display_replan_trj_point: true
+display_replan_config: true
 display_current_trj_point: true
 display_current_config: true

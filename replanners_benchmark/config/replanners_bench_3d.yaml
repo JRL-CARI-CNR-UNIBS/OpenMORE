@@ -48,10 +48,10 @@ MARS:
   verbosity_level: 2
 
 #VERBOSITY:
-replanner_verbosity: true
+replanner_verbosity: false
 display_timing_warning: false
 display_replanning_success: true
-display_replan_trj_point: true
-display_replan_config: true
+display_replan_trj_point: false
+display_replan_config: false
 display_current_trj_point: true
 display_current_config: true

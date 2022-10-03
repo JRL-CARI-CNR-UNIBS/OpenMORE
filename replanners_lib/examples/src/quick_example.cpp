@@ -8,7 +8,7 @@
 
 int main(int argc, char **argv)
 {
-  ros::init(argc, argv, "replanners_benchmark");
+  ros::init(argc, argv, "quick_example");
   ros::AsyncSpinner spinner(4);
   spinner.start();
 
@@ -190,14 +190,10 @@ int main(int argc, char **argv)
       {
         ROS_INFO("---------------------------------------------------------------------------------------------------------");
         ROS_INFO_STREAM(replanner_type<<": query: "<<std::to_string(i)<<" Iter: "<<std::to_string(j)<<" start: "<<start_conf.transpose()<< " goal: "<<goal_conf.transpose()<< " distance: "<<distance);
-        std::string test_name = "test_q_"+std::to_string(i)+"_i_"+std::to_string(j);
-
-        nh.setParam("test_name",test_name); //to save test results
 
         jsk_rviz_plugins::OverlayText overlayed_text;
         overlayed_text.text = "Replanner: "+replanner_type;
         text_overlay_pub.publish(overlayed_text);
-
 
         if(display)
           disp->nextButton();
@@ -285,8 +281,6 @@ int main(int argc, char **argv)
 
         // //////////////////////////////REPLANNING///////////////////////////////////////////////////
         replanner_manager->start();
-
-        //std::system("clear"); //clear terminal
       }
 
       start_conf = start_conf+delta_start;

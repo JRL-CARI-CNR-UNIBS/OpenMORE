@@ -383,25 +383,11 @@ void ReplannerManagerBase::replanningThread()
       path2project_on = current_path_shared_->clone();
       paths_mtx_.unlock();
 
-      //      double abs = path2project_on->curvilinearAbscissaOfPoint(past_configuration_replan);
-      //      ROS_INFO_STREAM("past abs "<<abs<<" past prj: "<<past_configuration_replan.transpose());
-
       projection = path2project_on->projectOnPath(point2project,past_configuration_replan,false);
       past_configuration_replan = projection;
 
       if(not path2project_on->findConnection(projection))
         throw std::runtime_error("nn");
-
-//      double dist = (projection-point2project).norm();
-//      ROS_INFO_STREAM("dist "<<dist);
-//      if(dist>0.3)
-//      {
-//        pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
-//        disp->displayNode(std::make_shared<Node>(projection),66666);
-//        disp->displayNode(std::make_shared<Node>(projection),66666);
-
-//        throw std::runtime_error(std::to_string(dist));
-//      }
 
       replanner_mtx_.lock();
       configuration_replan_ = projection;
@@ -658,6 +644,7 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   Eigen::VectorXd configuration_replan;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
   double abscissa_replan_configuration, abscissa_current_configuration, duration;
+  int conn_idx;
 
   ros::Rate lp(trj_exec_thread_frequency_);
 
@@ -692,10 +679,13 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
     current_configuration_ = path2project_on->projectOnPath(point2project,current_configuration_,false);
 
-    abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(configuration_replan);
-    abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration_);
-    if(abscissa_current_configuration>abscissa_replan_configuration) //the current confgiruation must not surpass that of replanning
-      current_configuration_ = configuration_replan;
+    if(path2project_on->findConnection(configuration_replan,conn_idx))
+    {
+      abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(configuration_replan,conn_idx);
+      abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration_);
+      if(abscissa_current_configuration>abscissa_replan_configuration) //the current confgiruation must not surpass that of replanning
+        current_configuration_ = configuration_replan;
+    }
 
     trj_mtx_.unlock();
 

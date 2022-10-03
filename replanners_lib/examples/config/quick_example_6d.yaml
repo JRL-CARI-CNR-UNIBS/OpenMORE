@@ -1,19 +1,21 @@
 #TEST CONFIGURATIONS:
-n_query: 20
-n_iter_per_query: 10
-bench_name: "3d_simple"
+n_query: 3
+n_iter_per_query: 1
+bench_name: "6d"
 
 #PLANNING CONFIGURATIONS:
-group_name: "cartesian_arm"
-start_configuration: [0,0,0]
-end_start_configuration: [0,3,2]
-stop_configuration:  [3,3,2]
-end_stop_configuration:  [3,0,0]
+group_name: "manipulator"
+start_configuration: [1.1160822571268618, -0.36605717084420153, -0.6613339554670044, 0.2598214740910541, -0.8031200900767068, -0.2716137877745939]
+end_start_configuration: [-1.1155641983069562, -0.36099297017660414, -0.679692439733893, -0.26550089158378515, -0.7902169742242835, -0.2874408819936133]
+stop_configuration:  [-1.12199514293867, 0.38763777484579987, 0.5963607094801189, -0.27169757220422974, 0.8502837814992195, 0.2539459644858469]
+end_stop_configuration:  [1.1160219817234516, 0.3778465742834835, 0.6200910254031209, 0.28335764210798137, 0.8444095013250474, 0.25389556034796174]
+
 utopia_tolerance: 0.05
 extend: false
 max_distance: 0.3
 checker_resolution: 0.05
 parallel_checker_n_threads: 20
+max_solver_time: 30
 
 #REPLANNER CONFIGURATIONS:
 
@@ -28,12 +30,12 @@ replanner_type_vector: ["MARS","DRRTStar","DRRT","anytimeDRRT","MPRRT"]
 dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
-benchmark: true
+benchmark: false
 spawn_objs: true
-spawn_instants: [0.5,3.5,6.5]
+spawn_instants: [0.5,1.5,3]
 obj_type: "red_box"
 obj_max_size: 0.1
-scaling: 0.7
+scaling: 0.9
 read_safe_scaling: false
 
 MPRRT:
@@ -52,5 +54,5 @@ display_timing_warning: false
 display_replanning_success: true
 display_replan_trj_point: false
 display_replan_config: false
-display_current_trj_point: true
-display_current_config: true
+display_current_trj_point: false
+display_current_config: false

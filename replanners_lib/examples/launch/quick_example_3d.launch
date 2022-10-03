@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+  <include file="$(find replanners_bench_cells)/launch/load_cell_3d_simple.launch"/>
+
+ <rosparam command="load" file="$(find replanners_lib)/examples/config/quick_example_3d.yaml"/>
+
+  <node pkg="replanners_lib"
+        name="quick_example"
+        type="quick_example"
+        output="screen" >
+ </node>
+
+</launch>

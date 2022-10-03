@@ -70,16 +70,23 @@ ${PROJECT_NAME}
 ${catkin_LIBRARIES}
 )
 
-add_executable(example_replanner examples/example_replanner.cpp)
+add_executable(example_replanner examples/src/example_replanner.cpp)
 add_dependencies(example_replanner ${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(example_replanner
 ${PROJECT_NAME}
 ${catkin_LIBRARIES}
 )
 
-add_executable(example_replanner_manager examples/example_replanner_manager.cpp)
+add_executable(example_replanner_manager examples/src/example_replanner_manager.cpp)
 add_dependencies(example_replanner_manager ${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(example_replanner_manager
+${PROJECT_NAME}
+${catkin_LIBRARIES}
+)
+
+add_executable(quick_example examples/src/quick_example.cpp)
+add_dependencies(quick_example ${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(quick_example
 ${PROJECT_NAME}
 ${catkin_LIBRARIES}
 )

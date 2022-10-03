@@ -39,8 +39,9 @@
 - git:
     local-name: utils/high_dof_snake_robots
     uri: https://github.com/JRL-CARI-CNR-UNIBS/high_dof_snake_robots.git
+    version: replanning_strategies_devel
 - git:
-    local-name: utils/cell_cartesin
+    local-name: utils/cell_cartesian
     uri: https://github.com/JRL-CARI-CNR-UNIBS/cell_cartesian.git
     version: cesare-devel
 - git:
