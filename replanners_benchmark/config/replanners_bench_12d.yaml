@@ -32,7 +32,7 @@ trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 benchmark: true
 spawn_objs: true
-spawn_instants: [0.5,2.5,4.5]
+spawn_instants: [0.5,2,4]
 obj_type: "red_box"
 obj_max_size: 0.1
 scaling: 1
@@ -49,7 +49,7 @@ MARS:
   verbosity_level: 2
 
 #VERBOSITY:
-replanner_verbosity: true
+replanner_verbosity: false
 display_timing_warning: false
 display_replanning_success: true
 display_replan_trj_point: false

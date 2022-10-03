@@ -834,9 +834,10 @@ void ReplannerManagerBase::spawnObjectsThread()
 
   PathPtr path_copy;
   Eigen::VectorXd conf, obj_pos, obj_conf;
+  Eigen::VectorXd goal = current_path_shared_->getGoalNode()->getConfiguration();
 
   Eigen::Vector3d conf_3d, obj_pos_3d;
-  Eigen::Vector3d goal_3d = forwardIk(current_path_shared_->getGoalNode()->getConfiguration(),last_link,moveit_utils);
+  Eigen::Vector3d goal_3d = forwardIk(goal,last_link,moveit_utils);
 
   geometry_msgs::Quaternion q;
   q.x = 0.0; q.y = 0.0; q.z = 0.0; q.w = 1.0;
@@ -880,7 +881,7 @@ void ReplannerManagerBase::spawnObjectsThread()
           obj_conf = path_copy->pointOnCurvilinearAbscissa(obj_abscissa);
           obj_pos_3d = forwardIk(obj_conf,last_link,moveit_utils,obj.pose.pose);
 
-          if((obj_pos_3d-conf_3d).norm()>obj_max_size_ && (obj_conf-conf).norm()>obj_max_size_ && (obj_pos_3d-goal_3d).norm()>obj_max_size_)
+          if((obj_pos_3d-conf_3d).norm()>obj_max_size_ && (obj_conf-conf).norm()>obj_max_size_ && (obj_pos_3d-goal_3d).norm()>obj_max_size_ && (obj_conf-goal).norm()>obj_max_size_)
           {
             obj_pos = obj_pos_3d;
             break;
