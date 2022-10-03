@@ -32,10 +32,10 @@ trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 benchmark: true
 spawn_objs: true
-spawn_instants: [0.5,2,4]
+spawn_instants: [0.5,1.5,3]
 obj_type: "red_box"
 obj_max_size: 0.1
-scaling: 0.85
+scaling: 0.9
 read_safe_scaling: false
 
 MPRRT:
