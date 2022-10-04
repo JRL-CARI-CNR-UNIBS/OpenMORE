@@ -16,6 +16,7 @@
 #include <std_srvs/Empty.h>
 #include <boost/variant.hpp>
 #include <replanners_lib/replanners/replanner_base.h>
+#include<jsk_rviz_plugins/OverlayText.h>
 
 namespace pathplan
 {
@@ -51,7 +52,6 @@ protected:
   bool display_current_trj_point_ ;
   bool display_replanning_success_;
 
-//  int n_conn_                    ;
   int parallel_checker_n_threads_;
 
   double t_                             ;
@@ -66,6 +66,7 @@ protected:
   double checker_resolution_            ;
   double goal_tol_                      ;
   double scaling_                       ;
+  double global_override_               ;
 
   ReplannerBasePtr                          replanner_                 ;
   Eigen::VectorXd                           current_configuration_     ;
@@ -106,10 +107,10 @@ protected:
   std::vector<std::string>                                                        scaling_topics_names_ ;
   std::vector<std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>>> scaling_topics_vector_;
   std::map<std::string,double> overrides_;
-  double global_override_;
 
   ros::Publisher target_pub_;
   ros::Publisher unscaled_target_pub_;
+  ros::Publisher text_overlay_pub_;
 
   ros::ServiceClient plannning_scene_client_;
   ros::ServiceClient add_obj_;

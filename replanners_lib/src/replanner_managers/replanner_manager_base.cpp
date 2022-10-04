@@ -233,6 +233,9 @@ void ReplannerManagerBase::subscribeTopicsAndServices()
   target_pub_          = nh_.advertise<sensor_msgs::JointState>("/joint_target",         1);
   unscaled_target_pub_ = nh_.advertise<sensor_msgs::JointState>("/unscaled_joint_target",1);
 
+  if(benchmark_)
+    text_overlay_pub_ = nh_.advertise<jsk_rviz_plugins::OverlayText>("/rviz_text_overlay_replanner_bench",1);
+
   plannning_scene_client_ = nh_.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
 
   if(not plannning_scene_client_.waitForExistence(ros::Duration(10)))
@@ -254,6 +257,7 @@ void ReplannerManagerBase::subscribeTopicsAndServices()
       spawn_objs_ = false;
     }
   }
+
 }
 
 void ReplannerManagerBase::updateSharedPath()
@@ -956,6 +960,37 @@ void ReplannerManagerBase::benchmarkThread()
 
   int n_collisions = 0;
 
+  std_msgs::ColorRGBA fg_color_green, fg_color_red, bg_color;
+  fg_color_green.r = 0;
+  fg_color_green.g = 0.8;
+  fg_color_green.b = 0.2;
+  fg_color_green.a = 0.8;
+
+  fg_color_red.r = 1;
+  fg_color_red.g = 0;
+  fg_color_red.b = 0;
+  fg_color_red.a = 0.8;
+
+  bg_color.r = 0;
+  bg_color.g = 0;
+  bg_color.b = 0;
+  bg_color.a = 0;
+
+  jsk_rviz_plugins::OverlayText overlayed_text;
+  overlayed_text.font = "FreeSans";
+  overlayed_text.bg_color = bg_color;
+  overlayed_text.height = 70;
+  overlayed_text.left = 10;
+  overlayed_text.top = 80;
+  overlayed_text.line_width = 2;
+  overlayed_text.text_size = 15;
+  overlayed_text.width = 1000;
+
+  overlayed_text.action = overlayed_text.DELETE;
+  text_overlay_pub_.publish(overlayed_text);
+
+  overlayed_text.action = overlayed_text.ADD;
+
   double cycle_duration;
   ros::WallTime tic, toc;
   double freq = 2*trj_exec_thread_frequency_;
@@ -964,6 +999,14 @@ void ReplannerManagerBase::benchmarkThread()
   while((not stop_) && ros::ok())
   {
     tic = ros::WallTime::now();
+
+    if(success)
+    {
+      std::string text = "Success: TRUE \nCollided objects: 0";
+      overlayed_text.text = text;
+      overlayed_text.fg_color = fg_color_green;
+      text_overlay_pub_.publish(overlayed_text);
+    }
 
     old_pnt_conf = pnt_conf;
     old_current_configuration = current_configuration;
@@ -1027,6 +1070,11 @@ void ReplannerManagerBase::benchmarkThread()
             n_collisions++;
             already_collided_obj.push_back(obj_ids[i]);
             success = false;
+
+            std::string txt = "Success: FALSE \nCollided objects: "+std::to_string(n_collisions);
+            overlayed_text.text = txt;
+            overlayed_text.fg_color = fg_color_red;
+            text_overlay_pub_.publish(overlayed_text);
           }
         }
         break;

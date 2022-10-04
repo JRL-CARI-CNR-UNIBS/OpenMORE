@@ -151,6 +151,29 @@ int main(int argc, char **argv)
   Eigen::VectorXd delta_goal  = (end_goal_conf  - init_goal_conf )/(std::max(n_query-1,1));
 
   Eigen::VectorXd start_conf, goal_conf;
+
+  std_msgs::ColorRGBA fg_color, bg_color;
+  fg_color.r = 0;
+  fg_color.g = 0;
+  fg_color.b = 1;
+  fg_color.a = 0.8;
+
+  bg_color.r = 0;
+  bg_color.g = 0;
+  bg_color.b = 0;
+  bg_color.a = 0;
+
+  jsk_rviz_plugins::OverlayText overlayed_text;
+  overlayed_text.font = "FreeSans";
+  overlayed_text.bg_color = bg_color;
+  overlayed_text.fg_color = fg_color;
+  overlayed_text.height = 70;
+  overlayed_text.left = 10;
+  overlayed_text.top = 10;
+  overlayed_text.width = 1000;
+  overlayed_text.line_width = 2;
+  overlayed_text.text_size = 20;
+
   for(const std::string replanner_type:replanner_type_vector)
   {
     start_conf = init_start_conf;
@@ -194,10 +217,8 @@ int main(int argc, char **argv)
 
         nh.setParam("test_name",test_name); //to save test results
 
-        jsk_rviz_plugins::OverlayText overlayed_text;
-        overlayed_text.text = "Replanner: "+replanner_type;
+        overlayed_text.text = "Replanner: "+replanner_type+"\nQuery: "+std::to_string(i)+"/"+std::to_string(n_query-1)+", iter: "+std::to_string(j)+"/"+std::to_string(n_iter_per_query-1);
         text_overlay_pub.publish(overlayed_text);
-
 
         if(display)
           disp->nextButton();
