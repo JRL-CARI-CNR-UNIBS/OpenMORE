@@ -11,4 +11,4 @@ To create the launcher of your environment:
  - In RViz, add the following Panels:
    - Marker: set `/marker_visualization_topic` as Marker Topic; it allows you to see the markers that the replanner manager publishes (e.g., paths).
    - OverlayText: set `/rviz_text_overlay` as Topic and remove any other checkmarks; it allows you to see on screen some benchmarking-related information published by nodes such as [replanners_benchmark](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_benchmark/src/replanners_benchmark.cpp) and [quick_example](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/src/quick_example.cpp).
-   - OverlayText: set `/rviz_text_overlay_replanner_bench` as Topic and remove any other checkmarks. it allows you to see on screen some benchmarking-related information published by the replanner manager.
+   - OverlayText: set `/rviz_text_overlay_replanner_bench` as Topic and remove any other checkmarks; it allows you to see on screen some benchmarking-related information published by the replanner manager.
