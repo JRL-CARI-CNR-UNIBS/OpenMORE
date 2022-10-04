@@ -14,6 +14,8 @@ int main(int argc, char **argv)
 
   ros::NodeHandle nh;
 
+  ros::Duration(5).sleep();
+
   ros::ServiceClient ps_client=nh.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
   ros::Publisher text_overlay_pub = nh.advertise<jsk_rviz_plugins::OverlayText>("/rviz_text_overlay",1);
 

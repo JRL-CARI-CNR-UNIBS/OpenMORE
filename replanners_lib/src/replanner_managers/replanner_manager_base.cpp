@@ -961,20 +961,10 @@ void ReplannerManagerBase::benchmarkThread()
   int n_collisions = 0;
 
   std_msgs::ColorRGBA fg_color_green, fg_color_red, bg_color;
-  fg_color_green.r = 0;
-  fg_color_green.g = 0.8;
-  fg_color_green.b = 0.2;
-  fg_color_green.a = 0.8;
-
-  fg_color_red.r = 1;
-  fg_color_red.g = 0;
-  fg_color_red.b = 0;
-  fg_color_red.a = 0.8;
-
-  bg_color.r = 0;
-  bg_color.g = 0;
-  bg_color.b = 0;
-  bg_color.a = 0;
+  fg_color_green.r = 0;   fg_color_red.r = 1;   bg_color.r = 0;
+  fg_color_green.g = 0.8; fg_color_red.g = 0;   bg_color.g = 0;
+  fg_color_green.b = 0.2; fg_color_red.b = 0;   bg_color.b = 0;
+  fg_color_green.a = 0.8; fg_color_red.a = 0.8; bg_color.a = 0;
 
   jsk_rviz_plugins::OverlayText overlayed_text;
   overlayed_text.font = "FreeSans";
@@ -1170,7 +1160,6 @@ void ReplannerManagerBase::benchmarkThread()
     throw std::runtime_error("no collisions but success false!");
 
   ROS_BOLDCYAN_STREAM("Benchamrk thread is over");
-
 }
 
 Eigen::Vector3d ReplannerManagerBase::forwardIk(const Eigen::VectorXd& conf, const std::string& last_link, const MoveitUtils& util)

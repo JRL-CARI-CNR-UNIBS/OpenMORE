@@ -14,7 +14,7 @@ int main(int argc, char **argv)
 
   ros::NodeHandle nh;
 
-  ros::Duration(3).sleep();
+  ros::Duration(5).sleep();
 
   ros::ServiceClient ps_client=nh.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
   ros::Publisher text_overlay_pub = nh.advertise<jsk_rviz_plugins::OverlayText>("/rviz_text_overlay",1);
@@ -154,17 +154,11 @@ int main(int argc, char **argv)
 
   Eigen::VectorXd start_conf, goal_conf;
 
-
   std_msgs::ColorRGBA fg_color, bg_color;
-  fg_color.r = 0;
-  fg_color.g = 0;
-  fg_color.b = 1;
-  fg_color.a = 0.8;
-
-  bg_color.r = 0;
-  bg_color.g = 0;
-  bg_color.b = 0;
-  bg_color.a = 0;
+  fg_color.r = 0;   bg_color.r = 0;
+  fg_color.g = 0;   bg_color.g = 0;
+  fg_color.b = 1;   bg_color.b = 0;
+  fg_color.a = 0.8; bg_color.a = 0;
 
   jsk_rviz_plugins::OverlayText overlayed_text;
   overlayed_text.font = "FreeSans";
