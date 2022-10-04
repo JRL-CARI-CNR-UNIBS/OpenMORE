@@ -3,11 +3,9 @@ Panels:
     Help Height: 84
     Name: Displays
     Property Tree Widget:
-      Expanded:
-        - /Grid1
-        - /OverlayText1
+      Expanded: ~
       Splitter Ratio: 0.5
-    Tree Height: 808
+    Tree Height: 357
   - Class: rviz/Help
     Name: Help
   - Class: rviz/Views
@@ -169,10 +167,31 @@ Visualization Manager:
       Marker Topic: /marker_visualization_topic
       Name: Marker
       Namespaces:
-        {}
+        pathplan: true
       Queue Size: 100
       Value: true
-    - Align Bottom: true
+    - Align Bottom: false
+      Background Alpha: 0
+      Background Color: 0; 0; 0
+      Class: jsk_rviz_plugin/OverlayText
+      Enabled: true
+      Foreground Alpha: 0.800000011920929
+      Foreground Color: 32; 74; 135
+      Invert Shadow: false
+      Name: OverlayText
+      Overtake BG Color Properties: false
+      Overtake FG Color Properties: false
+      Overtake Position Properties: false
+      Topic: /rviz_text_overlay
+      Value: true
+      font: FreeSans
+      height: 30
+      left: 0
+      line width: 2
+      text size: 20
+      top: 0
+      width: 1000
+    - Align Bottom: false
       Background Alpha: 0
       Background Color: 0; 0; 0
       Class: jsk_rviz_plugin/OverlayText
@@ -181,10 +200,10 @@ Visualization Manager:
       Foreground Color: 32; 74; 135
       Invert Shadow: true
       Name: OverlayText
-      Overtake BG Color Properties: true
-      Overtake FG Color Properties: true
-      Overtake Position Properties: true
-      Topic: /rviz_text_overlay
+      Overtake BG Color Properties: false
+      Overtake FG Color Properties: false
+      Overtake Position Properties: false
+      Topic: /rviz_text_overlay_replanner_bench
       Value: true
       font: FreeSans
       height: 30
@@ -209,7 +228,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 9.41704273223877
+      Distance: 10.672236442565918
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -217,22 +236,22 @@ Visualization Manager:
         Value: false
       Field of View: 0.75
       Focal Point:
-        X: 3.8587896823883057
-        Y: 2.459146499633789
-        Z: 2.862210988998413
+        X: 2.7912938594818115
+        Y: 4.590244770050049
+        Z: 1.6888608932495117
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.9749993085861206
+      Pitch: 1.4747964143753052
       Target Frame: world
-      Yaw: 4.709954261779785
+      Yaw: 3.1399502754211426
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: true
-  Height: 1043
+  Height: 1016
   Help:
     collapsed: false
   Hide Left Dock: true
@@ -241,9 +260,9 @@ Window Geometry:
     collapsed: false
   MotionPlanning - Trajectory Slider:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000001f3000003b9fc0200000007fb000000100044006900730070006c006100790073000000003d000003b9000000c900fffffffb0000000800480065006c00700000000342000000bb0000006e00fffffffb0000000a00560069006500770073000000010c000000a4000000a400fffffffb0000000c00430061006d00650072006100000002ff000001610000000000000000fb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000001600000016fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e006700000001ab000001880000017d00ffffff00000780000003b900000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000100000000000001f30000039efc0200000007fb000000100044006900730070006c006100790073000000003d0000039e000000c900fffffffb0000000800480065006c00700000000342000000bb0000006e00fffffffb0000000a00560069006500770073000000010c000000a4000000a400fffffffb0000000c00430061006d00650072006100000002ff000001610000000000000000fb0000001e004d006f00740069006f006e00200050006c0061006e006e0069006e00670100000374000001890000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000001600000016fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e006700000001ab000001880000017d00ffffff000007380000039e00000001000000020000000100000002fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Views:
     collapsed: false
-  Width: 1920
-  X: 1920
-  Y: 0
+  Width: 1848
+  X: 72
+  Y: 27

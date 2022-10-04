@@ -42,6 +42,7 @@ source ~/.bashrc
 
 ## Quick examples
 If you want to take a look at how the library works, you can run these two quick examples in which the robot follows a trajectory and replans it when a random object obstructs its path. The simulation is repeated with different replanning algorithms.
+
 To use a Cartesian point robot, launch:
 ```
 roslaunch replanners_lib quick_example_3d.launch

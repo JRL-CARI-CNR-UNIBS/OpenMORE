@@ -30,7 +30,7 @@ replanner_type_vector: ["MARS","DRRTStar","DRRT","anytimeDRRT","MPRRT"]
 dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
-benchmark: false
+benchmark: true
 spawn_objs: true
 spawn_instants: [0.5,1.5,3]
 obj_type: "red_box"
