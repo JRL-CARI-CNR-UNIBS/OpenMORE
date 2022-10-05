@@ -87,7 +87,7 @@ bool DynamicRRTStar::connectBehindObs(const NodePtr& node)
 
   double radius = 1.1*((replan_goal->getConfiguration()-replan_start->getConfiguration()).norm())/2;
   Eigen::VectorXd u = (replan_goal->getConfiguration()-replan_start->getConfiguration())/(replan_goal->getConfiguration()-replan_start->getConfiguration()).norm();
-  Eigen::VectorXd ball_center = replan_start->getConfiguration()+u*radius;
+  Eigen::VectorXd ball_center = replan_start->getConfiguration()+u*(((replan_goal->getConfiguration()-replan_start->getConfiguration()).norm())/2);
   LocalInformedSampler sampler (replan_start->getConfiguration(),replan_goal->getConfiguration(),lb_,ub_,std::numeric_limits<double>::infinity());
   sampler.addBall(ball_center,radius);
 
