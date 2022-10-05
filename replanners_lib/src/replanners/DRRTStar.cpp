@@ -101,7 +101,15 @@ bool DynamicRRTStar::connectBehindObs(const NodePtr& node)
   assert(std::find(white_list.begin(),white_list.end(),replan_goal )<white_list.end());
 
   if(not tree->changeRoot(replan_start))  //then change the root
+  {
+    ROS_INFO_STREAM("replan start "<<*replan_start<<replan_start);
+    ROS_INFO_STREAM("node "<<*node<<node);
+
+    ROS_INFO_STREAM("current path "<<*current_path_);
+    for(const NodePtr& n: current_path_->getNodes())
+      ROS_INFO_STREAM("node "<<n<< "in tree "<<tree->isInTree(n));
     throw std::runtime_error("root can't be changed (replan_start)");
+  }
 
   std::vector<NodePtr> black_list;
   black_list.push_back(replan_goal);
