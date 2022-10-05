@@ -1050,7 +1050,9 @@ void ReplannerManagerBase::benchmarkThread()
         scene_mtx_.unlock();
 
         if(checker->check(current_configuration))
-          throw std::runtime_error("current conf not in collision");
+        {
+          throw std::runtime_error("current conf not in collision, dist "+std::to_string((current_configuration_3d-obj_pos[i]).norm())+" max size "+std::to_string(obj_max_size_));
+        }
 
         if(it>=already_collided_obj.end())
         {

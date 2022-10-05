@@ -13,6 +13,7 @@ class ReplannerManagerDRRTStar: public ReplannerManagerBase
 {
 protected:
   NodePtr old_current_node_ = nullptr;
+  bool is_a_new_node_;
 
   bool haveToReplan(const bool path_obstructed) override;
   void initReplanner() override;
