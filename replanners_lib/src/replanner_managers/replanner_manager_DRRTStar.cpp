@@ -68,25 +68,10 @@ void ReplannerManagerDRRTStar::startReplannedPathFromNewCurrentConf(const Eigen:
           restored_conn->add();
 
           tree->removeNode(old_current_node_);
-
-          ROS_ERROR_STREAM("removed!");
-          if(tree->isInTree(old_current_node_))
-            throw std::runtime_error("in tree");
         }
-        else
-          ROS_ERROR_STREAM("not parallel!");
-
       }
-      else
-        ROS_ERROR_STREAM("more children!");
     }
-    else
-      ROS_ERROR_STREAM("not a new node!");
-
   }
-  else
-    ROS_ERROR_STREAM("root or nullptr!");
-
 
   std::vector<ConnectionPtr> new_conns = tree->getConnectionToNode(replanned_path->getGoalNode());
   replanned_path->setConnections(new_conns);
