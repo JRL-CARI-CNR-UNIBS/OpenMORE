@@ -85,7 +85,7 @@ BibTex:
 ```
 
 ## Acknowledgements
-**replanning_strategies** is developed by CNR-STIIMA (http://www.stiima.cnr.it/)
+**replanning_strategies** is developed by [CNR-STIIMA](http://www.stiima.cnr.it/) and [University of Brescia](https://www.unibs.it/en).
 
 ***
 
