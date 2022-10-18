@@ -726,6 +726,8 @@ double MARS::maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cy
   if(time<0.0)
     time = 0.0;
 
+//  ROS_INFO_STREAM("time "<<time<<" max time "<<max_time);  //elimina
+
   return time;
 }
 
@@ -779,6 +781,8 @@ void MARS::convertToSubtreeSolution(const PathPtr& net_solution, const std::vect
 
 bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2_node, const double& diff_subpath_cost, const PathPtr& current_solution, const ros::WallTime& tic, const ros::WallTime& tic_cycle, PathPtr& connecting_path, bool& quickly_solved)
 {
+//  ros::WallTime tic_ccp = ros::WallTime::now(); //elimina
+
   connecting_path = nullptr;
 
   /* Create a subtree rooted at path1_node. It will be used to build the connecting path between path1_node and path2_node */
@@ -798,6 +802,8 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
                                                         path2_node->getConfiguration(),
                                                         diff_subpath_cost,
                                                         black_list,true); //collision check before adding a node
+
+//  ROS_INFO_STREAM("time after subtree creation "<<(ros::WallTime::now()-tic_ccp).toSec()); //elimina
 
   if(pathSwitch_disp_)
   {
@@ -821,6 +827,8 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
   std::multimap<double,std::vector<ConnectionPtr>> already_existing_solutions_map = net->getConnectionBetweenNodes(path1_node,path2_node,diff_subpath_cost,
                                                                                                                    black_list,net_time,search_in_subtree);
   double time_search = (ros::WallTime::now()-tic_search).toSec();
+
+//  ROS_INFO_STREAM("time after net subtree search "<<(ros::WallTime::now()-tic_ccp).toSec()); //elimina
 
   if(pathSwitch_verbose_)
     ROS_BLUE_STREAM("In the subtree exist "<< already_existing_solutions_map.size() <<" paths to path2_node (time to search "<<time_search<<" seconds)");
@@ -865,6 +873,9 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
     }
   }
 
+//  ROS_INFO_STREAM("time after findSol "<<(ros::WallTime::now()-tic_ccp).toSec()); //elimina
+
+
   /* If no solutions already exist, search for a new one. The ellipsoide determined
    * by diff_subpath_cost is used to sample the space. Outside of this ellipsoid,
    * the nodes would create an inconvenient connecting_path */
@@ -883,6 +894,8 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
   double available_search_time = solver_time;
   ros::WallTime tic_before_search = ros::WallTime::now();
 
+//  ROS_INFO_STREAM("time after sampler creation "<<(ros::WallTime::now()-tic_ccp).toSec()); //elimina
+
   while(available_search_time>0)
   {
     solver_->resetProblem();
@@ -898,8 +911,10 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
       ROS_BLUE_STREAM("Searching for a connecting path...max time: "<<available_search_time);
 
     ros::WallTime tic_solver = ros::WallTime::now();
-    solver_->addGoal(path2_node_fake,available_search_time);
+    solver_->addGoal(path2_node_fake,available_search_time*0.85);
     ros::WallTime toc_solver = ros::WallTime::now();
+
+//    ROS_INFO_STREAM("time after add goal "<<(ros::WallTime::now()-tic_ccp).toSec()); //elimina
 
     quickly_solved = solver_->solved();
 
@@ -919,8 +934,10 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
       }
 
       tic_solver = ros::WallTime::now();
-      solver_has_solved = solver_->solve(connecting_path,10000,available_search_time);
+      solver_has_solved = solver_->solve(connecting_path,10000,available_search_time*0.85);
       toc_solver = ros::WallTime::now();
+
+//      ROS_INFO_STREAM("time after solve "<<(ros::WallTime::now()-tic_ccp).toSec()); //elimina
     }
 
     if(solver_has_solved)
@@ -932,12 +949,27 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
       ConnectionPtr obstructed_connection = nullptr;
       for(const ConnectionPtr& c:connecting_path->getConnections())
       {
+        available_search_time = solver_time-(ros::WallTime::now()-tic_before_search).toSec();
+        if(available_search_time<=0.0)
+        {
+          subtree_valid = false;
+          quickly_solved = false;
+          break;
+        }
+
+//        ros::WallTime tic_it = ros::WallTime::now();//elimina
+        std::vector<NodePtr>::iterator it = std::find(subtree_nodes.begin(),subtree_nodes.end(),c->getChild());
+//        ros::WallTime toc_it = ros::WallTime::now();//elimina
+
+//        ROS_INFO_STREAM("time it "<<(toc_it-tic_it).toSec()); //elimina
+
         //lazy collision check of the connections that already were in the subtree
-        if(std::find(subtree_nodes.begin(),subtree_nodes.end(),c->getChild())<subtree_nodes.end())
+        if(it<subtree_nodes.end())
         {
           if(not subtree_valid || c->isRecentlyChecked())
             continue;
 
+//          ros::WallTime tic_check = ros::WallTime::now();//elimina
           if(not checker_->checkConnection(c))
           {
             invalid_connection invalid_conn;
@@ -954,6 +986,10 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
           else
             c->setCost(metrics_->cost(c->getParent(),c->getChild()));
 
+//          ros::WallTime toc_check = ros::WallTime::now();//elimina
+
+//          ROS_INFO_STREAM("time check "<<(toc_check-tic_check).toSec()); //elimina
+
           c->setRecentlyChecked(true);
           checked_connections_.push_back(c);
         }
@@ -964,6 +1000,9 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
         }
       }
 
+//      ROS_INFO_STREAM("time after lazy check "<<(ros::WallTime::now()-tic_ccp).toSec()); //elimina
+
+
       if(subtree_valid)
       {
         valid_connecting_path_found = true;
@@ -972,7 +1011,12 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
       else
       {
         subtree->purgeFromHere(path2_node_fake);
-        subtree->hideFromSubtree(obstructed_connection->getChild());
+
+        if(obstructed_connection != nullptr)
+          subtree->hideFromSubtree(obstructed_connection->getChild());
+
+        if(pathSwitch_verbose_)
+          ROS_BLUE_STREAM("Lazy check detected that subtree was not valid, compute again..");
       }
     }
     else
@@ -998,8 +1042,17 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
     number_of_candidates = 0;
     double connecting_path_cost;
     std::vector<ConnectionPtr> connecting_path_conn;
+
+    ros::WallTime tic_net = ros::WallTime::now();
     std::multimap<double,std::vector<ConnectionPtr>> connecting_paths_map = net->getConnectionBetweenNodes(path1_node,path2_node_fake,diff_subpath_cost,
                                                                                                            black_list,net_time,search_in_subtree);
+
+//    ROS_INFO_STREAM("time after final net search "<<(ros::WallTime::now()-tic_ccp).toSec()); //elimina
+
+
+    if(pathSwitch_verbose_)
+      ROS_BLUE_STREAM("Net search in the subtree found "<<connecting_paths_map.size()<<" solutions in "<<(ros::WallTime::now()-tic_net).toSec()<<" s");
+
     /*To be sure map contains the connecting path computed*/
     double cost = 0.0;
     std::vector<ConnectionPtr> conns = subtree->getConnectionToNode(path2_node_fake);
@@ -1107,6 +1160,9 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
                  return true;
                }());
 
+//        ROS_INFO_STREAM("time after final findSol "<<(ros::WallTime::now()-tic_ccp).toSec()); //elimina
+
+
         ConnectionPtr new_conn= std::make_shared<Connection>(last_conn->getParent(),path2_node,(path2_node->getParentConnectionsSize()>0));
         new_conn->setCost(last_conn->getCost());
         new_conn->add();
@@ -1170,8 +1226,19 @@ bool MARS::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2
   /* If a solution was not found or the found solution was not free */
   connecting_path = nullptr;
 
+//  ROS_INFO_STREAM("time before purge "<<(ros::WallTime::now()-tic_ccp).toSec()); //elimina
+
+//  ros::WallTime tic_purge = ros::WallTime::now();
   subtree->purgeFromHere(path2_node_fake); //disconnect and remove the fake node
+//  ros::WallTime toc_purge = ros::WallTime::now();
+
+
   assert(not tree_->isInTree(path2_node_fake));
+
+//  ROS_INFO_STREAM("time purge "<<(tic_purge-toc_purge).toSec()); //elimina
+
+//  ROS_INFO_STREAM("time end "<<(ros::WallTime::now()-tic_ccp).toSec()); //elimina
+
 
   return false;
 }
@@ -1307,7 +1374,12 @@ bool MARS::pathSwitch(const PathPtr &current_path,
 
       PathPtr connecting_path;
       bool quickly_solved = false;
+
+      ros::WallTime tic_connecting_path = ros::WallTime::now();
       bool connecting_path_found = computeConnectingPath(path1_node,path2_node,diff_subpath_cost,current_path,tic,tic_cycle,connecting_path,quickly_solved);
+
+      if(pathSwitch_verbose_)
+        ROS_BLUE_STREAM("Time for compute connecting path "<<(ros::WallTime::now()-tic_connecting_path).toSec()<<" s"<<" max ps time "<<(pathSwitch_max_time_-(ros::WallTime::now()-tic).toSec()));
 
       if(connecting_path_found)
       {
@@ -1910,10 +1982,15 @@ bool MARS::informedOnlineReplanning(const double &max_time)
   {
     assert(replanned_path_cost == replanned_path->cost());
 
+    double net_search_time;
     available_time_ = MAX_TIME-(ros::WallTime::now()-tic).toSec();
-    double net_search_time = available_time_;
-    if(net_search_time<0.02)
+
+    if(available_time_<=0.0)
+      net_search_time = 0.0;
+    else if(available_time_<0.02 && available_time_>0.0)
       net_search_time = 0.02; //max 20 milliseconds
+    else
+      net_search_time = available_time_;
 
     if(informedOnlineReplanning_verbose_)
       ROS_GREEN_STREAM("Time before net search: "<<available_time_<<", max net time: "<<net_search_time);
@@ -1922,14 +1999,12 @@ bool MARS::informedOnlineReplanning(const double &max_time)
     std::multimap<double,std::vector<ConnectionPtr>> best_replanned_path_map  =
         net_->getConnectionBetweenNodes(current_node,goal_node_,replanned_path->cost(),{},net_search_time*0.8);
     ros::WallTime toc_net_search = ros::WallTime::now();
-    if((toc_net_search-tic_net_search).toSec()>net_search_time/0.5)
+    if((toc_net_search-tic_net_search).toSec()>net_search_time/0.5 && net_search_time>0.0)
       throw std::runtime_error("net too much time: "+std::to_string((toc_net_search-tic_net_search).toSec())+ " max time "+std::to_string(net_search_time));
-
-    if(informedOnlineReplanning_verbose_)
-      ROS_GREEN_STREAM("At the end of replanning, in the graph there are "<<best_replanned_path_map.size()<<" paths better the one found!");
 
     double best_replanned_path_cost;
     std::vector<ConnectionPtr> best_replanned_path_conns;
+    ros::WallTime tic_find_sol = ros::WallTime::now();
     if(findValidSolution(best_replanned_path_map,replanned_path->cost(),best_replanned_path_conns,best_replanned_path_cost))
     {
       replanned_path = std::make_shared<Path>(best_replanned_path_conns,metrics_,checker_);
@@ -1940,7 +2015,11 @@ bool MARS::informedOnlineReplanning(const double &max_time)
 
       replanned_path_cost = replanned_path->cost();
     }
+    ros::WallTime toc_find_sol = ros::WallTime::now();
     assert(replanned_path->cost()<=subpath1->cost() && replanned_path->cost()<std::numeric_limits<double>::infinity());
+
+    if(informedOnlineReplanning_verbose_)
+      ROS_GREEN_STREAM("At the end of replanning, in the graph there are "<<best_replanned_path_map.size()<<" paths better the one found! (found in "<<(toc_net_search-tic_net_search).toSec()<<" s), time to check solutions "<<(toc_find_sol-tic_find_sol).toSec()<<" s");
 
     replanned_path_ = replanned_path;
     assert(replanned_path_->getTree() == tree_);

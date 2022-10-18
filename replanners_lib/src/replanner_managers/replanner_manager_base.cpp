@@ -433,6 +433,9 @@ void ReplannerManagerBase::replanningThread()
         replanning_duration = (toc_rep-tic_rep).toSec();
         success = replanner_->getSuccess();
 
+//        if(replanning_duration>0.3) // ELIMINA
+//          throw std::runtime_error("duration "+std::to_string(replanning_duration));
+
         bench_mtx_.lock();
         if(success)
           replanning_time_ = replanning_duration;
