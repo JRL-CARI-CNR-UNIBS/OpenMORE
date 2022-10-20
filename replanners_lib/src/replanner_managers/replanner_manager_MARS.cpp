@@ -29,27 +29,27 @@ void ReplannerManagerMARS::setOtherPaths(std::vector<PathPtr>& other_paths)
 
 void ReplannerManagerMARS::additionalParam()
 {
-  if(!nh_.getParam("/MARS/dt_replan_relaxed",dt_replan_relaxed_))
+  if(!nh_.getParam("MARS/dt_replan_relaxed",dt_replan_relaxed_))
   {
-    ROS_ERROR("/MARS/dt_replan_relaxed not set, set 150% of dt_replan");
+    ROS_ERROR("MARS/dt_replan_relaxed not set, set 150% of dt_replan");
     dt_replan_relaxed_ = 1.5*dt_replan_;
   }
 
-  if(!nh_.getParam("/MARS/reverse_start_nodes",reverse_start_nodes_))
+  if(!nh_.getParam("MARS/reverse_start_nodes",reverse_start_nodes_))
   {
-    ROS_ERROR("/MARS/reverse_start_nodes not set, set false");
+    ROS_ERROR("MARS/reverse_start_nodes not set, set false");
     reverse_start_nodes_ = false;
   }
 
-  if(!nh_.getParam("/MARS/full_net_search",full_net_search_))
+  if(!nh_.getParam("MARS/full_net_search",full_net_search_))
   {
-    ROS_ERROR("/MARS/full_net_search_ not set, set true");
+    ROS_ERROR("MARS/full_net_search_ not set, set true");
     full_net_search_ = true;
   }
 
-  if(!nh_.getParam("/MARS/verbosity_level",verbosity_level_))
+  if(!nh_.getParam("MARS/verbosity_level",verbosity_level_))
   {
-    ROS_ERROR("/MARS/verbosity_level not set, set 0");
+    ROS_ERROR("MARS/verbosity_level not set, set 0");
     verbosity_level_ = 0;
   }
 }
@@ -494,6 +494,7 @@ void ReplannerManagerMARS::initReplanner()
 {
   double time_for_repl = 0.9*dt_replan_;
   pathplan::MARSPtr replanner = std::make_shared<pathplan::MARS>(configuration_replan_,current_path_replanning_,time_for_repl,solver_,other_paths_);
+
   replanner->reverseStartNodes(reverse_start_nodes_);
   replanner->setFullNetSearch(full_net_search_);
 

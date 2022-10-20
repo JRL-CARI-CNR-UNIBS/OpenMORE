@@ -17,7 +17,7 @@ ReplannerManagerMPRRT::ReplannerManagerMPRRT(const PathPtr &current_path,
 
 void ReplannerManagerMPRRT::additionalParams()
 {
-  if(!nh_.getParam("/MPRRT/n_threads_replan",n_threads_replan_))
+  if(!nh_.getParam("MPRRT/n_threads_replan",n_threads_replan_))
   {
     ROS_ERROR("n_threads_replan not set, set 5");
     n_threads_replan_ = 5;

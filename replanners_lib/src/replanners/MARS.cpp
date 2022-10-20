@@ -42,6 +42,9 @@ void MARS::copyTreeRoot()
   /* Net stops working when encounters the tree root, so doesn't allow to find a replanned path which pass through the start
    * So, a copy of the root (=start) is created and all the paths will start from this node and not from the root.*/
 
+  if(not tree_)
+    throw std::runtime_error("tree not defined!");
+
   paths_start_ = tree_->getRoot();
   assert(tree_->getRoot() == current_path_->getConnections().front()->getParent());
   NodePtr new_tree_root =std::make_shared<Node>(paths_start_->getConfiguration());
