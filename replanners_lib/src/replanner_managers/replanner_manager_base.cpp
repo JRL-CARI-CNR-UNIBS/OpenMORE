@@ -77,7 +77,7 @@ void ReplannerManagerBase::fromParam()
   }
 
   if(!nh_.getParam("group_name",group_name_))
-    ROS_ERROR("group_name not set, maybe set later with setChainProperties(..)?");
+    ROS_ERROR("group_name not set, maybe set later with setGroupName(..)?");
   if(!nh_.getParam("scaling",scaling_from_param_))
     scaling_from_param_ = 1.0;
   if(!nh_.getParam("display_timing_warning",display_timing_warning_))
@@ -115,6 +115,7 @@ void ReplannerManagerBase::fromParam()
 void ReplannerManagerBase::attributeInitialization()
 {
   stop_                            = false;
+  terminated_                      = false;
   current_path_sync_needed_        = false;
   replanning_time_                 = 0.0  ;
   scaling_                         = 1.0  ;
@@ -574,6 +575,9 @@ bool ReplannerManagerBase::stop()
   if(display_thread_                 .joinable()) display_thread_   .join();
   if(benchmark_  && benchmark_thread_.joinable()) benchmark_thread_ .join();
   if(spawn_objs_ && spawn_obj_thread_.joinable()) spawn_obj_thread_ .join();
+
+  terminated_ = true;
+
   return true;
 }
 

@@ -38,6 +38,7 @@ protected:
   /* Global variables */
   bool stop_                      ;
   bool benchmark_                 ;
+  bool terminated_                ;
   bool spawn_objs_                ;
   bool read_safe_scaling_         ;
   bool replanner_verbosity_       ;
@@ -153,6 +154,11 @@ public:
                        const ros::NodeHandle &nh);
   ~ReplannerManagerBase();
 
+  void setGroupName(const std::string& group_name)
+  {
+    group_name_ = group_name;
+  }
+
   trajectory_msgs::JointTrajectoryPoint getJointTarget()
   {
     trj_mtx_.lock();
@@ -174,6 +180,11 @@ public:
   ReplannerBasePtr getReplanner()
   {
     return replanner_;
+  }
+
+  bool terminated()
+  {
+    return terminated_;
   }
 
   virtual bool stop();
