@@ -167,7 +167,7 @@ Visualization Manager:
       Marker Topic: /marker_visualization_topic
       Name: Marker
       Namespaces:
-        pathplan: true
+        {}
       Queue Size: 100
       Value: true
     - Align Bottom: false
@@ -236,17 +236,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.75
       Focal Point:
-        X: 2.7912938594818115
-        Y: 4.590244770050049
-        Z: 1.6888608932495117
+        X: 3.3240745067596436
+        Y: 2.628154754638672
+        Z: 0.27290013432502747
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.4747964143753052
+      Pitch: 0.9397958517074585
       Target Frame: world
-      Yaw: 3.1399502754211426
+      Yaw: 3.0799527168273926
     Saved: ~
 Window Geometry:
   Displays:

@@ -1,22 +1,19 @@
 #ifndef REPLANNER_MANAGER_BASE_H__
 #define REPLANNER_MANAGER_BASE_H__
 
+#include <mutex>
+#include <thread>
+#include <std_msgs/Int64.h>
+#include <std_msgs/ColorRGBA.h>
+#include <boost/filesystem.hpp>
 #include <replanners_lib/trajectory.h>
-#include <moveit/robot_state/robot_state.h>
-#include <graph_core/parallel_moveit_collision_checker.h>
-#include <moveit_planning_helper/spline_interpolator.h>
+#include <jsk_rviz_plugins/OverlayText.h>
 #include <object_loader_msgs/AddObjects.h>
 #include <object_loader_msgs/RemoveObjects.h>
-#include <subscription_notifier/subscription_notifier.h>
-#include <boost/filesystem.hpp>
-#include <thread>
-#include <mutex>
-#include <std_msgs/Float64.h>
-#include <std_msgs/Int64.h>
-#include <std_srvs/Empty.h>
-#include <boost/variant.hpp>
 #include <replanners_lib/replanners/replanner_base.h>
-#include<jsk_rviz_plugins/OverlayText.h>
+#include <moveit_planning_helper/spline_interpolator.h>
+#include <subscription_notifier/subscription_notifier.h>
+#include <graph_core/parallel_moveit_collision_checker.h>
 
 namespace pathplan
 {
