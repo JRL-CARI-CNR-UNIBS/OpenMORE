@@ -78,6 +78,10 @@ void ReplannerManagerBase::fromParam()
 
   if(!nh_.getParam("group_name",group_name_))
     ROS_ERROR("group_name not set, maybe set later with setGroupName(..)?");
+  if(!nh_.getParam("joint_target_topic",joint_target_topic_))
+    joint_target_topic_ = "/joint_target";
+  if(!nh_.getParam("unscaled_joint_target_topic",unscaled_joint_target_topic_))
+    unscaled_joint_target_topic_ = "/unscaled_joint_target";
   if(!nh_.getParam("scaling",scaling_from_param_))
     scaling_from_param_ = 1.0;
   if(!nh_.getParam("display_timing_warning",display_timing_warning_))
@@ -115,7 +119,7 @@ void ReplannerManagerBase::fromParam()
 void ReplannerManagerBase::attributeInitialization()
 {
   stop_                            = false;
-  terminated_                      = false;
+  goal_reached_                    = false;
   current_path_sync_needed_        = false;
   replanning_time_                 = 0.0  ;
   scaling_                         = 1.0  ;
@@ -231,8 +235,8 @@ void ReplannerManagerBase::subscribeTopicsAndServices()
     ROS_BOLDWHITE_STREAM("Subscribing speed override topic "<<scaling_topic_name.c_str());
   }
 
-  target_pub_          = nh_.advertise<sensor_msgs::JointState>("/replanner_joint_target",         1);
-  unscaled_target_pub_ = nh_.advertise<sensor_msgs::JointState>("/replanner_unscaled_joint_target",1);
+  target_pub_          = nh_.advertise<sensor_msgs::JointState>(joint_target_topic_,         1);
+  unscaled_target_pub_ = nh_.advertise<sensor_msgs::JointState>(unscaled_joint_target_topic_,1);
 
   if(benchmark_)
     text_overlay_pub_ = nh_.advertise<jsk_rviz_plugins::OverlayText>("/rviz_text_overlay_replanner_bench",1);
@@ -434,8 +438,8 @@ void ReplannerManagerBase::replanningThread()
         replanning_duration = (toc_rep-tic_rep).toSec();
         success = replanner_->getSuccess();
 
-//        if(replanning_duration>0.3) // ELIMINA
-//          throw std::runtime_error("duration "+std::to_string(replanning_duration));
+        //        if(replanning_duration>0.3) // ELIMINA
+        //          throw std::runtime_error("duration "+std::to_string(replanning_duration));
 
         bench_mtx_.lock();
         if(success)
@@ -567,7 +571,7 @@ bool ReplannerManagerBase::replan()
   return replanner_->replan();
 }
 
-bool ReplannerManagerBase::stop()
+bool ReplannerManagerBase::joinThreads()
 {
   if(trj_exec_thread_                .joinable()) trj_exec_thread_  .join();
   if(replanning_thread_              .joinable()) replanning_thread_.join();
@@ -576,15 +580,13 @@ bool ReplannerManagerBase::stop()
   if(benchmark_  && benchmark_thread_.joinable()) benchmark_thread_ .join();
   if(spawn_objs_ && spawn_obj_thread_.joinable()) spawn_obj_thread_ .join();
 
-  terminated_ = true;
-
   return true;
 }
 
-bool ReplannerManagerBase::cancel()
+bool ReplannerManagerBase::stop()
 {
   stop_ = true ;
-  return stop();
+  return joinThreads();
 }
 
 bool ReplannerManagerBase::run()
@@ -613,7 +615,7 @@ bool ReplannerManagerBase::run()
 bool ReplannerManagerBase::start()
 {
   run();
-  stop();
+  joinThreads();
 
   return true;
 }
@@ -656,6 +658,8 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
   double abscissa_replan_configuration, abscissa_current_configuration, duration;
   int conn_idx;
+
+  bool goal_reached = false;
 
   ros::Rate lp(trj_exec_thread_frequency_);
 
@@ -701,7 +705,10 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     trj_mtx_.unlock();
 
     if((point2project-goal_conf).norm()<goal_tol_)
+    {
       stop_ = true;
+      goal_reached_ = true;
+    }
 
     new_joint_state_.position              = pnt_.positions          ;
     new_joint_state_.velocity              = pnt_.velocities         ;
@@ -722,7 +729,15 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   }
 
   stop_ = true;
-  terminated_ = true;
+
+  Eigen::VectorXd point2project(pnt_.positions.size());
+  for(unsigned int i=0; i<pnt_.positions.size();i++)
+    point2project(i) = pnt_.positions.at(i);
+
+  ROS_BOLDRED_STREAM("final pnt "<<pnt_);
+
+  if(goal_reached_ && (point2project-goal_conf).norm()>goal_tol_)
+    throw std::runtime_error("goal toll not respected! goal toll "+std::to_string(goal_tol_)+" dist "+std::to_string((point2project-goal_conf).norm()));
 
   ROS_BOLDCYAN_STREAM("Trajectory execution thread is over");
 }

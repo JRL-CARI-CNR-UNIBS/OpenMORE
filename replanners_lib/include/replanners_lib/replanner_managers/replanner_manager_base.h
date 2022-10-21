@@ -38,7 +38,7 @@ protected:
   /* Global variables */
   bool stop_                      ;
   bool benchmark_                 ;
-  bool terminated_                ;
+  bool goal_reached_              ;
   bool spawn_objs_                ;
   bool read_safe_scaling_         ;
   bool replanner_verbosity_       ;
@@ -109,6 +109,9 @@ protected:
   ros::Publisher target_pub_;
   ros::Publisher unscaled_target_pub_;
   ros::Publisher text_overlay_pub_;
+
+  std::string joint_target_topic_;
+  std::string unscaled_joint_target_topic_;
 
   ros::ServiceClient plannning_scene_client_;
   ros::ServiceClient add_obj_;
@@ -187,13 +190,13 @@ public:
     return replanner_;
   }
 
-  bool terminated()
+  bool goalReached()
   {
-    return terminated_;
+    return goal_reached_;
   }
 
+  virtual bool joinThreads();
   virtual bool stop();
-  virtual bool cancel();
   virtual bool run();
   virtual bool start();
   virtual bool startWithoutReplanning();
