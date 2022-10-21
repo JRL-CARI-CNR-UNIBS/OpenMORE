@@ -159,6 +159,11 @@ public:
     group_name_ = group_name;
   }
 
+  void setGoalToll(const double& toll)
+  {
+    goal_tol_ = toll;
+  }
+
   trajectory_msgs::JointTrajectoryPoint getJointTarget()
   {
     trj_mtx_.lock();

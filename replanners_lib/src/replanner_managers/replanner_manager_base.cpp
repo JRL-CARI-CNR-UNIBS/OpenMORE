@@ -66,7 +66,7 @@ void ReplannerManagerBase::fromParam()
   }
 
   if(!nh_.getParam("goal_tol",goal_tol_))
-    goal_tol_ = 1.0e-03;
+    goal_tol_ = 1.0e-06;
   else
   {
     if(goal_tol_<TOLERANCE)
@@ -231,8 +231,8 @@ void ReplannerManagerBase::subscribeTopicsAndServices()
     ROS_BOLDWHITE_STREAM("Subscribing speed override topic "<<scaling_topic_name.c_str());
   }
 
-  target_pub_          = nh_.advertise<sensor_msgs::JointState>("/joint_target",         1);
-  unscaled_target_pub_ = nh_.advertise<sensor_msgs::JointState>("/unscaled_joint_target",1);
+  target_pub_          = nh_.advertise<sensor_msgs::JointState>("/replanner_joint_target",         1);
+  unscaled_target_pub_ = nh_.advertise<sensor_msgs::JointState>("/replanner_unscaled_joint_target",1);
 
   if(benchmark_)
     text_overlay_pub_ = nh_.advertise<jsk_rviz_plugins::OverlayText>("/rviz_text_overlay_replanner_bench",1);
@@ -722,6 +722,8 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   }
 
   stop_ = true;
+  terminated_ = true;
+
   ROS_BOLDCYAN_STREAM("Trajectory execution thread is over");
 }
 
