@@ -90,7 +90,7 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
     std::mt19937 gen;
     std::uniform_int_distribution<> id = std::uniform_int_distribution<>(0, max_stall_gen);
 
-    for (unsigned int idx = 0; idx < 10000; idx++)
+    for (unsigned int idx = 0; idx < 100000; idx++) //change to 10000
     {
       if ((ros::WallTime::now() - tic).toSec() > max_time)
         break;
@@ -177,8 +177,8 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
   }
 
   //  Time parametrization
-  //trajectory_processing::TimeOptimalTrajectoryGeneration iptp;
-  trajectory_processing::IterativeParabolicTimeParameterization iptp;
+  trajectory_processing::TimeOptimalTrajectoryGeneration iptp;
+  //trajectory_processing::IterativeParabolicTimeParameterization iptp;
 
   iptp.computeTimeStamps(*trj_);
   return trj_;

@@ -93,7 +93,7 @@ void ReplannerManagerBase::fromParam()
   if(!nh_.getParam("display_replan_trj_point",display_replan_trj_point_))
     display_replan_trj_point_ = false;
   if(!nh_.getParam("display_replan_config",display_replan_config_))
-    display_replan_config_ = false;
+    display_replan_config_ = true;
   if(!nh_.getParam("display_current_trj_point",display_current_trj_point_))
     display_current_trj_point_ = true;
   if(!nh_.getParam("display_current_config",display_current_config_))
@@ -379,7 +379,7 @@ void ReplannerManagerBase::replanningThread()
     tic = ros::WallTime::now();
 
     trj_mtx_.lock();
-    interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_);
+    interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_,scaling_);
     for(unsigned int i=0; i<pnt_replan_.positions.size();i++)
       point2project(i) = pnt_replan_.positions.at(i);
 
@@ -473,7 +473,7 @@ void ReplannerManagerBase::replanningThread()
         past_configuration_replan = current_configuration_;
 
         t_=0.0;
-        t_replan_=t_+replan_offset_;
+        t_replan_=t_+replan_offset_*scaling_;
 
         trj_mtx_.unlock();
         replanner_mtx_.unlock();
@@ -677,7 +677,7 @@ void ReplannerManagerBase::trajectoryExecutionThread()
                         (scaling_ = scaling_from_param_);
 
     t_+= scaling_*dt_;
-    t_replan_ = t_+replan_offset_;
+    t_replan_ = t_+replan_offset_*scaling_;
 
     interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling_);
     interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,     1.0);
@@ -808,16 +808,16 @@ void ReplannerManagerBase::displayThread()
 
     if(display_replan_config_)
     {
-      //      node_id +=1;
-      //      disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),node_id,"pathplan",marker_color_replan_config);
+      node_id +=1;
+      disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),node_id,"pathplan",marker_color_replan_config);
 
-      disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),replan_id,"pathplan",marker_color_replan_config);
-      replan_id = replan_id+1;
+      //      disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),replan_id,"pathplan",marker_color_replan_config);
+      //      replan_id = replan_id+1;
 
-      if(replan_id >= replan_id_last)
-      {
-        replan_id = replan_id_first;
-      }
+      //      if(replan_id >= replan_id_last)
+      //      {
+      //        replan_id = replan_id_first;
+      //      }
     }
 
     if(display_replan_trj_point_)
