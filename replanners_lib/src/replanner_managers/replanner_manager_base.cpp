@@ -79,9 +79,9 @@ void ReplannerManagerBase::fromParam()
   if(!nh_.getParam("group_name",group_name_))
     ROS_ERROR("group_name not set, maybe set later with setGroupName(..)?");
   if(!nh_.getParam("joint_target_topic",joint_target_topic_))
-    joint_target_topic_ = "/joint_target";
+    joint_target_topic_ = "/joint_target_replanning";
   if(!nh_.getParam("unscaled_joint_target_topic",unscaled_joint_target_topic_))
-    unscaled_joint_target_topic_ = "/unscaled_joint_target";
+    unscaled_joint_target_topic_ = "/unscaled_joint_target_replanning";
   if(!nh_.getParam("scaling",scaling_from_param_))
     scaling_from_param_ = 1.0;
   if(!nh_.getParam("display_timing_warning",display_timing_warning_))
@@ -129,7 +129,7 @@ void ReplannerManagerBase::attributeInitialization()
   replan_offset_                   = dt_replan_*K_OFFSET           ;
   t_replan_                        = t_+replan_offset_             ;
   replanning_thread_frequency_     = 100                           ;
-  global_override_                 = 1.0                           ;
+  global_override_                 = 0.0                           ;
 
   if(group_name_.empty())
     throw std::invalid_argument("group name not set");
@@ -231,7 +231,7 @@ void ReplannerManagerBase::subscribeTopicsAndServices()
     auto cb=boost::bind(&ReplannerManagerBase::overrideCallback,this,_1,scaling_topic_name);
     scaling_topics_vector_.push_back(std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,scaling_topic_name,1,cb));
 
-    overrides_.insert(std::pair<std::string,double>(scaling_topic_name,1.0));
+    overrides_.insert(std::pair<std::string,double>(scaling_topic_name,0.0));
     ROS_BOLDWHITE_STREAM("Subscribing speed override topic "<<scaling_topic_name.c_str());
   }
 
@@ -658,8 +658,6 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
   double abscissa_replan_configuration, abscissa_current_configuration, duration;
   int conn_idx;
-
-  bool goal_reached = false;
 
   ros::Rate lp(trj_exec_thread_frequency_);
 
