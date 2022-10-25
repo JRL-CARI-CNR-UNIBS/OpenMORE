@@ -87,7 +87,7 @@ bool ReplannerManagerDRRTStar::haveToReplan(const bool path_obstructed)
 void ReplannerManagerDRRTStar::initReplanner()
 {
   double time_for_repl = 0.9*dt_replan_;
-  replanner_ = std::make_shared<pathplan::DynamicRRTStar>(configuration_replan_, current_path_replanning_, time_for_repl, solver_);
+  replanner_ = std::make_shared<pathplan::DynamicRRTStar>(configuration_replan_, current_path_, time_for_repl, solver_);
 }
 
 }

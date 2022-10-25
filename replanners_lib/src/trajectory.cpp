@@ -57,7 +57,9 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
     return nullptr;
   }
 
-  if(optimize && success)
+  double utopia = (start_node->getConfiguration()-goal_node->getConfiguration()).norm();
+
+  if(optimize && success && (solution->cost()>1.05*utopia))
   {
     pathplan::PathLocalOptimizer path_solver(checker, metrics);
     path_solver.config(nh_);
@@ -90,7 +92,7 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
     std::mt19937 gen;
     std::uniform_int_distribution<> id = std::uniform_int_distribution<>(0, max_stall_gen);
 
-    for (unsigned int idx = 0; idx < 100000; idx++) //change to 10000
+    for (unsigned int idx = 0; idx < 10000; idx++)
     {
       if ((ros::WallTime::now() - tic).toSec() > max_time)
         break;

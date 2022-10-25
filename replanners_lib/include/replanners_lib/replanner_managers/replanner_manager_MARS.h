@@ -20,11 +20,10 @@ protected:
   double dt_replan_relaxed_;
   NodePtr old_current_node_;
   PathPtr initial_path_;
+  std::mutex other_paths_mtx_;
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> other_paths_shared_;
-  std::mutex other_paths_mtx_;
   std::vector<bool> other_paths_sync_needed_;
-
 
   bool checkPathTask(const PathPtr& path);
   void displayCurrentPath();
@@ -52,7 +51,11 @@ public:
                         const ros::NodeHandle &nh,
                         std::vector<PathPtr> &other_paths);
 
-  void setOtherPaths(std::vector<PathPtr>& other_paths);
+  void setOtherPaths(const std::vector<PathPtr>& other_paths)
+  {
+    other_paths_ = other_paths;
+  }
+
   void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration) override;
 };
 

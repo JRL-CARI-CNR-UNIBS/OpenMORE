@@ -121,7 +121,7 @@ bool ReplannerManagerMPRRT::haveToReplan(const bool path_obstructed)
 void ReplannerManagerMPRRT::initReplanner()
 {
   double time_for_repl = 0.9*dt_replan_;
-  replanner_ = std::make_shared<pathplan::MPRRT>(configuration_replan_, current_path_replanning_, time_for_repl, solver_,n_threads_replan_);
+  replanner_ = std::make_shared<pathplan::MPRRT>(configuration_replan_, current_path_, time_for_repl, solver_,n_threads_replan_);
 }
 
 }

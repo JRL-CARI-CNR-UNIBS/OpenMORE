@@ -14,11 +14,6 @@ ReplannerManagerMARS::ReplannerManagerMARS(const PathPtr &current_path,
                                            const ros::NodeHandle &nh,
                                            std::vector<PathPtr> &other_paths):ReplannerManagerMARS(current_path,solver,nh)
 {
-  setOtherPaths(other_paths);
-}
-
-void ReplannerManagerMARS::setOtherPaths(std::vector<PathPtr>& other_paths)
-{
   other_paths_ = other_paths;
   if(replanner_)
   {
@@ -87,8 +82,9 @@ void ReplannerManagerMARS::attributeInitialization()
   first_replanning_ = true;
   old_current_node_ = nullptr;
 
-  initial_path_ = current_path_replanning_;
+  initial_path_ = current_path_;
 
+  other_paths_shared_.clear();
   other_paths_sync_needed_.clear();
   for(const PathPtr& p:other_paths_)
   {
@@ -114,7 +110,7 @@ void ReplannerManagerMARS::attributeInitialization()
   for(unsigned int i=0; i<pnt_replan_.positions.size();i++)
     point2project(i) = pnt_replan_.positions.at(i);
 
-  configuration_replan_ = current_path_shared_->projectOnClosestConnection(point2project);
+  configuration_replan_ = current_path_shared_->projectOnPath(point2project);
 }
 
 bool ReplannerManagerMARS::replan()
@@ -493,12 +489,14 @@ void ReplannerManagerMARS::syncPathCost()
 void ReplannerManagerMARS::initReplanner()
 {
   double time_for_repl = 0.9*dt_replan_;
-  pathplan::MARSPtr replanner = std::make_shared<pathplan::MARS>(configuration_replan_,current_path_replanning_,time_for_repl,solver_,other_paths_);
+  pathplan::MARSPtr replanner = std::make_shared<pathplan::MARS>(configuration_replan_,current_path_,time_for_repl,solver_,other_paths_);
 
   replanner->reverseStartNodes(reverse_start_nodes_);
   replanner->setFullNetSearch(full_net_search_);
 
+  ROS_INFO_STREAM("REPLANNER BEFORE "<<replanner_);
   replanner_ = replanner;
+  ROS_INFO_STREAM("REPLANNER AFTER "<<replanner_);
 
   pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
   replanner_->setDisp(disp);
