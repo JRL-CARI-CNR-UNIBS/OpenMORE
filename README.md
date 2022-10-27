@@ -69,11 +69,6 @@ It contains the urdf and *moveit_config* packages of the environments used for b
 ## Work in progress
 This repository is continuously evolving. If you find errors or if you have some suggestions, [please let us know](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/issues).
 
-## Developer Contact
-### **Authors**
-- Cesare Tonola (<mailto::c.tonola001@unibs.it>)
-- Manuel Beschi (<mailto::manuel.beschi@unibs.it>)
-
 ## How to cite
 BibTex:
 ```
@@ -83,6 +78,11 @@ BibTex:
   url = {https://github.com/JRL-CARI-CNR-UNIBS/replanning\_strategies}
 }
 ```
+
+## Developer Contact
+### **Authors**
+- Cesare Tonola (<mailto::c.tonola001@unibs.it>)
+- Manuel Beschi (<mailto::manuel.beschi@unibs.it>)
 
 ## Acknowledgements
 **replanning_strategies** is developed by [CNR-STIIMA](http://www.stiima.cnr.it/) and [University of Brescia](https://www.unibs.it/en).
