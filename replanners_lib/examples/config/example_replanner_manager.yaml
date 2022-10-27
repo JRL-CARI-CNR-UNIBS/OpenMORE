@@ -16,6 +16,8 @@ spawn_objs: true  #to start a thread that will generate random objects on the cu
 spawn_instants: [0.5,3.5,6.5] #instants of time in which to generate random objects
 obj_type: "red_box" #object to generate (see object_test_replanner.yaml in replanners_bench_cell to see a list of available objects)
 scaling: 0.7  #scaling factor of robot trajectory (value between 0 and 1)
+joint_target_topic: "/joint_target"  #topic on which the trajectory execution thread publishes the scaled joint states
+unscaled_joint_target_topic: "/unscaled_joint_target" #topic on which the trajectory execution thread publishes the unscaled joint states
 
 replanner_verbosity: true
 display_timing_warning: false

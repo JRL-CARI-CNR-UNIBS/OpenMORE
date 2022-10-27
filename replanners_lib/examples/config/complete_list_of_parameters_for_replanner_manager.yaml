@@ -18,6 +18,8 @@ obj_max_size: 0.1  #min distance between robot end-effector and object center po
 scaling: 0.7  #scaling factor of robot trajectory (value between 0 and 1)
 read_safe_scaling: false #read scaling factor from topics (defaults /speed_ovr, /safe_ovr_1, /safe_ovr_2), must be a valure between 0 and 100
 ovverides: [/speed_ovr, /safe_ovr_1, /safe_ovr_2] #topics from which read the scaling factors
+joint_target_topic: "/joint_target"  #topic on which the trajectory execution thread publishes the scaled joint states
+unscaled_joint_target_topic: "/unscaled_joint_target" #topic on which the trajectory execution thread publishes the unscaled joint states
 
 replanner_verbosity: true #replanner verbosity
 display_timing_warning: false #show warning when a thread is taking longer than it should

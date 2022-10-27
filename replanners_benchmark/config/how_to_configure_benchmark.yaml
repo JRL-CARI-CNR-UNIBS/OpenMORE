@@ -34,6 +34,8 @@ spawn_instants: [0.5,3.5,6.5] #instants of time in which to generate random obje
 obj_type: "red_box" #object to generate (see object_test_replanner.yaml in replanners_bench_cell to see a list of available objects)
 obj_max_size: 0.1  #min distance between robot end-effector and object center point to detect collision (used only in benchmark thread to speedup)
 scaling: 0.7  #scaling factor of robot trajectory (value between 0 and 1)
+joint_target_topic: "/joint_target"  #topic on which the trajectory execution thread publishes the scaled joint states
+unscaled_joint_target_topic: "/unscaled_joint_target" #topic on which the trajectory execution thread publishes the unscaled joint states
 
 #REPLANNER-SPECIFIC PARAMETERS
 MPRRT:
