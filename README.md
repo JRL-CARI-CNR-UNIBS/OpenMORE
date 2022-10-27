@@ -77,9 +77,9 @@ This repository is continuously evolving. If you find errors or if you have some
 ## How to cite
 BibTex:
 ```
-@misc{replanner_code,
+@misc{replanning_strategies,
   author = {Cesare Tonola},
-  title = {{An open-source replanning strategies library}},
+  title = {{replanning_strategies: an open-source library for robot path replanning}},
   url = {https://github.com/JRL-CARI-CNR-UNIBS/replanning\_strategies}
 }
 ```
