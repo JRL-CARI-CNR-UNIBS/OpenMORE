@@ -35,6 +35,8 @@ obj_type: "mid_red_box"
 obj_max_size: 0.15
 scaling: 0.7
 read_safe_scaling: false
+joint_target_topic: "/joint_target"
+unscaled_joint_target_topic: "/unscaled_joint_target"
 
 MPRRT:
   n_threads_replan: 5

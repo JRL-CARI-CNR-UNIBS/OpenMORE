@@ -6,7 +6,7 @@ ReplannerManagerBase::ReplannerManagerBase(const PathPtr &current_path,
                                            const TreeSolverPtr &solver,
                                            const ros::NodeHandle &nh)
 {
-  current_path_replanning_ = current_path;
+  current_path_ = current_path;
   solver_       = solver;
   nh_           = nh    ;
 
@@ -66,7 +66,7 @@ void ReplannerManagerBase::fromParam()
   }
 
   if(!nh_.getParam("goal_tol",goal_tol_))
-    goal_tol_ = 1.0e-03;
+    goal_tol_ = 1.0e-06;
   else
   {
     if(goal_tol_<TOLERANCE)
@@ -77,7 +77,11 @@ void ReplannerManagerBase::fromParam()
   }
 
   if(!nh_.getParam("group_name",group_name_))
-    ROS_ERROR("group_name not set, maybe set later with setChainProperties(..)?");
+    ROS_ERROR("group_name not set, maybe set later with setGroupName(..)?");
+  if(!nh_.getParam("joint_target_topic",joint_target_topic_))
+    joint_target_topic_ = "/joint_target_replanning";
+  if(!nh_.getParam("unscaled_joint_target_topic",unscaled_joint_target_topic_))
+    unscaled_joint_target_topic_ = "/unscaled_joint_target_replanning";
   if(!nh_.getParam("scaling",scaling_from_param_))
     scaling_from_param_ = 1.0;
   if(!nh_.getParam("display_timing_warning",display_timing_warning_))
@@ -89,7 +93,7 @@ void ReplannerManagerBase::fromParam()
   if(!nh_.getParam("display_replan_trj_point",display_replan_trj_point_))
     display_replan_trj_point_ = false;
   if(!nh_.getParam("display_replan_config",display_replan_config_))
-    display_replan_config_ = false;
+    display_replan_config_ = true;
   if(!nh_.getParam("display_current_trj_point",display_current_trj_point_))
     display_current_trj_point_ = true;
   if(!nh_.getParam("display_current_config",display_current_config_))
@@ -115,6 +119,7 @@ void ReplannerManagerBase::fromParam()
 void ReplannerManagerBase::attributeInitialization()
 {
   stop_                            = false;
+  goal_reached_                    = false;
   current_path_sync_needed_        = false;
   replanning_time_                 = 0.0  ;
   scaling_                         = 1.0  ;
@@ -124,7 +129,7 @@ void ReplannerManagerBase::attributeInitialization()
   replan_offset_                   = dt_replan_*K_OFFSET           ;
   t_replan_                        = t_+replan_offset_             ;
   replanning_thread_frequency_     = 100                           ;
-  global_override_                 = 1.0                           ;
+  global_override_                 = 0.0                           ;
 
   if(group_name_.empty())
     throw std::invalid_argument("group name not set");
@@ -149,13 +154,13 @@ void ReplannerManagerBase::attributeInitialization()
   const robot_state::JointModelGroup* joint_model_group = state.getJointModelGroup(group_name_);
   std::vector<std::string> joint_names = joint_model_group->getActiveJointModelNames();
 
-  current_path_shared_ = current_path_replanning_->clone();
+  current_path_shared_ = current_path_->clone();
 
   checker_cc_         = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_cc_,        group_name_,10,checker_resolution_);
   checker_replanning_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_,group_name_,10,checker_resolution_);
-  current_path_shared_    ->setChecker(checker_cc_        );
-  current_path_replanning_->setChecker(checker_replanning_);
-  solver_                 ->setChecker(checker_replanning_);
+  current_path_shared_->setChecker(checker_cc_        );
+  current_path_       ->setChecker(checker_replanning_);
+  solver_             ->setChecker(checker_replanning_);
 
   trajectory_ = std::make_shared<pathplan::Trajectory>(current_path_shared_,nh_,planning_scn_replanning_,group_name_);
   robot_trajectory::RobotTrajectoryPtr trj = trajectory_->fromPath2Trj();
@@ -177,7 +182,7 @@ void ReplannerManagerBase::attributeInitialization()
   for(unsigned int i=0; i<pnt_replan_.positions.size();i++)
     point2project(i) = pnt_replan_.positions.at(i);
 
-  configuration_replan_  = current_path_shared_->projectOnClosestConnection(point2project);
+  configuration_replan_  = current_path_shared_->projectOnPath(point2project);
   current_configuration_ = current_path_shared_->getStartNode()->getConfiguration();
 
   initReplanner();
@@ -226,12 +231,12 @@ void ReplannerManagerBase::subscribeTopicsAndServices()
     auto cb=boost::bind(&ReplannerManagerBase::overrideCallback,this,_1,scaling_topic_name);
     scaling_topics_vector_.push_back(std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,scaling_topic_name,1,cb));
 
-    overrides_.insert(std::pair<std::string,double>(scaling_topic_name,1.0));
+    overrides_.insert(std::pair<std::string,double>(scaling_topic_name,0.0));
     ROS_BOLDWHITE_STREAM("Subscribing speed override topic "<<scaling_topic_name.c_str());
   }
 
-  target_pub_          = nh_.advertise<sensor_msgs::JointState>("/joint_target",         1);
-  unscaled_target_pub_ = nh_.advertise<sensor_msgs::JointState>("/unscaled_joint_target",1);
+  target_pub_          = nh_.advertise<sensor_msgs::JointState>(joint_target_topic_,         1);
+  unscaled_target_pub_ = nh_.advertise<sensor_msgs::JointState>(unscaled_joint_target_topic_,1);
 
   if(benchmark_)
     text_overlay_pub_ = nh_.advertise<jsk_rviz_plugins::OverlayText>("/rviz_text_overlay_replanner_bench",1);
@@ -262,7 +267,7 @@ void ReplannerManagerBase::subscribeTopicsAndServices()
 
 void ReplannerManagerBase::updateSharedPath()
 {
-  current_path_shared_ = current_path_replanning_->clone();
+  current_path_shared_ = current_path_->clone();
   current_path_shared_->setChecker(checker_cc_);
   current_path_sync_needed_ = true;
 }
@@ -271,7 +276,7 @@ void ReplannerManagerBase::syncPathCost()
 {
   paths_mtx_.lock();
 
-  std::vector<ConnectionPtr> current_path_conn        = current_path_replanning_->getConnections();
+  std::vector<ConnectionPtr> current_path_conn        = current_path_->getConnections();
   std::vector<ConnectionPtr> current_path_shared_conn = current_path_shared_    ->getConnections();
 
   std::vector<ConnectionPtr>::iterator it        = current_path_conn       .end();
@@ -291,7 +296,7 @@ void ReplannerManagerBase::syncPathCost()
       break;
   }
 
-  current_path_replanning_->cost(); //update path cost
+  current_path_->cost(); //update path cost
   paths_mtx_.unlock();
 }
 
@@ -321,7 +326,7 @@ void ReplannerManagerBase::updatePathCost(const PathPtr& current_path_updated_co
 
 void ReplannerManagerBase::updateTrajectory()
 {
-  PathPtr trj_path = current_path_replanning_->clone();
+  PathPtr trj_path = current_path_->clone();
 
   trj_path->removeNodes(1e-03); //remove useless nodes to speed up the trj (does not affect the tree because its a cloned path)
 
@@ -374,7 +379,7 @@ void ReplannerManagerBase::replanningThread()
     tic = ros::WallTime::now();
 
     trj_mtx_.lock();
-    interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_);
+    interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_,scaling_);
     for(unsigned int i=0; i<pnt_replan_.positions.size();i++)
       point2project(i) = pnt_replan_.positions.at(i);
 
@@ -403,7 +408,7 @@ void ReplannerManagerBase::replanningThread()
       scene_mtx_.unlock();
 
       replanner_mtx_.lock();
-      if(not (current_path_replanning_->findConnection(configuration_replan_)))
+      if(not (current_path_->findConnection(configuration_replan_)))
       {
         ROS_BOLDYELLOW_STREAM("configuration replan not found on path");
         trj_mtx_.lock();
@@ -413,9 +418,9 @@ void ReplannerManagerBase::replanningThread()
 
       replanner_->setChecker(checker_replanning_);
       replanner_->setCurrentConf(configuration_replan_);
-      replanner_->setCurrentPath(current_path_replanning_);
+      replanner_->setCurrentPath(current_path_);
 
-      path_obstructed = (current_path_replanning_->getCostFromConf(configuration_replan_) == std::numeric_limits<double>::infinity());
+      path_obstructed = (current_path_->getCostFromConf(configuration_replan_) == std::numeric_limits<double>::infinity());
       replanner_mtx_.unlock();
 
       success = false;
@@ -424,7 +429,7 @@ void ReplannerManagerBase::replanningThread()
 
       if(haveToReplan(path_obstructed))
       {
-        int n_size_before = current_path_replanning_->getConnectionsSize();
+        int n_size_before = current_path_->getConnectionsSize();
 
         tic_rep=ros::WallTime::now();
         path_changed = replan();      //path may have changed even though replanning was unsuccessful
@@ -433,12 +438,15 @@ void ReplannerManagerBase::replanningThread()
         replanning_duration = (toc_rep-tic_rep).toSec();
         success = replanner_->getSuccess();
 
+        //        if(replanning_duration>0.3) // ELIMINA
+        //          throw std::runtime_error("duration "+std::to_string(replanning_duration));
+
         bench_mtx_.lock();
         if(success)
           replanning_time_ = replanning_duration;
         bench_mtx_.unlock();
 
-        assert(((not path_changed) && (n_size_before == current_path_replanning_->getConnectionsSize())) || (path_changed));
+        assert(((not path_changed) && (n_size_before == current_path_->getConnectionsSize())) || (path_changed));
       }
 
       if(replanning_duration>=dt_replan_/0.9 && display_timing_warning_)
@@ -453,8 +461,8 @@ void ReplannerManagerBase::replanningThread()
 
         startReplannedPathFromNewCurrentConf(current_configuration_);
 
-        current_path_replanning_ = replanner_->getReplannedPath();
-        replanner_->setCurrentPath(current_path_replanning_);
+        current_path_ = replanner_->getReplannedPath();
+        replanner_->setCurrentPath(current_path_);
 
         paths_mtx_.lock();
         updateSharedPath();
@@ -465,7 +473,7 @@ void ReplannerManagerBase::replanningThread()
         past_configuration_replan = current_configuration_;
 
         t_=0.0;
-        t_replan_=t_+replan_offset_;
+        t_replan_=t_+replan_offset_*scaling_;
 
         trj_mtx_.unlock();
         replanner_mtx_.unlock();
@@ -563,7 +571,7 @@ bool ReplannerManagerBase::replan()
   return replanner_->replan();
 }
 
-bool ReplannerManagerBase::stop()
+bool ReplannerManagerBase::joinThreads()
 {
   if(trj_exec_thread_                .joinable()) trj_exec_thread_  .join();
   if(replanning_thread_              .joinable()) replanning_thread_.join();
@@ -571,13 +579,14 @@ bool ReplannerManagerBase::stop()
   if(display_thread_                 .joinable()) display_thread_   .join();
   if(benchmark_  && benchmark_thread_.joinable()) benchmark_thread_ .join();
   if(spawn_objs_ && spawn_obj_thread_.joinable()) spawn_obj_thread_ .join();
+
   return true;
 }
 
-bool ReplannerManagerBase::cancel()
+bool ReplannerManagerBase::stop()
 {
   stop_ = true ;
-  return stop();
+  return joinThreads();
 }
 
 bool ReplannerManagerBase::run()
@@ -606,7 +615,7 @@ bool ReplannerManagerBase::run()
 bool ReplannerManagerBase::start()
 {
   run();
-  stop();
+  joinThreads();
 
   return true;
 }
@@ -668,7 +677,7 @@ void ReplannerManagerBase::trajectoryExecutionThread()
                         (scaling_ = scaling_from_param_);
 
     t_+= scaling_*dt_;
-    t_replan_ = t_+replan_offset_;
+    t_replan_ = t_+replan_offset_*scaling_;
 
     interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling_);
     interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,     1.0);
@@ -694,7 +703,10 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     trj_mtx_.unlock();
 
     if((point2project-goal_conf).norm()<goal_tol_)
+    {
       stop_ = true;
+      goal_reached_ = true;
+    }
 
     new_joint_state_.position              = pnt_.positions          ;
     new_joint_state_.velocity              = pnt_.velocities         ;
@@ -715,6 +727,16 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   }
 
   stop_ = true;
+
+  Eigen::VectorXd point2project(pnt_.positions.size());
+  for(unsigned int i=0; i<pnt_.positions.size();i++)
+    point2project(i) = pnt_.positions.at(i);
+
+  ROS_BOLDRED_STREAM("final pnt "<<pnt_);
+
+  if(goal_reached_ && (point2project-goal_conf).norm()>goal_tol_)
+    throw std::runtime_error("goal toll not respected! goal toll "+std::to_string(goal_tol_)+" dist "+std::to_string((point2project-goal_conf).norm()));
+
   ROS_BOLDCYAN_STREAM("Trajectory execution thread is over");
 }
 
@@ -786,16 +808,16 @@ void ReplannerManagerBase::displayThread()
 
     if(display_replan_config_)
     {
-      //      node_id +=1;
-      //      disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),node_id,"pathplan",marker_color_replan_config);
+      node_id +=1;
+      disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),node_id,"pathplan",marker_color_replan_config);
 
-      disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),replan_id,"pathplan",marker_color_replan_config);
-      replan_id = replan_id+1;
+      //      disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),replan_id,"pathplan",marker_color_replan_config);
+      //      replan_id = replan_id+1;
 
-      if(replan_id >= replan_id_last)
-      {
-        replan_id = replan_id_first;
-      }
+      //      if(replan_id >= replan_id_last)
+      //      {
+      //        replan_id = replan_id_first;
+      //      }
     }
 
     if(display_replan_trj_point_)
@@ -1050,7 +1072,9 @@ void ReplannerManagerBase::benchmarkThread()
         scene_mtx_.unlock();
 
         if(checker->check(current_configuration))
-          throw std::runtime_error("current conf not in collision");
+        {
+          throw std::runtime_error("current conf not in collision, dist "+std::to_string((current_configuration_3d-obj_pos[i]).norm())+" max size "+std::to_string(obj_max_size_));
+        }
 
         if(it>=already_collided_obj.end())
         {

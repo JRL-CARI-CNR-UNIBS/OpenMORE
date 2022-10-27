@@ -29,7 +29,7 @@ benchmark: true
 spawn_objs: true
 spawn_instants: [0.5, 2]
 obj_type: "little_box"
-obj_max_size: 0.06
+obj_max_size: 0.05
 scaling: 0.5
 read_safe_scaling: false
 read_real_joints_values_: false

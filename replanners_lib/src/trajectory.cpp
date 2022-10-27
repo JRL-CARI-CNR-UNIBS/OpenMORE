@@ -57,7 +57,9 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
     return nullptr;
   }
 
-  if(optimize && success)
+  double utopia = (start_node->getConfiguration()-goal_node->getConfiguration()).norm();
+
+  if(optimize && success && (solution->cost()>1.05*utopia))
   {
     pathplan::PathLocalOptimizer path_solver(checker, metrics);
     path_solver.config(nh_);
@@ -177,8 +179,8 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
   }
 
   //  Time parametrization
-  //trajectory_processing::TimeOptimalTrajectoryGeneration iptp;
-  trajectory_processing::IterativeParabolicTimeParameterization iptp;
+  trajectory_processing::TimeOptimalTrajectoryGeneration iptp;
+  //trajectory_processing::IterativeParabolicTimeParameterization iptp;
 
   iptp.computeTimeStamps(*trj_);
   return trj_;
