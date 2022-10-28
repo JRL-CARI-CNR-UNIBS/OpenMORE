@@ -74,7 +74,7 @@ BibTex:
 ```
 @misc{replanning_strategies,
   author = {Cesare Tonola},
-  title = {{replanning_strategies: an open-source library for robot path replanning}},
+  title = {{\textit{replanning_strategies}: an open-source library for robot path replanning}},
   url = {https://github.com/JRL-CARI-CNR-UNIBS/replanning\_strategies}
 }
 ```
