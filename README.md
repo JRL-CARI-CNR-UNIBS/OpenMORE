@@ -1,6 +1,6 @@
 # **replanning_strategies**
 
-The repository contains the implementation of a library of sample-based path replanning algorithms and a framework to manage trajectory execution with continuous path replanning. It is based on ROS and *MoveIt!* to get information about the environment.
+The repository contains the implementation of a library of sampling-based path replanning algorithms and a framework to manage trajectory execution with continuous path replanning. It is based on ROS and *MoveIt!* to get information about the environment.
 <!-- You can read technical specifications about this replanner [here](https://arxiv.org/abs/2103.13245). -->
 ## Build/Installation
 The software can be installed using rosinstall files.
@@ -74,7 +74,7 @@ BibTex:
 ```
 @misc{replanning_strategies,
   author = {Cesare Tonola},
-  title = {{replanning_strategies: an open-source library for robot path replanning}},
+  title = {{\textit{replanning_strategies}: an open-source library for robot path replanning}},
   url = {https://github.com/JRL-CARI-CNR-UNIBS/replanning\_strategies}
 }
 ```
