@@ -354,8 +354,25 @@ void ReplannerManagerBase::updateTrajectory()
 
   interpolator_.setTrajectory(tmp_trj_msg);
   interpolator_.setSplineOrder(1);
-}
 
+  /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ELIMINA <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
+  trajectory_msgs::JointTrajectoryPoint pnt;
+  interpolator_.interpolate(ros::Duration(0.0),pnt);
+
+  if((pnt.positions != pnt_.positions) || (pnt.velocities != pnt_.velocities))
+  {
+    for(unsigned int i=0;i<pnt.positions.size();i++)
+    {
+      ROS_INFO_STREAM("joint "<<i<<" target pos "<<pnt_.positions[i] <<" real pos "<<pnt.positions[i] );
+      ROS_INFO_STREAM("joint "<<i<<" target vel "<<pnt_.velocities[i]<<" real vel "<<pnt.velocities[i]);
+      ROS_INFO("-------");
+    }
+
+    throw std::runtime_error("pos or velocities not equal");
+  }
+
+   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>       <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
+}
 
 void ReplannerManagerBase::replanningThread()
 {
@@ -437,9 +454,6 @@ void ReplannerManagerBase::replanningThread()
 
         replanning_duration = (toc_rep-tic_rep).toSec();
         success = replanner_->getSuccess();
-
-        //        if(replanning_duration>0.3) // ELIMINA
-        //          throw std::runtime_error("duration "+std::to_string(replanning_duration));
 
         bench_mtx_.lock();
         if(success)
@@ -697,7 +711,10 @@ void ReplannerManagerBase::trajectoryExecutionThread()
       abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(configuration_replan,conn_idx);
       abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration_);
       if(abscissa_current_configuration>abscissa_replan_configuration) //the current confgiruation must not surpass that of replanning
+      {
         current_configuration_ = configuration_replan;
+        ROS_BOLDRED_STREAM("current front ahead of replan conf, abscissa diff "<<(abscissa_current_configuration-abscissa_replan_configuration));
+      }
     }
 
     trj_mtx_.unlock();
@@ -731,8 +748,6 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   Eigen::VectorXd point2project(pnt_.positions.size());
   for(unsigned int i=0; i<pnt_.positions.size();i++)
     point2project(i) = pnt_.positions.at(i);
-
-  ROS_BOLDRED_STREAM("final pnt "<<pnt_);
 
   if(goal_reached_ && (point2project-goal_conf).norm()>goal_tol_)
     throw std::runtime_error("goal toll not respected! goal toll "+std::to_string(goal_tol_)+" dist "+std::to_string((point2project-goal_conf).norm()));
