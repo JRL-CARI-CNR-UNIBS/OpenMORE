@@ -35,7 +35,7 @@ spawn_objs: true
 spawn_instants: [0.5,1.5,3]
 obj_type: "red_box"
 obj_max_size: 0.1
-scaling: 0.9
+scaling: 1
 read_safe_scaling: false
 joint_target_topic: "/joint_target"
 unscaled_joint_target_topic: "/unscaled_joint_target"
