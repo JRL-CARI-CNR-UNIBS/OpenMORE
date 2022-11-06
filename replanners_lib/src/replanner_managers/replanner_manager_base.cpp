@@ -849,6 +849,7 @@ void ReplannerManagerBase::displayThread()
     lp.sleep();
   }
 
+  disp->clearMarkers();
   ROS_BOLDCYAN_STREAM("Display thread is over");
 }
 

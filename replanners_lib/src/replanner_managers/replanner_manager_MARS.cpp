@@ -688,8 +688,9 @@ void ReplannerManagerMARS::displayCurrentPath()
 }
 
 void ReplannerManagerMARS::displayOtherPaths()
-{
+{ 
   pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
+  disp->clearMarkers();
 
   int path_id,wp_id;
   std::vector<PathPtr> other_paths;
@@ -724,6 +725,7 @@ void ReplannerManagerMARS::displayOtherPaths()
     lp.sleep();
   }
 
+  disp->clearMarkers();
   ROS_BOLDCYAN_STREAM("Display other paths thread is over");
 }
 
