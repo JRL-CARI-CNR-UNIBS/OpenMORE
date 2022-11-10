@@ -724,6 +724,7 @@ void ReplannerManagerMARS::displayOtherPaths()
     lp.sleep();
   }
 
+  disp->clearMarkers();
   ROS_BOLDCYAN_STREAM("Display other paths thread is over");
 }
 
