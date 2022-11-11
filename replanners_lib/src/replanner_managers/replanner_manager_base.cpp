@@ -777,10 +777,6 @@ void ReplannerManagerBase::displayThread()
   double display_thread_frequency = 2*trj_exec_thread_frequency_;
   ros::Rate lp(display_thread_frequency);
 
-  int replan_id_first = 700000;
-  int replan_id_last = replan_id_first+50;
-  int replan_id = replan_id_first;
-
   while((not stop_) && ros::ok())
   {
     paths_mtx_.lock();
@@ -825,14 +821,6 @@ void ReplannerManagerBase::displayThread()
     {
       node_id +=1;
       disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),node_id,"pathplan",marker_color_replan_config);
-
-      //      disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),replan_id,"pathplan",marker_color_replan_config);
-      //      replan_id = replan_id+1;
-
-      //      if(replan_id >= replan_id_last)
-      //      {
-      //        replan_id = replan_id_first;
-      //      }
     }
 
     if(display_replan_trj_point_)
