@@ -1520,11 +1520,11 @@ bool MARS::pathSwitch(const PathPtr &current_path,
     if(pathSwitch_verbose_)
       ROS_BLUE_STREAM("PathSwitch cycle time: "<<(ros::WallTime::now()-tic_cycle).toSec());
 
-    //elimina
-    toc=ros::WallTime::now();
-    ROS_BOLDCYAN_STREAM("success "<<success<<" cycle time: "<<(ros::WallTime::now()-tic_cycle).toSec()<< " ps avalable time "<<(pathSwitch_max_time_ - (toc-tic).toSec())<<" available time "<<(available_time_ - (toc-tic).toSec()));
+//    //elimina
+//    toc=ros::WallTime::now();
+//    ROS_BOLDCYAN_STREAM("success "<<success<<" cycle time: "<<(ros::WallTime::now()-tic_cycle).toSec()<< " ps avalable time "<<(pathSwitch_max_time_ - (toc-tic).toSec())<<" available time "<<(available_time_ - (toc-tic).toSec()));
 
-    //
+//    //
   }
 
   if(pathSwitch_verbose_ || pathSwitch_disp_)
@@ -1984,10 +1984,10 @@ bool MARS::informedOnlineReplanning(const double &max_time)
     if(informedOnlineReplanning_disp_)
       disp_->nextButton("Press \"next\" to execute the next InformedOnlineReplanning step");
 
-    //elimina
-    available_time_ = MAX_TIME-(toc-tic).toSec();
-    ROS_BOLDBLUE_STREAM("available time "<<available_time_);
-    // ///////////////
+//    //elimina
+//    available_time_ = MAX_TIME-(toc-tic).toSec();
+//    ROS_BOLDBLUE_STREAM("available time "<<available_time_);
+//    // ///////////////
 
   } //end while(j>=0) cycle
 

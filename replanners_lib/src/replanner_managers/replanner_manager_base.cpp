@@ -327,8 +327,9 @@ void ReplannerManagerBase::updatePathCost(const PathPtr& current_path_updated_co
 void ReplannerManagerBase::updateTrajectory()
 {
   PathPtr trj_path = current_path_->clone();
+  double max_distance = solver_->getMaxDistance();
 
-  trj_path->removeNodes(1e-03); //remove useless nodes to speed up the trj (does not affect the tree because its a cloned path)
+  trj_path->removeNodes(1e-03);
 
   assert([&]() ->bool{
            ConnectionPtr conn1;
@@ -346,6 +347,8 @@ void ReplannerManagerBase::updateTrajectory()
            }
            return true;
          }());
+
+  trj_path->interpolate(max_distance);
 
   trajectory_->setPath(trj_path);
   robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
@@ -371,7 +374,7 @@ void ReplannerManagerBase::updateTrajectory()
     throw std::runtime_error("pos or velocities not equal");
   }
 
-   /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>       <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
+  /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>       <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
 }
 
 void ReplannerManagerBase::replanningThread()

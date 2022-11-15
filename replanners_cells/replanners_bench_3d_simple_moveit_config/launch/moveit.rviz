@@ -216,7 +216,7 @@ Visualization Manager:
       width: 1000
   Enabled: true
   Global Options:
-    Background Color: 238; 238; 236
+    Background Color: 186; 189; 182
     Default Light: true
     Fixed Frame: world
     Frame Rate: 30
@@ -238,17 +238,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.75
       Focal Point:
-        X: 1.4338805675506592
-        Y: 1.7157174348831177
-        Z: 1.1176155805587769
+        X: 1.4594781398773193
+        Y: 1.8574951887130737
+        Z: 0.9535168409347534
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.4097973108291626
+      Pitch: 0.8847969174385071
       Target Frame: world
-      Yaw: 0.8649520874023438
+      Yaw: 0.8199522495269775
     Saved: ~
 Window Geometry:
   Displays:
