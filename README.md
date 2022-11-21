@@ -1,6 +1,6 @@
 # **replanning_strategies**
 
-The repository contains the implementation of a library of sampling-based path replanning algorithms and a framework to manage trajectory execution with continuous path replanning. It is based on ROS and *MoveIt!* to get information about the environment.
+The repository contains the implementation of a library of sampling-based path replanning algorithms and a framework to manage trajectory execution with continuous path replanning and collision checking of the current path. It is based on ROS and *MoveIt!* to get information about the environment.
 <!-- You can read technical specifications about this replanner [here](https://arxiv.org/abs/2103.13245). -->
 ## Build/Installation
 The software can be installed using rosinstall files.
