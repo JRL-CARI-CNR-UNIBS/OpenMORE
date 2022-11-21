@@ -7,7 +7,7 @@ Panels:
         - /MotionPlanning1/Scene Robot1
         - /MotionPlanning1/Planning Request1
       Splitter Ratio: 0.5
-    Tree Height: 808
+    Tree Height: 357
   - Class: rviz/Help
     Name: Help
   - Class: rviz/Views
@@ -169,7 +169,7 @@ Visualization Manager:
       Marker Topic: /marker_visualization_topic
       Name: Marker
       Namespaces:
-        {}
+        pathplan: true
       Queue Size: 100
       Value: true
     - Align Bottom: false
@@ -230,7 +230,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 6.285402774810791
+      Distance: 7.039650917053223
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -246,9 +246,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8847969174385071
+      Pitch: 1.0047966241836548
       Target Frame: world
-      Yaw: 0.8199522495269775
+      Yaw: 3.0631206035614014
     Saved: ~
 Window Geometry:
   Displays:

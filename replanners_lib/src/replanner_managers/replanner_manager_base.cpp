@@ -716,7 +716,6 @@ void ReplannerManagerBase::trajectoryExecutionThread()
       if(abscissa_current_configuration>abscissa_replan_configuration) //the current confgiruation must not surpass that of replanning
       {
         current_configuration_ = configuration_replan;
-        ROS_BOLDRED_STREAM("current front ahead of replan conf, abscissa diff "<<(abscissa_current_configuration-abscissa_replan_configuration));
       }
     }
 
