@@ -81,7 +81,7 @@ replanner->replan();
 if(replanner->getSuccess())
   pathplan::PathPtr replanned_path = replanner->getReplannedPath();
 ```
-You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/example_replanner.cpp). To launch the example:
+You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/src/example_replanner.cpp). To launch the example:
 ```
 roslaunch replanners_lib example_replanner.launch
 ```
@@ -157,7 +157,7 @@ Finally, create the replanner manager and start the execution:
 pathplan::ReplannerManagerDRRTPtr replanner_manager = std::make_shared<pathplan::ReplannerManagerDRRT>(current_path, solver, nh);
 replanner_manager->start();
 ```
-You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/example_replanner_manager.cpp). To launch the example:
+You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/src/example_replanner_manager.cpp). To launch the example:
 ```
 roslaunch replanners_lib example_replanner_manager.launch
 ```
