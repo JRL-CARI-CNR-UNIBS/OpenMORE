@@ -17,7 +17,7 @@
 
 namespace pathplan
 {
-#define K_OFFSET 1.2
+#define K_OFFSET 1.3
 class ReplannerManagerBase;
 typedef std::shared_ptr<ReplannerManagerBase> ReplannerManagerBasePtr;
 
@@ -50,14 +50,17 @@ protected:
   bool display_current_trj_point_ ;
   bool display_replanning_success_;
 
+  int spline_order_              ;
   int parallel_checker_n_threads_;
 
   double t_                          ;
   double dt_                         ;
   double real_time_                  ;
   double obj_max_size_               ;
-  double replan_offset_              ;
+  double time_shift_                 ;
   double t_replan_                   ;
+  double t_replan_used_              ; //elimina
+  double t_used_                     ; // elimina
   double replanning_time_            ;
   double replanning_thread_frequency_;
   double scaling_from_param_         ;
@@ -148,6 +151,8 @@ protected:
   {
     return path_obstructed;
   }
+
+  void displayTrj(); //elimina
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

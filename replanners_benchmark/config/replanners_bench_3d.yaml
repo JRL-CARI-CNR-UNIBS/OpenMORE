@@ -34,9 +34,9 @@ spawn_objs: true
 spawn_instants: [1,4,8,12,16,18]
 obj_type: "red_box"
 obj_max_size: 0.1
-scaling: 0.7
+scaling: 1 #0.7
 read_safe_scaling: false
-joint_target_topic: "/joint_target"
+joint_target_topic: "/joint_target2"
 unscaled_joint_target_topic: "/unscaled_joint_target"
 
 MPRRT:
@@ -53,7 +53,7 @@ MARS:
 replanner_verbosity: false
 display_timing_warning: false
 display_replanning_success: true
-display_replan_trj_point: false
-display_replan_config: false
+display_replan_trj_point: true
+display_replan_config: true
 display_current_trj_point: true
 display_current_config: true

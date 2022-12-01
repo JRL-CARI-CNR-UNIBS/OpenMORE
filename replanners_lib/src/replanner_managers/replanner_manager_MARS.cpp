@@ -97,8 +97,8 @@ void ReplannerManagerMARS::attributeInitialization()
     other_paths_sync_needed_.push_back(false);
   }
 
-  replan_offset_ = (dt_replan_relaxed_-dt_)*K_OFFSET;
-  t_replan_ = t_+replan_offset_;
+  time_shift_ = (dt_replan_relaxed_-dt_)*K_OFFSET;
+  t_replan_ = t_+time_shift_;
 
   double scaling = 1.0;
   read_safe_scaling_? (scaling = readScalingTopics()):
@@ -278,7 +278,57 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
     }
     else if(distance<0)
     {
-      //if the current node is ahead of replan node, consider current_node = replan node (so keep replanned path unchanged)
+      ROS_BOLDGREEN_STREAM("DISTANCE<0");
+      std::vector<ConnectionPtr> replanned_path_conns = replanned_path->getConnections();
+
+      int idx;
+      ConnectionPtr current_conn = replanned_path->findConnection(configuration,idx);
+      if(current_conn != nullptr) //current node is on replanned path
+      {
+        if(replanned_path_conns[idx]->getParent() == current_node || replanned_path_conns[idx]->getChild() == current_node)
+        {
+          ROS_BOLDGREEN_STREAM("QUA0");
+          replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
+          ROS_BOLDGREEN_STREAM("QUA1");
+        }
+        else
+        {
+          assert([&]() ->bool{
+                   if(conn == replanned_path_conns[idx])
+                   return true;
+                   else
+                   {
+                     ROS_INFO_STREAM("conn "<<*conn<<"\n"<<conn);
+                     ROS_INFO_STREAM("replanned_path_conns[idx] "<<*replanned_path_conns[idx]<<"\n"<<replanned_path_conns[idx]);
+                     return false;
+                   }
+                 }());
+          ROS_BOLDGREEN_STREAM("QUA2");
+          replanned_path->splitConnection(current_path->getConnectionsConst().at(conn_idx),
+                                          current_path->getConnectionsConst().at(conn_idx+1),conn);
+          ROS_BOLDGREEN_STREAM("QUA3");
+          replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
+          ROS_BOLDGREEN_STREAM("QUA4");
+        }
+      }
+      else
+      {
+        //current node should be very close to replan node, minimal difference between the connections
+
+        ConnectionPtr first_conn = replanned_path_conns.front();
+        NodePtr child = first_conn->getChild();
+
+        ConnectionPtr new_conn = std::make_shared<Connection>(current_node,child,first_conn->isNet());
+        (first_conn->getCost()<std::numeric_limits<double>::infinity())?
+              new_conn->setCost(replanned_path->getMetrics()->cost(current_node->getConfiguration(),child->getConfiguration())):
+              new_conn->setCost(std::numeric_limits<double>::infinity());
+
+        first_conn->remove();
+        new_conn->add();
+
+        replanned_path_conns[0] = new_conn;
+        replanned_path->setConnections(replanned_path_conns);
+      }
     }
     else //distance>0
     {
@@ -304,25 +354,19 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
 
       new_conns.insert(new_conns.end(),replanned_path->getConnectionsConst().begin(),replanned_path->getConnectionsConst().end());
       replanned_path->setConnections(new_conns);
+
+      if(old_current_node_ != nullptr)
+      {
+        std::vector<NodePtr> pn = replanned_path->getNodes();
+        if(std::find(pn.begin(),pn.end(),old_current_node_)>=pn.end())
+        {
+          ROS_INFO_STREAM("rp "<<*replanned_path);
+          ROS_INFO_STREAM("old cur node "<<*old_current_node_<<old_current_node_);
+
+          throw std::runtime_error("error");
+        }
     }
   }
-
-  assert([&]() ->bool{
-           for(const NodePtr& n:replanned_path->getNodes())
-           {
-             if(n->getParentConnectionsSize()!=1)
-             {
-               for(const NodePtr& nn:replanned_path->getNodes())
-               {
-                 ROS_INFO_STREAM(nn<<" "<<*nn);
-               }
-               ROS_INFO_STREAM(*replanned_path);
-
-               return false;
-             }
-           }
-           return true;
-         }());
 
   if(replanner->replanNodeIsANewNode() && ((node_replan->getConfiguration()-configuration).norm()>TOLERANCE) && node_replan != old_current_node_)
   {
@@ -370,36 +414,7 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
            }
            return true;
          }());
-
-  assert([&]() ->bool{
-           for(const NodePtr& n:replanned_path->getNodes())
-           {
-             if(n->getParentConnectionsSize()!=1)
-             {
-               for(const NodePtr& nn:replanned_path->getNodes())
-               {
-                 ROS_INFO_STREAM(nn<<" "<<*nn);
-               }
-               ROS_INFO_STREAM(*replanned_path);
-
-               return false;
-             }
-           }
-           return true;
-         }());
-
-  if(old_current_node_ != nullptr)
-  {
-    std::vector<NodePtr> pn = replanned_path->getNodes();
-    if(std::find(pn.begin(),pn.end(),old_current_node_)>=pn.end())
-    {
-      ROS_INFO_STREAM("rp "<<*replanned_path);
-      ROS_INFO_STREAM("old cur node "<<*old_current_node_<<old_current_node_);
-
-      throw std::runtime_error("error");
-    }
   }
-
 }
 
 bool ReplannerManagerMARS::haveToReplan(const bool path_obstructed)
@@ -488,10 +503,7 @@ void ReplannerManagerMARS::initReplanner()
 
   replanner->reverseStartNodes(reverse_start_nodes_);
   replanner->setFullNetSearch(full_net_search_);
-
-  ROS_INFO_STREAM("REPLANNER BEFORE "<<replanner_);
   replanner_ = replanner;
-  ROS_INFO_STREAM("REPLANNER AFTER "<<replanner_);
 
   pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
   replanner_->setDisp(disp);

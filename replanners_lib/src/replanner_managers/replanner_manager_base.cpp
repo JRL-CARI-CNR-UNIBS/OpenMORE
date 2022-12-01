@@ -121,14 +121,15 @@ void ReplannerManagerBase::attributeInitialization()
   stop_                            = false;
   goal_reached_                    = false;
   current_path_sync_needed_        = false;
+  spline_order_                    = 2    ;
   replanning_time_                 = 0.0  ;
   scaling_                         = 1.0  ;
   real_time_                       = 0.0  ;
   t_                               = 0.0  ;
   dt_                              = 1.0/trj_exec_thread_frequency_;
-  replan_offset_                   = dt_replan_*K_OFFSET           ;
-  t_replan_                        = t_+replan_offset_             ;
-  replanning_thread_frequency_     = 100                           ;
+  time_shift_                      = dt_replan_*K_OFFSET           ;
+  t_replan_                        = t_+time_shift_                ;
+  replanning_thread_frequency_     = 100.0                         ;
   global_override_                 = 0.0                           ;
 
   if(group_name_.empty())
@@ -156,8 +157,8 @@ void ReplannerManagerBase::attributeInitialization()
 
   current_path_shared_ = current_path_->clone();
 
-  checker_cc_         = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_cc_,        group_name_,10,checker_resolution_);
-  checker_replanning_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_,group_name_,10,checker_resolution_);
+  checker_cc_         = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_cc_,        group_name_,parallel_checker_n_threads_,checker_resolution_);
+  checker_replanning_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_,group_name_,parallel_checker_n_threads_,checker_resolution_);
   current_path_shared_->setChecker(checker_cc_        );
   current_path_       ->setChecker(checker_replanning_);
   solver_             ->setChecker(checker_replanning_);
@@ -165,10 +166,10 @@ void ReplannerManagerBase::attributeInitialization()
   trajectory_ = std::make_shared<pathplan::Trajectory>(current_path_shared_,nh_,planning_scn_replanning_,group_name_);
   robot_trajectory::RobotTrajectoryPtr trj = trajectory_->fromPath2Trj();
 
-  moveit_msgs::RobotTrajectory tmp_trj_msg;
-  trj->getRobotTrajectoryMsg(tmp_trj_msg) ;
-  interpolator_.setTrajectory(tmp_trj_msg);
-  interpolator_.setSplineOrder(1)         ;
+  moveit_msgs::RobotTrajectory tmp_trj_msg   ;
+  trj->getRobotTrajectoryMsg(tmp_trj_msg)    ;
+  interpolator_.setTrajectory(tmp_trj_msg)   ;
+  interpolator_.setSplineOrder(spline_order_);
 
   double scaling = 1.0;
   read_safe_scaling_? (scaling = readScalingTopics()):
@@ -348,57 +349,49 @@ void ReplannerManagerBase::updateTrajectory()
            return true;
          }());
 
-  trj_path->interpolate(max_distance);
+  trj_path->resample(max_distance);
 
   trajectory_->setPath(trj_path);
   robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
   moveit_msgs::RobotTrajectory tmp_trj_msg;
   trj->getRobotTrajectoryMsg(tmp_trj_msg);
 
-  interpolator_.setTrajectory(tmp_trj_msg);
-  interpolator_.setSplineOrder(1);
-
-  /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ELIMINA <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
-  trajectory_msgs::JointTrajectoryPoint pnt;
-  interpolator_.interpolate(ros::Duration(0.0),pnt);
-
-  if((pnt.positions != pnt_.positions) || (pnt.velocities != pnt_.velocities))
-  {
-    for(unsigned int i=0;i<pnt.positions.size();i++)
-    {
-      ROS_INFO_STREAM("joint "<<i<<" target pos "<<pnt_.positions[i] <<" real pos "<<pnt.positions[i] );
-      ROS_INFO_STREAM("joint "<<i<<" target vel "<<pnt_.velocities[i]<<" real vel "<<pnt.velocities[i]);
-      ROS_INFO("-------");
-    }
-
-    throw std::runtime_error("pos or velocities not equal");
-  }
-
-  /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>       <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
+  interpolator_.setTrajectory(tmp_trj_msg)   ;
+  interpolator_.setSplineOrder(spline_order_);
 }
 
 void ReplannerManagerBase::replanningThread()
 {
   ros::Rate lp(replanning_thread_frequency_);
-  ros::WallTime tic,tic_rep,toc_rep;
+  ros::WallTime tic,tic_rep,toc_rep,tic_lc;
+
+  ros::WallTime tic1;
+  double time1, time13, time14, time15, time2, time3, time4;
 
   PathPtr path2project_on;
   Eigen::VectorXd current_configuration;
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
 
+  int lost_cycles;
   bool success = false;
   bool path_changed = false;
   bool path_obstructed = true;
   double replanning_duration = 0.0;
+  double abscissa_current_configuration, abscissa_replan_configuration;
   Eigen::VectorXd projection = configuration_replan_;
-  Eigen::VectorXd past_configuration_replan = projection;
+  Eigen::VectorXd past_projection = configuration_replan_;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
+
+  std::list<double> replan_abs;
 
   while((not stop_) && ros::ok())
   {
     tic = ros::WallTime::now();
 
     trj_mtx_.lock();
+    t_used_ = t_; //elimnina
+    t_replan_used_ = t_replan_; //elimina
+
     interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_,scaling_);
     for(unsigned int i=0; i<pnt_replan_.positions.size();i++)
       point2project(i) = pnt_replan_.positions.at(i);
@@ -412,20 +405,63 @@ void ReplannerManagerBase::replanningThread()
       path2project_on = current_path_shared_->clone();
       paths_mtx_.unlock();
 
-      projection = path2project_on->projectOnPath(point2project,past_configuration_replan,false);
-      past_configuration_replan = projection;
+      projection = path2project_on->projectOnPath(point2project,past_projection,false);
+      past_projection = projection;
 
       if(not path2project_on->findConnection(projection))
-        throw std::runtime_error("nn");
+        throw std::runtime_error("projection is wrong");
+
+      abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(projection);
+      abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration);
+
+      if(abscissa_replan_configuration<=abscissa_current_configuration)
+      {
+        projection = path2project_on->pointOnCurvilinearAbscissa(abscissa_current_configuration+0.005);  //5% step forward
+        //ROS_BOLDGREEN_STREAM("5% FORWARD "<<abscissa_current_configuration+0.005<<"\n abs_cc "<<abscissa_current_configuration<<"\n abs_r "<<abscissa_replan_configuration);
+      }
+
+      // elimina ///////////////////////////////////////////////////////////////////////////
+      double abs_cc, abs_r;
+      abs_cc = current_path_shared_->curvilinearAbscissaOfPoint(current_configuration);
+      abs_r = current_path_shared_->curvilinearAbscissaOfPoint(projection);
+
+      replan_abs.push_back(abs_r);
+      if(replan_abs.size()>20)
+        replan_abs.pop_front();
+
+      time1 = (ros::WallTime::now()-tic).toSec();
+      tic1 = ros::WallTime::now();
+      // ///////////////////////////////////////////////////////////////////////////////////
 
       replanner_mtx_.lock();
       configuration_replan_ = projection;
       replanner_mtx_.unlock();
 
+      // ////elimina/////////////////////////////////////////////////////////////////////////
+      time13 = (ros::WallTime::now()-tic1).toSec();
+      tic1 = ros::WallTime::now();
+      // ///////////////////////////////////////////////////////////////////////////////////
+
       scene_mtx_.lock();
+
+      tic1 = ros::WallTime::now();//elimina
+
       checker_replanning_->setPlanningSceneMsg(planning_scene_msg_);
+
+      // ////elimina/////////////////////////////////////////////////////////////////////////
+      time14 = (ros::WallTime::now()-tic1).toSec();
+      tic1 = ros::WallTime::now();
+      // ///////////////////////////////////////////////////////////////////////////////////
+
       syncPathCost();
+
+      // ////elimina/////////////////////////////////////////////////////////////////////////
+      time15 = (ros::WallTime::now()-tic1).toSec();
+      tic1 = ros::WallTime::now();
+      // ///////////////////////////////////////////////////////////////////////////////////
+
       scene_mtx_.unlock();
+
 
       replanner_mtx_.lock();
       if(not (current_path_->findConnection(configuration_replan_)))
@@ -446,6 +482,11 @@ void ReplannerManagerBase::replanningThread()
       success = false;
       path_changed = false;
       replanning_duration = 0.0;
+
+      // ////elimina/////////////////////////////////////////////////////////////////////////
+      time2 = (ros::WallTime::now()-tic1).toSec();
+      tic1 = ros::WallTime::now();
+      // ///////////////////////////////////////////////////////////////////////////////////
 
       if(haveToReplan(path_obstructed))
       {
@@ -471,26 +512,54 @@ void ReplannerManagerBase::replanningThread()
       if(display_replanning_success_)
         ROS_BOLDWHITE_STREAM("Success: "<< success <<" in "<< replanning_duration <<" seconds");
 
+      // ////elimina/////////////////////////////////////////////////////////////////////////
+      time3 = (ros::WallTime::now()-tic1).toSec();
+      tic1 = ros::WallTime::now();
+      // ///////////////////////////////////////////////////////////////////////////////////
+
       if(path_changed && (not stop_))
       {
         replanner_mtx_.lock();
         trj_mtx_.lock();
 
+        tic_lc = ros::WallTime::now();
         startReplannedPathFromNewCurrentConf(current_configuration_);
+
+        // ////elimina/////////////////////////////////////////////////////////////////////////
+        time4 = (ros::WallTime::now()-tic1).toSec();
+        tic1 = ros::WallTime::now();
+        // ///////////////////////////////////////////////////////////////////////////////////
 
         current_path_ = replanner_->getReplannedPath();
         replanner_->setCurrentPath(current_path_);
+
+        updateTrajectory();
+
+        // elimina ///////////////////////////////////////////////////////////////////////////
+        double new_abs_cc;
+        new_abs_cc = current_path_shared_->curvilinearAbscissaOfPoint(current_configuration_);
+
+        ROS_BOLDCYAN_STREAM("\nabs_cc "<<abs_cc<<" new_abs_cc "<<new_abs_cc<<" abs_r "<<abs_r<<"\n t_used_ "<<t_used_<<" t_ "<<t_<<" t_update "<<lost_cycles*scaling_*dt_<<"\n t_replan_used "<<t_replan_used_<<" time cycle "<<(ros::WallTime::now()-tic).toSec()
+                            <<"\ntime1 "<<time1<<" time13 "<<time13<<" time14 "<<time14<<" time15 "<<time15<<" time2 "<<time2<<" time3 "<<time3<<" time4 "<<time4<<" time5 "<<(ros::WallTime::now()-tic1).toSec()<<" tot "<<time1+time13+time14+time15+time2+time3+time4+(ros::WallTime::now()-tic1).toSec());
+        if(new_abs_cc > abs_r)
+        {
+          for(auto const &i: replan_abs)
+              ROS_INFO_STREAM(i);
+
+          throw std::runtime_error("abs");
+        }
+        // ///////////////////////////////////////////////////////////////////////////////////
 
         paths_mtx_.lock();
         updateSharedPath();
         paths_mtx_.unlock();
 
-        updateTrajectory();
+        past_projection = current_configuration_;
 
-        past_configuration_replan = current_configuration_;
+        lost_cycles = std::round((ros::WallTime::now()-tic_lc).toSec()/dt_);
 
-        t_=0.0;
-        t_replan_=t_+replan_offset_*scaling_;
+        t_ = lost_cycles*scaling_*dt_;           //VERIFICA (E ANCHE COME CALCOLI LA TRAIETTORIA)
+        t_replan_ = t_+time_shift_*scaling_;
 
         trj_mtx_.unlock();
         replanner_mtx_.unlock();
@@ -538,6 +607,7 @@ void ReplannerManagerBase::collisionCheckThread()
     scene_mtx_.lock();
     checker_cc_->setPlanningSceneMsg(ps_srv.response.scene);
     scene_mtx_.unlock();
+
 
     trj_mtx_.lock();
 
@@ -694,7 +764,7 @@ void ReplannerManagerBase::trajectoryExecutionThread()
                         (scaling_ = scaling_from_param_);
 
     t_+= scaling_*dt_;
-    t_replan_ = t_+replan_offset_*scaling_;
+    t_replan_ = t_+time_shift_*scaling_;
 
     interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling_);
     interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,     1.0);
@@ -709,16 +779,19 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
     current_configuration_ = path2project_on->projectOnPath(point2project,current_configuration_,false);
 
-    if(path2project_on->findConnection(configuration_replan,conn_idx))
-    {
-      abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(configuration_replan,conn_idx);
-      abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration_);
-      if(abscissa_current_configuration>abscissa_replan_configuration) //the current confgiruation must not surpass that of replanning
-      {
-        current_configuration_ = configuration_replan;
-        ROS_BOLDRED_STREAM("current front ahead of replan conf, abscissa diff "<<(abscissa_current_configuration-abscissa_replan_configuration));
-      }
-    }
+    //    if(path2project_on->findConnection(configuration_replan,conn_idx))
+    //    {
+    //      abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(configuration_replan,conn_idx);
+    //      abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration_);
+    //      if(abscissa_current_configuration>=abscissa_replan_configuration) //the current confgiruation must not surpass that of replanning
+    //      {
+    //        ROS_BOLDRED_STREAM("\ncurrent front ahead of replan conf, abs current "<<
+    //                           abscissa_current_configuration<<" abscissa replan "<<abscissa_replan_configuration
+    //                           <<" abscissa diff "<<(abscissa_current_configuration-abscissa_replan_configuration)
+    //                           <<"\ntime current conf "<<t_<<" time used "<<t_used_
+    //                           <<"\nt replan used "<<t_replan_used_<< " time_shift "<< time_shift_);
+    //      }
+    //    }
 
     trj_mtx_.unlock();
 
@@ -976,7 +1049,7 @@ void ReplannerManagerBase::benchmarkThread()
   paths_mtx_.lock();
   Eigen::VectorXd start = current_path_shared_->getStartNode()->getConfiguration();
   Eigen::VectorXd goal  = current_path_shared_->getGoalNode ()->getConfiguration();
-  double initial_path_length = current_path_shared_->length();
+  double initial_path_length = current_path_shared_->computeEuclideanNorm();
   paths_mtx_.unlock();
 
   Eigen::VectorXd goal_3d = forwardIk(goal,last_link,moveit_utils);
@@ -1216,4 +1289,43 @@ Eigen::Vector3d ReplannerManagerBase::forwardIk(const Eigen::VectorXd& conf, con
 
   return position;
 }
+
+void ReplannerManagerBase::displayTrj()
+{
+  planning_scene::PlanningScenePtr planning_scene = planning_scene::PlanningScene::clone(planning_scn_cc_);
+  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_);
+
+  robot_trajectory::RobotTrajectoryPtr trj = trajectory_->getTrj();
+  moveit_msgs::RobotTrajectory tmp_trj_msg;
+  trj->getRobotTrajectoryMsg(tmp_trj_msg);
+
+  trajectory_processing::SplineInterpolator interpolator;
+  interpolator.setTrajectory(tmp_trj_msg)   ;
+  interpolator.setSplineOrder(spline_order_);
+
+  double t=0;
+  double t_max = interpolator.trjTime().toSec();
+
+  NodePtr node;
+  std::vector<NodePtr> nodes;
+  trajectory_msgs::JointTrajectoryPoint pnt;
+
+  while(t<t_max)
+  {
+    interpolator.interpolate(ros::Duration(t),pnt,scaling_);
+
+    Eigen::VectorXd conf(pnt.positions.size());
+    for(unsigned int i=0; i<pnt.positions.size();i++)
+      conf(i) = pnt.positions.at(i);
+
+    node = std::make_shared<Node>(conf);
+    nodes.push_back(node);
+
+    t+=0.001;
+  }
+
+  PathPtr path = std::make_shared<Path>(nodes,current_path_shared_->getMetrics(),current_path_shared_->getChecker());
+  disp->displayPath(path,"pathplan",{0,1,0,1});
+}
+
 }
