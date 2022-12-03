@@ -365,55 +365,55 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
 
           throw std::runtime_error("error");
         }
-    }
-  }
-
-  if(replanner->replanNodeIsANewNode() && ((node_replan->getConfiguration()-configuration).norm()>TOLERANCE) && node_replan != old_current_node_)
-  {
-    ConnectionPtr restored_conn;
-    if(replanned_path->removeNode(node_replan,{},restored_conn))
-    {
-      std::vector<PathPtr> paths = other_paths_;
-      paths.push_back(current_path);
-
-      for(PathPtr& p:paths)
-      {
-        assert(p->getTree() != nullptr);
-        p->restoreConnection(restored_conn,node_replan);
-
-        assert(not tree->isInTree(node_replan));
-        assert([&]()->bool{
-                 std::vector<NodePtr> p_nodes = p->getNodes();
-                 if(std::find(p_nodes.begin(),p_nodes.end(),node_replan)<p_nodes.end())
-                 {
-                   ROS_INFO_STREAM("other path: "<<*p);
-                   return false;
-                 }
-                 else
-                 {
-                   return true;
-                 }}());
-
       }
     }
-  }
 
-  assert([&]() ->bool{
-           for(const NodePtr& n:replanned_path->getNodes())
-           {
-             if(n->getParentConnectionsSize()!=1)
+    if(replanner->replanNodeIsANewNode() && ((node_replan->getConfiguration()-configuration).norm()>TOLERANCE) && node_replan != old_current_node_)
+    {
+      ConnectionPtr restored_conn;
+      if(replanned_path->removeNode(node_replan,{},restored_conn))
+      {
+        std::vector<PathPtr> paths = other_paths_;
+        paths.push_back(current_path);
+
+        for(PathPtr& p:paths)
+        {
+          assert(p->getTree() != nullptr);
+          p->restoreConnection(restored_conn,node_replan);
+
+          assert(not tree->isInTree(node_replan));
+          assert([&]()->bool{
+                   std::vector<NodePtr> p_nodes = p->getNodes();
+                   if(std::find(p_nodes.begin(),p_nodes.end(),node_replan)<p_nodes.end())
+                   {
+                     ROS_INFO_STREAM("other path: "<<*p);
+                     return false;
+                   }
+                   else
+                   {
+                     return true;
+                   }}());
+
+        }
+      }
+    }
+
+    assert([&]() ->bool{
+             for(const NodePtr& n:replanned_path->getNodes())
              {
-               for(const NodePtr& nn:replanned_path->getNodes())
+               if(n->getParentConnectionsSize()!=1)
                {
-                 ROS_INFO_STREAM(nn<<" "<<*nn);
-               }
-               ROS_INFO_STREAM(*replanned_path);
+                 for(const NodePtr& nn:replanned_path->getNodes())
+                 {
+                   ROS_INFO_STREAM(nn<<" "<<*nn);
+                 }
+                 ROS_INFO_STREAM(*replanned_path);
 
-               return false;
+                 return false;
+               }
              }
-           }
-           return true;
-         }());
+             return true;
+           }());
   }
 }
 
@@ -638,10 +638,11 @@ void ReplannerManagerMARS::collisionCheckThread()
     /* Update the cost of the paths */
     scene_mtx_.lock();
     updatePathsCost(current_path_copy,other_paths_copy);
-    planning_scene_msg_ = ps_srv.response.scene;
-    planning_scene_diff_msg_ = planning_scene_msg;
-//    ROS_BOLDRED_STREAM(planning_scene_msg_);
-//    ROS_BOLDCYAN_STREAM(planning_scene_diff_msg_);
+    planning_scene_msg_.world = ps_srv.response.scene.world;  //not diff,it contains all pln scn info but only world is updated
+    planning_scene_diff_msg_ = planning_scene_msg;            //diff, contains only world
+
+    ROS_BOLDRED_STREAM(planning_scene_msg_);
+    ROS_BOLDCYAN_STREAM(planning_scene_diff_msg_);
 
     scene_mtx_.unlock();
 
