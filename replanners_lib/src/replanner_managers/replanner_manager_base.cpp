@@ -137,19 +137,25 @@ void ReplannerManagerBase::attributeInitialization()
 
   robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
   robot_model::RobotModelPtr kinematic_model = robot_model_loader.getModel();
-  planning_scn_cc_         = std::make_shared<planning_scene::PlanningScene>(kinematic_model);
-  planning_scn_replanning_ = std::make_shared<planning_scene::PlanningScene>(kinematic_model);
 
   moveit_msgs::GetPlanningScene ps_srv;
   if(not plannning_scene_client_.call(ps_srv))
     throw std::runtime_error("call to planning scene srv not ok");
 
-  planning_scene_msg_ = ps_srv.response.scene;
+  planning_scn_cc_ = std::make_shared<planning_scene::PlanningScene>(kinematic_model);
+  if (not planning_scn_cc_->setPlanningSceneMsg(ps_srv.response.scene))
+    throw std::runtime_error("unable to update planning scene");
+  planning_scn_replanning_ = planning_scn_cc_->diff();
 
-  if (not planning_scn_cc_        ->setPlanningSceneMsg(planning_scene_msg_))
-    throw std::runtime_error("unable to update planning scene");
-  if (not planning_scn_replanning_->setPlanningSceneMsg(planning_scene_msg_))
-    throw std::runtime_error("unable to update planning scene");
+  planning_scene_msg_              = ps_srv.response.scene;
+  planning_scene_diff_msg_.is_diff = true;
+  planning_scene_diff_msg_.world   = ps_srv.response.scene.world;
+
+  ROS_BOLDRED_STREAM(planning_scene_msg_);
+  ROS_BOLDCYAN_STREAM(planning_scene_diff_msg_);
+
+  throw std::runtime_error("aaaaa");
+
 
   robot_state::RobotState state(planning_scn_cc_->getCurrentState());
   const robot_state::JointModelGroup* joint_model_group = state.getJointModelGroup(group_name_);
@@ -159,6 +165,7 @@ void ReplannerManagerBase::attributeInitialization()
 
   checker_cc_         = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_cc_,        group_name_,parallel_checker_n_threads_,checker_resolution_);
   checker_replanning_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_,group_name_,parallel_checker_n_threads_,checker_resolution_);
+
   current_path_shared_->setChecker(checker_cc_        );
   current_path_       ->setChecker(checker_replanning_);
   solver_             ->setChecker(checker_replanning_);
@@ -366,7 +373,7 @@ void ReplannerManagerBase::replanningThread()
   ros::WallTime tic,tic_rep,toc_rep,tic_lc;
 
   ros::WallTime tic1;
-  double time1, time13, time14, time15, time2, time3, time4;
+  double time_update_pln_scn;
 
   PathPtr path2project_on;
   Eigen::VectorXd current_configuration;
@@ -415,10 +422,7 @@ void ReplannerManagerBase::replanningThread()
       abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration);
 
       if(abscissa_replan_configuration<=abscissa_current_configuration)
-      {
         projection = path2project_on->pointOnCurvilinearAbscissa(abscissa_current_configuration+0.005);  //5% step forward
-        //ROS_BOLDGREEN_STREAM("5% FORWARD "<<abscissa_current_configuration+0.005<<"\n abs_cc "<<abscissa_current_configuration<<"\n abs_r "<<abscissa_replan_configuration);
-      }
 
       // elimina ///////////////////////////////////////////////////////////////////////////
       double abs_cc, abs_r;
@@ -428,37 +432,27 @@ void ReplannerManagerBase::replanningThread()
       replan_abs.push_back(abs_r);
       if(replan_abs.size()>20)
         replan_abs.pop_front();
-
-      time1 = (ros::WallTime::now()-tic).toSec();
-      tic1 = ros::WallTime::now();
       // ///////////////////////////////////////////////////////////////////////////////////
 
       replanner_mtx_.lock();
       configuration_replan_ = projection;
       replanner_mtx_.unlock();
 
-      // ////elimina/////////////////////////////////////////////////////////////////////////
-      time13 = (ros::WallTime::now()-tic1).toSec();
-      tic1 = ros::WallTime::now();
-      // ///////////////////////////////////////////////////////////////////////////////////
-
       scene_mtx_.lock();
 
+      // ////elimina/////////////////////////////////////////////////////////////////////////
       tic1 = ros::WallTime::now();//elimina
 
-      checker_replanning_->setPlanningSceneMsg(planning_scene_msg_);
+      checker_replanning_->setVerbose(true);
+      //      planning_scene_msg.world = planning_scene_msg_.world;
+      //      checker_replanning_->setPlanningSceneMsg(planning_scene_msg);
 
-      // ////elimina/////////////////////////////////////////////////////////////////////////
-      time14 = (ros::WallTime::now()-tic1).toSec();
-      tic1 = ros::WallTime::now();
+      checker_replanning_->setPlanningSceneMsg(planning_scene_diff_msg_);
+
+      time_update_pln_scn = (ros::WallTime::now()-tic1).toSec();
       // ///////////////////////////////////////////////////////////////////////////////////
 
       syncPathCost();
-
-      // ////elimina/////////////////////////////////////////////////////////////////////////
-      time15 = (ros::WallTime::now()-tic1).toSec();
-      tic1 = ros::WallTime::now();
-      // ///////////////////////////////////////////////////////////////////////////////////
 
       scene_mtx_.unlock();
 
@@ -482,11 +476,6 @@ void ReplannerManagerBase::replanningThread()
       success = false;
       path_changed = false;
       replanning_duration = 0.0;
-
-      // ////elimina/////////////////////////////////////////////////////////////////////////
-      time2 = (ros::WallTime::now()-tic1).toSec();
-      tic1 = ros::WallTime::now();
-      // ///////////////////////////////////////////////////////////////////////////////////
 
       if(haveToReplan(path_obstructed))
       {
@@ -512,11 +501,6 @@ void ReplannerManagerBase::replanningThread()
       if(display_replanning_success_)
         ROS_BOLDWHITE_STREAM("Success: "<< success <<" in "<< replanning_duration <<" seconds");
 
-      // ////elimina/////////////////////////////////////////////////////////////////////////
-      time3 = (ros::WallTime::now()-tic1).toSec();
-      tic1 = ros::WallTime::now();
-      // ///////////////////////////////////////////////////////////////////////////////////
-
       if(path_changed && (not stop_))
       {
         replanner_mtx_.lock();
@@ -524,11 +508,6 @@ void ReplannerManagerBase::replanningThread()
 
         tic_lc = ros::WallTime::now();
         startReplannedPathFromNewCurrentConf(current_configuration_);
-
-        // ////elimina/////////////////////////////////////////////////////////////////////////
-        time4 = (ros::WallTime::now()-tic1).toSec();
-        tic1 = ros::WallTime::now();
-        // ///////////////////////////////////////////////////////////////////////////////////
 
         current_path_ = replanner_->getReplannedPath();
         replanner_->setCurrentPath(current_path_);
@@ -540,13 +519,13 @@ void ReplannerManagerBase::replanningThread()
         new_abs_cc = current_path_shared_->curvilinearAbscissaOfPoint(current_configuration_);
 
         ROS_BOLDCYAN_STREAM("\nabs_cc "<<abs_cc<<" new_abs_cc "<<new_abs_cc<<" abs_r "<<abs_r<<"\n t_used_ "<<t_used_<<" t_ "<<t_<<" t_update "<<lost_cycles*scaling_*dt_<<"\n t_replan_used "<<t_replan_used_<<" time cycle "<<(ros::WallTime::now()-tic).toSec()
-                            <<"\ntime1 "<<time1<<" time13 "<<time13<<" time14 "<<time14<<" time15 "<<time15<<" time2 "<<time2<<" time3 "<<time3<<" time4 "<<time4<<" time5 "<<(ros::WallTime::now()-tic1).toSec()<<" tot "<<time1+time13+time14+time15+time2+time3+time4+(ros::WallTime::now()-tic1).toSec());
-        if(new_abs_cc > abs_r)
+                            <<"time pln scn "<<time_update_pln_scn);
+        if(t_ > t_replan_used_)
         {
           for(auto const &i: replan_abs)
-              ROS_INFO_STREAM(i);
+            ROS_INFO_STREAM(i);
 
-          throw std::runtime_error("abs");
+//          throw std::runtime_error("abs");
         }
         // ///////////////////////////////////////////////////////////////////////////////////
 
@@ -592,10 +571,14 @@ void ReplannerManagerBase::collisionCheckThread()
   ros::Rate lp(collision_checker_thread_frequency_);
   ros::WallTime tic;
 
+  moveit_msgs::PlanningScene planning_scene_msg;
+
   while ((not stop_) && ros::ok())
   {
     tic = ros::WallTime::now();
 
+    /* Update planning scene */
+    ps_srv.request.components.components = moveit_msgs::PlanningSceneComponents::WORLD_OBJECT_GEOMETRY; //only obstacles information
     if(not plannning_scene_client_.call(ps_srv))
     {
       ROS_ERROR("call to srv not ok");
@@ -605,9 +588,10 @@ void ReplannerManagerBase::collisionCheckThread()
     }
 
     scene_mtx_.lock();
-    checker_cc_->setPlanningSceneMsg(ps_srv.response.scene);
+    planning_scene_msg.world = ps_srv.response.scene.world;
+    planning_scene_msg.is_diff = true;
+    checker_cc_->setPlanningSceneMsg(planning_scene_msg);
     scene_mtx_.unlock();
-
 
     trj_mtx_.lock();
 
@@ -639,6 +623,7 @@ void ReplannerManagerBase::collisionCheckThread()
     scene_mtx_.lock();
     updatePathCost(current_path_copy);
     planning_scene_msg_ = ps_srv.response.scene;
+    planning_scene_diff_msg_ = planning_scene_msg;
     scene_mtx_.unlock();
 
     ros::WallTime toc=ros::WallTime::now();
@@ -1088,6 +1073,8 @@ void ReplannerManagerBase::benchmarkThread()
   double freq = 2*trj_exec_thread_frequency_;
   ros::Rate lp(freq);
 
+  moveit_msgs::PlanningScene planning_scene_msg = planning_scene_msg_;
+
   while((not stop_) && ros::ok())
   {
     tic = ros::WallTime::now();
@@ -1148,7 +1135,8 @@ void ReplannerManagerBase::benchmarkThread()
         it = std::find(already_collided_obj.begin(),already_collided_obj.end(),obj_ids[i]);
 
         scene_mtx_.lock();
-        checker->setPlanningSceneMsg(planning_scene_msg_);
+        planning_scene_msg.world = planning_scene_msg_.world;
+        checker->setPlanningSceneMsg(planning_scene_msg);
         scene_mtx_.unlock();
 
         if(checker->check(current_configuration))

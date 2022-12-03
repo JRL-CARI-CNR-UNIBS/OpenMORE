@@ -85,6 +85,8 @@ protected:
   sensor_msgs::JointState                   new_joint_state_unscaled_;
   sensor_msgs::JointState                   new_joint_state_         ;
   moveit_msgs::PlanningScene                planning_scene_msg_      ;
+  moveit_msgs::PlanningScene                planning_scene_diff_msg_ ;
+
 
   std::string obj_type_                ;
   std::vector<double> spawn_instants_  ;

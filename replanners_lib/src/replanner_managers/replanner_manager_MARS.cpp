@@ -539,6 +539,8 @@ void ReplannerManagerMARS::collisionCheckThread()
 
   int other_path_size = other_paths_copy.size();
 
+  moveit_msgs::PlanningScene planning_scene_msg;
+
   ros::Rate lp(collision_checker_thread_frequency_);
   ros::WallTime tic;
 
@@ -547,6 +549,7 @@ void ReplannerManagerMARS::collisionCheckThread()
     tic = ros::WallTime::now();
 
     /* Update planning scene */
+    ps_srv.request.components.components = moveit_msgs::PlanningSceneComponents::WORLD_OBJECT_GEOMETRY; //only obstacles information
     if(not plannning_scene_client_.call(ps_srv))
     {
       ROS_ERROR("call to srv not ok");
@@ -555,18 +558,19 @@ void ReplannerManagerMARS::collisionCheckThread()
     }
 
     scene_mtx_.lock();
-    checker_cc_->setPlanningSceneMsg(ps_srv.response.scene);
+    planning_scene_msg.world = ps_srv.response.scene.world;
+    planning_scene_msg.is_diff = true;
+
+    checker_cc_->setPlanningSceneMsg(planning_scene_msg);
     for(const CollisionCheckerPtr& checker: checkers)
-      checker->setPlanningSceneMsg(ps_srv.response.scene);
+      checker->setPlanningSceneMsg(planning_scene_msg);
     scene_mtx_.unlock();
 
     /* Update paths if they have been changed */
-    //    replanner_mtx_.lock();
     trj_mtx_.lock();
     paths_mtx_.lock();
 
     current_configuration_copy = current_configuration_;
-    //    current_configuration_copy = configuration_replan_;
 
     if(current_path_sync_needed_)
     {
@@ -603,7 +607,6 @@ void ReplannerManagerMARS::collisionCheckThread()
     other_paths_mtx_.unlock();
     paths_mtx_.unlock();
     trj_mtx_.unlock();
-    //    replanner_mtx_.unlock();
 
     if((current_configuration_copy-replanner_->getGoal()->getConfiguration()).norm()<goal_tol_)
     {
@@ -636,6 +639,10 @@ void ReplannerManagerMARS::collisionCheckThread()
     scene_mtx_.lock();
     updatePathsCost(current_path_copy,other_paths_copy);
     planning_scene_msg_ = ps_srv.response.scene;
+    planning_scene_diff_msg_ = planning_scene_msg;
+//    ROS_BOLDRED_STREAM(planning_scene_msg_);
+//    ROS_BOLDCYAN_STREAM(planning_scene_diff_msg_);
+
     scene_mtx_.unlock();
 
     double duration = (ros::WallTime::now()-tic).toSec();
