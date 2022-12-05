@@ -539,10 +539,10 @@ void ReplannerManagerMARS::collisionCheckThread()
 
   int other_path_size = other_paths_copy.size();
 
-  moveit_msgs::PlanningScene planning_scene_msg;
-
   ros::Rate lp(collision_checker_thread_frequency_);
   ros::WallTime tic;
+
+  moveit_msgs::PlanningScene planning_scene_msg;
 
   while((not stop_) && ros::ok())
   {

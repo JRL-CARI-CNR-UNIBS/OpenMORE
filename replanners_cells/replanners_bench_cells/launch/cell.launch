@@ -13,11 +13,11 @@
  <!--move_group.launch -->
   <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
       <rosparam param="source_list">[move_group/fake_controller_joint_states, /joint_target]</rosparam>
-      <rosparam param="rate">500</rosparam>
+      <!-- <rosparam param="rate">500</rosparam> -->
   </node>
 
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" respawn="true" output="screen">
-    <rosparam param="publish_frequency">500</rosparam>
+    <!-- <rosparam param="publish_frequency">500</rosparam> -->
   </node>
 
   <include file="$(eval find(arg('demo_package')) + '/launch/move_group.launch')">
@@ -31,7 +31,7 @@
   </include>
 
   <include file="$(eval find(arg('demo_package')) + '/launch/moveit_rviz.launch')">
-    <arg name="rviz_config" value="$(dirname)/moveit.rviz"/>
+    <arg name="rviz_config" value="$(eval find(arg('demo_package')) + '/launch/moveit.rviz')"/>
     <arg name="debug" value="false"/>
   </include>
 </launch>

@@ -151,9 +151,6 @@ void ReplannerManagerBase::attributeInitialization()
   planning_scene_diff_msg_.is_diff = true;
   planning_scene_diff_msg_.world   = ps_srv.response.scene.world;
 
-  ROS_BOLDRED_STREAM(planning_scene_msg_);
-  ROS_BOLDCYAN_STREAM(planning_scene_diff_msg_);
-
   robot_state::RobotState state(planning_scn_cc_->getCurrentState());
   const robot_state::JointModelGroup* joint_model_group = state.getJointModelGroup(group_name_);
   std::vector<std::string> joint_names = joint_model_group->getActiveJointModelNames();
@@ -449,6 +446,7 @@ void ReplannerManagerBase::replanningThread()
       checker_replanning_->setPlanningSceneMsg(planning_scene_diff_msg_);
 
       time_update_pln_scn = (ros::WallTime::now()-tic1).toSec();
+
       // ///////////////////////////////////////////////////////////////////////////////////
 
       syncPathCost();
@@ -519,6 +517,10 @@ void ReplannerManagerBase::replanningThread()
 
         ROS_BOLDCYAN_STREAM("\nabs_cc "<<abs_cc<<" new_abs_cc "<<new_abs_cc<<" abs_r "<<abs_r<<"\n t_used_ "<<t_used_<<" t_ "<<t_<<" t_update "<<lost_cycles*scaling_*dt_<<"\n t_replan_used "<<t_replan_used_<<" time cycle "<<(ros::WallTime::now()-tic).toSec()
                             <<"time pln scn "<<time_update_pln_scn);
+
+        if(time_update_pln_scn>0.01)
+          throw std::runtime_error("t pln scn");
+
         if(t_ > t_replan_used_)
         {
           for(auto const &i: replan_abs)
