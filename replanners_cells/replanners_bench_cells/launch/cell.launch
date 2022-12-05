@@ -27,7 +27,7 @@
   </include>
 
   <include file="$(eval find(arg('demo_package')) + '/launch/moveit_rviz.launch')">
-    <arg name="rviz_config" value="$(dirname)/moveit.rviz"/>
+    <arg name="rviz_config" value="$(eval find(arg('demo_package')) + '/launch/moveit.rviz')"/>
     <arg name="debug" value="false"/>
   </include>
 </launch>
