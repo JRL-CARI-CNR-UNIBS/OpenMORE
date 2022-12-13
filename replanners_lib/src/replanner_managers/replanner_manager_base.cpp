@@ -363,16 +363,12 @@ void ReplannerManagerBase::updateTrajectory()
 void ReplannerManagerBase::replanningThread()
 {
   ros::Rate lp(replanning_thread_frequency_);
-  ros::WallTime tic,toc,tic_rep,toc_rep,tic_lc;
-
-  ros::WallTime tic1;
-  double time_update_pln_scn;
+  ros::WallTime tic,toc,tic_rep,toc_rep;
 
   PathPtr path2project_on;
   Eigen::VectorXd current_configuration;
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
 
-  int lost_cycles;
   int n_size_before;
   bool success = false;
   bool path_changed = false;
@@ -389,8 +385,6 @@ void ReplannerManagerBase::replanningThread()
     tic = ros::WallTime::now();
 
     trj_mtx_.lock();
-    t_used_ = t_; //elimnina
-    t_replan_used_ = t_replan_; //elimina
 
     interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_,scaling_);
     for(unsigned int i=0; i<pnt_replan_.positions.size();i++)
@@ -422,17 +416,9 @@ void ReplannerManagerBase::replanningThread()
       replanner_mtx_.unlock();
 
       scene_mtx_.lock();
-
-      // ////elimina/////////////////////////////////////////////////////////////////////////
-      tic1 = ros::WallTime::now();//elimina
       checker_replanning_->setPlanningSceneMsg(planning_scene_diff_msg_);
-      time_update_pln_scn = (ros::WallTime::now()-tic1).toSec();
-      // ///////////////////////////////////////////////////////////////////////////////////
-
       syncPathCost();
-
       scene_mtx_.unlock();
-
 
       replanner_mtx_.lock();
       if(not (current_path_->findConnection(configuration_replan_)))
@@ -483,15 +469,12 @@ void ReplannerManagerBase::replanningThread()
         replanner_mtx_.lock();
         trj_mtx_.lock();
 
-        tic_lc = ros::WallTime::now();
         startReplannedPathFromNewCurrentConf(current_configuration_);
 
         current_path_ = replanner_->getReplannedPath();
         replanner_->setCurrentPath(current_path_);
 
-        ros::WallTime tic_trj = ros::WallTime::now();
         updateTrajectory();
-        double time_update_trj = (ros::WallTime::now()-tic_trj).toSec();
 
         paths_mtx_.lock();
         updateSharedPath();
@@ -499,23 +482,7 @@ void ReplannerManagerBase::replanningThread()
 
         past_projection = current_configuration_;
 
-
-        lost_cycles = std::round((ros::WallTime::now()-tic_lc).toSec()/dt_);
-
-        // elimina ///////////////////////////////////////////////////////////////////////////
-
-        ROS_BOLDCYAN_STREAM("\nt_used_ "<<t_used_<<" t_ "<<t_<<" deltaT update trj "<<time_update_trj<<"\n t_replan_used "<<t_replan_used_<<" time cycle "<<(ros::WallTime::now()-tic).toSec()
-                            <<"time pln scn "<<time_update_pln_scn<< " lost cycles "<<lost_cycles);
-
-        // if((ros::WallTime::now()-tic).toSec() > time_shift_*scaling_)
-        // {
-        //   throw std::runtime_error("time");
-        // }
-        // ///////////////////////////////////////////////////////////////////////////////////
-
-
-        //        t_ = 0;
-        t_ = lost_cycles*scaling_*dt_;
+        t_ = 0;
         t_replan_ = t_+time_shift_*scaling_;
 
         trj_mtx_.unlock();
@@ -735,17 +702,6 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     for(unsigned int i=0; i<pnt_.positions.size();i++)
       point2project[i] = pnt_.positions[i];
 
-    for(unsigned int i=0;i<pnt.velocities.size();i++)
-    {
-      if(std::abs(pnt.velocities[i]-pnt_.velocities[i])>0.1)
-      {
-        ROS_INFO_STREAM("pnt "<<pnt_<<"\nold_pnt "<<pnt); //elimina
-        throw std::runtime_error("pnt");
-      }
-    }
-
-
-    pnt = pnt_; //elimina
 
     paths_mtx_.lock();
     path2project_on = current_path_shared_->clone();
