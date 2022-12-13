@@ -489,7 +489,9 @@ void ReplannerManagerBase::replanningThread()
         current_path_ = replanner_->getReplannedPath();
         replanner_->setCurrentPath(current_path_);
 
+        ros::WallTime tic_trj = ros::WallTime::now();
         updateTrajectory();
+        double time_update_trj = (ros::WallTime::now()-tic_trj).toSec();
 
         paths_mtx_.lock();
         updateSharedPath();
@@ -497,21 +499,22 @@ void ReplannerManagerBase::replanningThread()
 
         past_projection = current_configuration_;
 
-        lost_cycles = std::round((ros::WallTime::now()-tic_lc).toSec()/dt_);
 
+        lost_cycles = std::round((ros::WallTime::now()-tic_lc).toSec()/dt_);
 
         // elimina ///////////////////////////////////////////////////////////////////////////
 
-        ROS_BOLDCYAN_STREAM("\nt_used_ "<<t_used_<<" t_ "<<t_<<" t_update "<<lost_cycles*scaling_*dt_<<"\n t_replan_used "<<t_replan_used_<<" time cycle "<<(ros::WallTime::now()-tic).toSec()
-                            <<"time pln scn "<<time_update_pln_scn);
+        ROS_BOLDCYAN_STREAM("\nt_used_ "<<t_used_<<" t_ "<<t_<<" deltaT update trj "<<time_update_trj<<"\n t_replan_used "<<t_replan_used_<<" time cycle "<<(ros::WallTime::now()-tic).toSec()
+                            <<"time pln scn "<<time_update_pln_scn<< " lost cycles "<<lost_cycles);
 
-        if((ros::WallTime::now()-tic).toSec() > time_shift_*scaling_)
-        {
-          throw std::runtime_error("time");
-        }
+        // if((ros::WallTime::now()-tic).toSec() > time_shift_*scaling_)
+        // {
+        //   throw std::runtime_error("time");
+        // }
         // ///////////////////////////////////////////////////////////////////////////////////
 
 
+        //        t_ = 0;
         t_ = lost_cycles*scaling_*dt_;
         t_replan_ = t_+time_shift_*scaling_;
 
@@ -555,12 +558,14 @@ void ReplannerManagerBase::collisionCheckThread()
 
     /* Update planning scene */
     ps_srv.request.components.components = 20;//moveit_msgs::PlanningSceneComponents::WORLD_OBJECT_GEOMETRY + moveit_msgs::PlanningSceneComponents::ROBOT_STATE_ATTACHED_OBJECTS
+
+    if(not plannning_scene_client_.call(ps_srv))
     {
       ROS_ERROR("call to srv not ok");
-
       stop_ = true;
       break;
     }
+
 
     scene_mtx_.lock();
     planning_scene_msg.world = ps_srv.response.scene.world;
@@ -706,6 +711,9 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   Eigen::VectorXd point2project(pnt_.positions.size());
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
 
+  trajectory_msgs::JointTrajectoryPoint pnt = pnt_; //elimina
+
+
   ros::Rate lp(trj_exec_thread_frequency_);
 
   while((not stop_) && ros::ok())
@@ -726,6 +734,18 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,     1.0);
     for(unsigned int i=0; i<pnt_.positions.size();i++)
       point2project[i] = pnt_.positions[i];
+
+    for(unsigned int i=0;i<pnt.velocities.size();i++)
+    {
+      if(std::abs(pnt.velocities[i]-pnt_.velocities[i])>0.1)
+      {
+        ROS_INFO_STREAM("pnt "<<pnt_<<"\nold_pnt "<<pnt); //elimina
+        throw std::runtime_error("pnt");
+      }
+    }
+
+
+    pnt = pnt_; //elimina
 
     paths_mtx_.lock();
     path2project_on = current_path_shared_->clone();

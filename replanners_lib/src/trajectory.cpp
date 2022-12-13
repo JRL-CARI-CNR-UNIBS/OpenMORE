@@ -180,8 +180,8 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
 
   //Time parametrization
   //trajectory_processing::IterativeSplineParameterization iptp;
-  trajectory_processing::TimeOptimalTrajectoryGeneration iptp;
-//  trajectory_processing::IterativeParabolicTimeParameterization iptp;
+//  trajectory_processing::TimeOptimalTrajectoryGeneration iptp;
+  trajectory_processing::IterativeParabolicTimeParameterization iptp;
 
   iptp.computeTimeStamps(*trj_);
   return trj_;

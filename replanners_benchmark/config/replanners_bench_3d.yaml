@@ -1,6 +1,6 @@
 #TEST CONFIGURATIONS:
 n_query: 20
-n_iter_per_query: 10
+n_iter_per_query: 1
 bench_name: "3d_mid"
 
 #PLANNING CONFIGURATIONS:
@@ -31,10 +31,10 @@ trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 benchmark: true
 spawn_objs: true
-spawn_instants: [1,4,8,12,16,18]
+spawn_instants: [1,3,5,8,11,13]
 obj_type: "red_box"
 obj_max_size: 0.1
-scaling: 0.7
+scaling: 1
 read_safe_scaling: false
 joint_target_topic: "/joint_target"
 unscaled_joint_target_topic: "/unscaled_joint_target"
