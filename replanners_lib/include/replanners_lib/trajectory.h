@@ -13,6 +13,7 @@
 #include <moveit/robot_trajectory/robot_trajectory.h>
 #include <moveit/trajectory_processing/iterative_time_parameterization.h>
 #include <moveit/trajectory_processing/time_optimal_trajectory_generation.h>
+#include <moveit/trajectory_processing/iterative_spline_parameterization.h>
 #include <moveit_planning_helper/spline_interpolator.h>
 #include <replanners_lib/moveit_utils.h>
 

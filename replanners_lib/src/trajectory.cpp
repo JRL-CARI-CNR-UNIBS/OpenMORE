@@ -178,8 +178,9 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
     trj_->addSuffixWayPoint(wp_state_vector.at(j),0.0);
   }
 
-  //  Time parametrization
-  //trajectory_processing::TimeOptimalTrajectoryGeneration iptp;
+  //Time parametrization
+  //trajectory_processing::IterativeSplineParameterization iptp;
+//  trajectory_processing::TimeOptimalTrajectoryGeneration iptp;
   trajectory_processing::IterativeParabolicTimeParameterization iptp;
 
   iptp.computeTimeStamps(*trj_);

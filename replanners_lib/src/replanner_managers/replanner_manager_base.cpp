@@ -121,14 +121,15 @@ void ReplannerManagerBase::attributeInitialization()
   stop_                            = false;
   goal_reached_                    = false;
   current_path_sync_needed_        = false;
+  spline_order_                    = 2    ;
   replanning_time_                 = 0.0  ;
   scaling_                         = 1.0  ;
   real_time_                       = 0.0  ;
   t_                               = 0.0  ;
   dt_                              = 1.0/trj_exec_thread_frequency_;
-  replan_offset_                   = dt_replan_*K_OFFSET           ;
-  t_replan_                        = t_+replan_offset_             ;
-  replanning_thread_frequency_     = 100                           ;
+  time_shift_                      = dt_replan_*K_OFFSET           ;
+  t_replan_                        = t_+time_shift_                ;
+  replanning_thread_frequency_     = 100.0                         ;
   global_override_                 = 0.0                           ;
 
   if(group_name_.empty())
@@ -136,19 +137,19 @@ void ReplannerManagerBase::attributeInitialization()
 
   robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
   robot_model::RobotModelPtr kinematic_model = robot_model_loader.getModel();
-  planning_scn_cc_         = std::make_shared<planning_scene::PlanningScene>(kinematic_model);
-  planning_scn_replanning_ = std::make_shared<planning_scene::PlanningScene>(kinematic_model);
 
   moveit_msgs::GetPlanningScene ps_srv;
   if(not plannning_scene_client_.call(ps_srv))
     throw std::runtime_error("call to planning scene srv not ok");
 
-  planning_scene_msg_ = ps_srv.response.scene;
+  planning_scn_cc_ = std::make_shared<planning_scene::PlanningScene>(kinematic_model);
+  if (not planning_scn_cc_->setPlanningSceneMsg(ps_srv.response.scene))
+    throw std::runtime_error("unable to update planning scene");
+  planning_scn_replanning_ = planning_scn_cc_->diff();
 
-  if (not planning_scn_cc_        ->setPlanningSceneMsg(planning_scene_msg_))
-    throw std::runtime_error("unable to update planning scene");
-  if (not planning_scn_replanning_->setPlanningSceneMsg(planning_scene_msg_))
-    throw std::runtime_error("unable to update planning scene");
+  planning_scene_msg_              = ps_srv.response.scene;
+  planning_scene_diff_msg_.is_diff = true;
+  planning_scene_diff_msg_.world   = ps_srv.response.scene.world;
 
   robot_state::RobotState state(planning_scn_cc_->getCurrentState());
   const robot_state::JointModelGroup* joint_model_group = state.getJointModelGroup(group_name_);
@@ -156,8 +157,9 @@ void ReplannerManagerBase::attributeInitialization()
 
   current_path_shared_ = current_path_->clone();
 
-  checker_cc_         = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_cc_,        group_name_,10,checker_resolution_);
-  checker_replanning_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_,group_name_,10,checker_resolution_);
+  checker_cc_         = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_cc_,        group_name_,parallel_checker_n_threads_,checker_resolution_);
+  checker_replanning_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_,group_name_,parallel_checker_n_threads_,checker_resolution_);
+
   current_path_shared_->setChecker(checker_cc_        );
   current_path_       ->setChecker(checker_replanning_);
   solver_             ->setChecker(checker_replanning_);
@@ -165,10 +167,10 @@ void ReplannerManagerBase::attributeInitialization()
   trajectory_ = std::make_shared<pathplan::Trajectory>(current_path_shared_,nh_,planning_scn_replanning_,group_name_);
   robot_trajectory::RobotTrajectoryPtr trj = trajectory_->fromPath2Trj();
 
-  moveit_msgs::RobotTrajectory tmp_trj_msg;
-  trj->getRobotTrajectoryMsg(tmp_trj_msg) ;
-  interpolator_.setTrajectory(tmp_trj_msg);
-  interpolator_.setSplineOrder(1)         ;
+  moveit_msgs::RobotTrajectory tmp_trj_msg   ;
+  trj->getRobotTrajectoryMsg(tmp_trj_msg)    ;
+  interpolator_.setTrajectory(tmp_trj_msg)   ;
+  interpolator_.setSplineOrder(spline_order_);
 
   double scaling = 1.0;
   read_safe_scaling_? (scaling = readScalingTopics()):
@@ -262,7 +264,6 @@ void ReplannerManagerBase::subscribeTopicsAndServices()
       spawn_objs_ = false;
     }
   }
-
 }
 
 void ReplannerManagerBase::updateSharedPath()
@@ -348,50 +349,39 @@ void ReplannerManagerBase::updateTrajectory()
            return true;
          }());
 
-  trj_path->interpolate(max_distance);
+  trj_path->resample(max_distance);
 
   trajectory_->setPath(trj_path);
   robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
   moveit_msgs::RobotTrajectory tmp_trj_msg;
   trj->getRobotTrajectoryMsg(tmp_trj_msg);
 
-  interpolator_.setTrajectory(tmp_trj_msg);
-  interpolator_.setSplineOrder(1);
-
-  /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> ELIMINA <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
-  trajectory_msgs::JointTrajectoryPoint pnt;
-  interpolator_.interpolate(ros::Duration(0.0),pnt);
-
-  if((pnt.positions != pnt_.positions) || (pnt.velocities != pnt_.velocities))
-  {
-    for(unsigned int i=0;i<pnt.positions.size();i++)
-    {
-      ROS_INFO_STREAM("joint "<<i<<" target pos "<<pnt_.positions[i] <<" real pos "<<pnt.positions[i] );
-      ROS_INFO_STREAM("joint "<<i<<" target vel "<<pnt_.velocities[i]<<" real vel "<<pnt.velocities[i]);
-      ROS_INFO("-------");
-    }
-
-    throw std::runtime_error("pos or velocities not equal");
-  }
-
-  /*>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>       <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
+  interpolator_.setTrajectory(tmp_trj_msg)   ;
+  interpolator_.setSplineOrder(spline_order_);
 }
 
 void ReplannerManagerBase::replanningThread()
 {
   ros::Rate lp(replanning_thread_frequency_);
-  ros::WallTime tic,tic_rep,toc_rep;
+  ros::WallTime tic,toc,tic_rep,toc_rep,tic_lc;
+
+  ros::WallTime tic1;
+  double time_update_pln_scn;
 
   PathPtr path2project_on;
   Eigen::VectorXd current_configuration;
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
 
+  int lost_cycles;
+  int n_size_before;
   bool success = false;
   bool path_changed = false;
   bool path_obstructed = true;
   double replanning_duration = 0.0;
+  double duration, abscissa_current_configuration, abscissa_replan_configuration;
+
   Eigen::VectorXd projection = configuration_replan_;
-  Eigen::VectorXd past_configuration_replan = projection;
+  Eigen::VectorXd past_projection = configuration_replan_;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
 
   while((not stop_) && ros::ok())
@@ -399,6 +389,9 @@ void ReplannerManagerBase::replanningThread()
     tic = ros::WallTime::now();
 
     trj_mtx_.lock();
+    t_used_ = t_; //elimnina
+    t_replan_used_ = t_replan_; //elimina
+
     interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_,scaling_);
     for(unsigned int i=0; i<pnt_replan_.positions.size();i++)
       point2project(i) = pnt_replan_.positions.at(i);
@@ -412,20 +405,34 @@ void ReplannerManagerBase::replanningThread()
       path2project_on = current_path_shared_->clone();
       paths_mtx_.unlock();
 
-      projection = path2project_on->projectOnPath(point2project,past_configuration_replan,false);
-      past_configuration_replan = projection;
+      projection = path2project_on->projectOnPath(point2project,past_projection,false);
+      past_projection = projection;
 
       if(not path2project_on->findConnection(projection))
-        throw std::runtime_error("nn");
+        throw std::runtime_error("projection is wrong");
+
+      abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(projection);
+      abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration);
+
+      if(abscissa_replan_configuration<=abscissa_current_configuration)
+        projection = path2project_on->pointOnCurvilinearAbscissa(abscissa_current_configuration+0.005);  //5% step forward
 
       replanner_mtx_.lock();
       configuration_replan_ = projection;
       replanner_mtx_.unlock();
 
       scene_mtx_.lock();
-      checker_replanning_->setPlanningSceneMsg(planning_scene_msg_);
+
+      // ////elimina/////////////////////////////////////////////////////////////////////////
+      tic1 = ros::WallTime::now();//elimina
+      checker_replanning_->setPlanningSceneMsg(planning_scene_diff_msg_);
+      time_update_pln_scn = (ros::WallTime::now()-tic1).toSec();
+      // ///////////////////////////////////////////////////////////////////////////////////
+
       syncPathCost();
+
       scene_mtx_.unlock();
+
 
       replanner_mtx_.lock();
       if(not (current_path_->findConnection(configuration_replan_)))
@@ -449,7 +456,7 @@ void ReplannerManagerBase::replanningThread()
 
       if(haveToReplan(path_obstructed))
       {
-        int n_size_before = current_path_->getConnectionsSize();
+        n_size_before = current_path_->getConnectionsSize();
 
         tic_rep=ros::WallTime::now();
         path_changed = replan();      //path may have changed even though replanning was unsuccessful
@@ -476,28 +483,47 @@ void ReplannerManagerBase::replanningThread()
         replanner_mtx_.lock();
         trj_mtx_.lock();
 
+        tic_lc = ros::WallTime::now();
         startReplannedPathFromNewCurrentConf(current_configuration_);
 
         current_path_ = replanner_->getReplannedPath();
         replanner_->setCurrentPath(current_path_);
 
+        ros::WallTime tic_trj = ros::WallTime::now();
+        updateTrajectory();
+        double time_update_trj = (ros::WallTime::now()-tic_trj).toSec();
+
         paths_mtx_.lock();
         updateSharedPath();
         paths_mtx_.unlock();
 
-        updateTrajectory();
+        past_projection = current_configuration_;
 
-        past_configuration_replan = current_configuration_;
 
-        t_=0.0;
-        t_replan_=t_+replan_offset_*scaling_;
+        lost_cycles = std::round((ros::WallTime::now()-tic_lc).toSec()/dt_);
+
+        // elimina ///////////////////////////////////////////////////////////////////////////
+
+        ROS_BOLDCYAN_STREAM("\nt_used_ "<<t_used_<<" t_ "<<t_<<" deltaT update trj "<<time_update_trj<<"\n t_replan_used "<<t_replan_used_<<" time cycle "<<(ros::WallTime::now()-tic).toSec()
+                            <<"time pln scn "<<time_update_pln_scn<< " lost cycles "<<lost_cycles);
+
+        // if((ros::WallTime::now()-tic).toSec() > time_shift_*scaling_)
+        // {
+        //   throw std::runtime_error("time");
+        // }
+        // ///////////////////////////////////////////////////////////////////////////////////
+
+
+        //        t_ = 0;
+        t_ = lost_cycles*scaling_*dt_;
+        t_replan_ = t_+time_shift_*scaling_;
 
         trj_mtx_.unlock();
         replanner_mtx_.unlock();
       }
 
-      ros::WallTime toc=ros::WallTime::now();
-      double duration = (toc-tic).toSec();
+      toc=ros::WallTime::now();
+      duration = (toc-tic).toSec();
 
       if(display_timing_warning_ && duration>(dt_replan_/0.9))
       {
@@ -520,23 +546,31 @@ void ReplannerManagerBase::collisionCheckThread()
   PathPtr current_path_copy = current_path_shared_->clone();
   current_path_copy->setChecker(checker_cc_);
 
+  double duration;
+  ros::WallTime tic,toc;
   ros::Rate lp(collision_checker_thread_frequency_);
-  ros::WallTime tic;
+
+  moveit_msgs::PlanningScene planning_scene_msg;
 
   while ((not stop_) && ros::ok())
   {
     tic = ros::WallTime::now();
 
+    /* Update planning scene */
+    ps_srv.request.components.components = 20;//moveit_msgs::PlanningSceneComponents::WORLD_OBJECT_GEOMETRY + moveit_msgs::PlanningSceneComponents::ROBOT_STATE_ATTACHED_OBJECTS
+
     if(not plannning_scene_client_.call(ps_srv))
     {
       ROS_ERROR("call to srv not ok");
-
       stop_ = true;
       break;
     }
 
+
     scene_mtx_.lock();
-    checker_cc_->setPlanningSceneMsg(ps_srv.response.scene);
+    planning_scene_msg.world = ps_srv.response.scene.world;
+    planning_scene_msg.is_diff = true;
+    checker_cc_->setPlanningSceneMsg(planning_scene_msg);
     scene_mtx_.unlock();
 
     trj_mtx_.lock();
@@ -568,11 +602,12 @@ void ReplannerManagerBase::collisionCheckThread()
 
     scene_mtx_.lock();
     updatePathCost(current_path_copy);
-    planning_scene_msg_ = ps_srv.response.scene;
+    planning_scene_msg_.world = ps_srv.response.scene.world;  //not diff,it contains all pln scn info but only world is updated
+    planning_scene_diff_msg_ = planning_scene_msg;            //diff, contains only world
     scene_mtx_.unlock();
 
-    ros::WallTime toc=ros::WallTime::now();
-    double duration = (toc-tic).toSec();
+    toc=ros::WallTime::now();
+    duration = (toc-tic).toSec();
 
     if(duration>(1.0/collision_checker_thread_frequency_) && display_timing_warning_)
       ROS_BOLDYELLOW_STREAM("Collision checking thread time expired: total duration-> "<<duration);
@@ -669,55 +704,54 @@ double ReplannerManagerBase::readScalingTopics()
 
 void ReplannerManagerBase::trajectoryExecutionThread()
 {
+  double  duration;
   ros::WallTime tic,toc;
   PathPtr path2project_on;
   Eigen::VectorXd configuration_replan;
+  Eigen::VectorXd point2project(pnt_.positions.size());
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
-  double abscissa_replan_configuration, abscissa_current_configuration, duration;
-  int conn_idx;
+
+  trajectory_msgs::JointTrajectoryPoint pnt = pnt_; //elimina
+
 
   ros::Rate lp(trj_exec_thread_frequency_);
 
   while((not stop_) && ros::ok())
   {
     tic = ros::WallTime::now();
-    real_time_ += dt_;
-
-    replanner_mtx_.lock();
-    configuration_replan = configuration_replan_;
-    replanner_mtx_.unlock();
 
     trj_mtx_.lock();
+
+    real_time_ += dt_;
+    t_+= scaling_*dt_;
+    t_replan_ = t_+time_shift_*scaling_;
 
     scaling_ = 1.0;
     read_safe_scaling_? (scaling_ = readScalingTopics()):
                         (scaling_ = scaling_from_param_);
 
-    t_+= scaling_*dt_;
-    t_replan_ = t_+replan_offset_*scaling_;
-
     interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling_);
     interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,     1.0);
-
-    Eigen::VectorXd point2project(pnt_.positions.size());
     for(unsigned int i=0; i<pnt_.positions.size();i++)
-      point2project(i) = pnt_.positions.at(i);
+      point2project[i] = pnt_.positions[i];
+
+    for(unsigned int i=0;i<pnt.velocities.size();i++)
+    {
+      if(std::abs(pnt.velocities[i]-pnt_.velocities[i])>0.1)
+      {
+        ROS_INFO_STREAM("pnt "<<pnt_<<"\nold_pnt "<<pnt); //elimina
+        throw std::runtime_error("pnt");
+      }
+    }
+
+
+    pnt = pnt_; //elimina
 
     paths_mtx_.lock();
     path2project_on = current_path_shared_->clone();
     paths_mtx_.unlock();
 
     current_configuration_ = path2project_on->projectOnPath(point2project,current_configuration_,false);
-
-    if(path2project_on->findConnection(configuration_replan,conn_idx))
-    {
-      abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(configuration_replan,conn_idx);
-      abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration_);
-      if(abscissa_current_configuration>abscissa_replan_configuration) //the current confgiruation must not surpass that of replanning
-      {
-        current_configuration_ = configuration_replan;
-      }
-    }
 
     trj_mtx_.unlock();
 
@@ -747,7 +781,6 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
   stop_ = true;
 
-  Eigen::VectorXd point2project(pnt_.positions.size());
   for(unsigned int i=0; i<pnt_.positions.size();i++)
     point2project(i) = pnt_.positions.at(i);
 
@@ -763,6 +796,12 @@ void ReplannerManagerBase::displayThread()
   planning_scene::PlanningScenePtr planning_scene = planning_scene::PlanningScene::clone(planning_scn_cc_);
 
   pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_);
+
+  pathplan::PathPtr current_path;
+  trajectory_msgs::JointTrajectoryPoint pnt, pnt_replan;
+  Eigen::VectorXd current_configuration, configuration_replan;
+
+  Eigen::VectorXd point2project(pnt_.positions.size());
 
   int path_id,node_id,wp_id;
   std::vector<double> marker_scale(3,0.01);
@@ -782,15 +821,15 @@ void ReplannerManagerBase::displayThread()
   while((not stop_) && ros::ok())
   {
     paths_mtx_.lock();
-    pathplan::PathPtr current_path = current_path_shared_->clone();
+    current_path = current_path_shared_->clone();
     paths_mtx_.unlock();
 
     replanner_mtx_.lock();
     trj_mtx_.lock();
-    Eigen::VectorXd current_configuration = current_configuration_;
-    Eigen::VectorXd configuration_replan = configuration_replan_;
-    trajectory_msgs::JointTrajectoryPoint pnt = pnt_;
-    trajectory_msgs::JointTrajectoryPoint pnt_replan = pnt_replan_;
+    pnt        = pnt_       ;
+    pnt_replan = pnt_replan_;
+    configuration_replan  = configuration_replan_ ;
+    current_configuration = current_configuration_;
     trj_mtx_.unlock();
     replanner_mtx_.unlock();
 
@@ -809,7 +848,6 @@ void ReplannerManagerBase::displayThread()
     if(display_current_config_)
       disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),node_id,"pathplan",marker_color_current_config);
 
-    Eigen::VectorXd point2project(pnt.positions.size());
     if(display_current_trj_point_)
     {
       for(unsigned int i=0; i<pnt.positions.size();i++)
@@ -975,7 +1013,7 @@ void ReplannerManagerBase::benchmarkThread()
   paths_mtx_.lock();
   Eigen::VectorXd start = current_path_shared_->getStartNode()->getConfiguration();
   Eigen::VectorXd goal  = current_path_shared_->getGoalNode ()->getConfiguration();
-  double initial_path_length = current_path_shared_->length();
+  double initial_path_length = current_path_shared_->computeEuclideanNorm();
   paths_mtx_.unlock();
 
   Eigen::VectorXd goal_3d = forwardIk(goal,last_link,moveit_utils);
@@ -987,6 +1025,8 @@ void ReplannerManagerBase::benchmarkThread()
   double distance_start_goal = (goal-start).norm();
 
   int n_collisions = 0;
+
+  std::string text;
 
   std_msgs::ColorRGBA fg_color_green, fg_color_red, bg_color;
   fg_color_green.r = 0;   fg_color_red.r = 1;   bg_color.r = 0;
@@ -1020,7 +1060,7 @@ void ReplannerManagerBase::benchmarkThread()
 
     if(success)
     {
-      std::string text = "Success: TRUE \nCollided objects: 0";
+      text = "Success: TRUE \nCollided objects: 0";
       overlayed_text.text = text;
       overlayed_text.fg_color = fg_color_green;
       text_overlay_pub_.publish(overlayed_text);
@@ -1051,7 +1091,6 @@ void ReplannerManagerBase::benchmarkThread()
     bench_mtx_.unlock();
 
     /* Path length */
-    //    distance = (current_configuration-old_current_configuration).norm();
     distance = (pnt_conf-old_pnt_conf).norm();
     if(distance>0.3)
     {
@@ -1091,8 +1130,8 @@ void ReplannerManagerBase::benchmarkThread()
             already_collided_obj.push_back(obj_ids[i]);
             success = false;
 
-            std::string txt = "Success: FALSE \nCollided objects: "+std::to_string(n_collisions);
-            overlayed_text.text = txt;
+            text = "Success: FALSE \nCollided objects: "+std::to_string(n_collisions);
+            overlayed_text.text = text;
             overlayed_text.fg_color = fg_color_red;
             text_overlay_pub_.publish(overlayed_text);
           }
@@ -1215,4 +1254,43 @@ Eigen::Vector3d ReplannerManagerBase::forwardIk(const Eigen::VectorXd& conf, con
 
   return position;
 }
+
+void ReplannerManagerBase::displayTrj()
+{
+  planning_scene::PlanningScenePtr planning_scene = planning_scene::PlanningScene::clone(planning_scn_cc_);
+  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_);
+
+  robot_trajectory::RobotTrajectoryPtr trj = trajectory_->getTrj();
+  moveit_msgs::RobotTrajectory tmp_trj_msg;
+  trj->getRobotTrajectoryMsg(tmp_trj_msg);
+
+  trajectory_processing::SplineInterpolator interpolator;
+  interpolator.setTrajectory(tmp_trj_msg)   ;
+  interpolator.setSplineOrder(spline_order_);
+
+  double t=0;
+  double t_max = interpolator.trjTime().toSec();
+
+  NodePtr node;
+  std::vector<NodePtr> nodes;
+  trajectory_msgs::JointTrajectoryPoint pnt;
+
+  while(t<t_max)
+  {
+    interpolator.interpolate(ros::Duration(t),pnt,scaling_);
+
+    Eigen::VectorXd conf(pnt.positions.size());
+    for(unsigned int i=0; i<pnt.positions.size();i++)
+      conf(i) = pnt.positions.at(i);
+
+    node = std::make_shared<Node>(conf);
+    nodes.push_back(node);
+
+    t+=0.001;
+  }
+
+  PathPtr path = std::make_shared<Path>(nodes,current_path_shared_->getMetrics(),current_path_shared_->getChecker());
+  disp->displayPath(path,"pathplan",{0,1,0,1});
+}
+
 }
