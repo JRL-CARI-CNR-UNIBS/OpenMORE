@@ -279,13 +279,12 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
     else if(distance<0)
     {
       ROS_BOLDGREEN_STREAM("DISTANCE<0");
-      std::vector<ConnectionPtr> replanned_path_conns = replanned_path->getConnections();
 
       int idx;
-      ConnectionPtr current_conn = replanned_path->findConnection(configuration,idx);
+      ConnectionPtr current_conn = replanned_path->findConnection(configuration,idx,true);
       if(current_conn != nullptr) //current node is on replanned path
       {
-        if(replanned_path_conns[idx]->getParent() == current_node || replanned_path_conns[idx]->getChild() == current_node)
+        if(current_conn->getParent() == current_node || current_conn->getChild() == current_node)
         {
           ROS_BOLDGREEN_STREAM("QUA0");
           replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
@@ -294,18 +293,52 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
         else
         {
           assert([&]() ->bool{
-                   if(conn == replanned_path_conns[idx])
+                   if(conn == current_conn)
                    return true;
                    else
                    {
                      ROS_INFO_STREAM("conn "<<*conn<<"\n"<<conn);
-                     ROS_INFO_STREAM("replanned_path_conns[idx] "<<*replanned_path_conns[idx]<<"\n"<<replanned_path_conns[idx]);
+                     ROS_INFO_STREAM("current_conn "<<*current_conn<<"\n"<<current_conn);
                      return false;
                    }
                  }());
           ROS_BOLDGREEN_STREAM("QUA2");
-          replanned_path->splitConnection(current_path->getConnectionsConst().at(conn_idx),
-                                          current_path->getConnectionsConst().at(conn_idx+1),conn);
+          if(conn != current_conn)
+          {
+            ROS_INFO_STREAM("conf "<<configuration.transpose());
+
+            ROS_INFO_STREAM("conn "<<*conn<<"\n"<<conn);
+            ROS_INFO_STREAM("current_conn "<<*current_conn<<"\n"<<current_conn);
+
+            ROS_BOLDBLUE_STREAM("CURRENT PATH "<<*current_path);
+            ROS_BOLDBLUE_STREAM("REPLANNED PATH "<<*replanned_path);
+
+            stop_ = true;
+            if(not display_thread_.joinable())
+              display_thread_.join();
+
+
+            pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_cc_,group_name_);
+            disp->clearMarkers();
+
+            ros::Duration(1).sleep();
+
+            disp->displayConnection(conn,"pathplan",{1,0,0,1});
+
+            disp->displayConnection(current_conn,"pathplan",{0,0,1,1});
+
+            disp->displayNode(std::make_shared<Node>(configuration),"pathplan",{1,0,0,0.5});
+
+            ros::Duration(1).sleep();
+
+            throw std::runtime_error("err");
+
+          }
+
+          if(not replanned_path->splitConnection(current_path->getConnectionsConst().at(conn_idx),
+                                                 current_path->getConnectionsConst().at(conn_idx+1),current_conn))
+            ROS_BOLDRED_STREAM("CONNECTION NOT SPLITTED");
+
           ROS_BOLDGREEN_STREAM("QUA3");
           replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
           ROS_BOLDGREEN_STREAM("QUA4");
@@ -314,6 +347,8 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
       else
       {
         //current node should be very close to replan node, minimal difference between the connections
+
+        std::vector<ConnectionPtr> replanned_path_conns = replanned_path->getConnections();
 
         ConnectionPtr first_conn = replanned_path_conns.front();
         NodePtr child = first_conn->getChild();
@@ -549,7 +584,8 @@ void ReplannerManagerMARS::collisionCheckThread()
     tic = ros::WallTime::now();
 
     /* Update planning scene */
-    ps_srv.request.components.components = moveit_msgs::PlanningSceneComponents::WORLD_OBJECT_GEOMETRY; //only obstacles information
+    ps_srv.request.components.components = 20; //moveit_msgs::PlanningSceneComponents::WORLD_OBJECT_GEOMETRY + moveit_msgs::PlanningSceneComponents::ROBOT_STATE_ATTACHED_OBJECTS
+
     if(not plannning_scene_client_.call(ps_srv))
     {
       ROS_ERROR("call to srv not ok");
@@ -640,9 +676,6 @@ void ReplannerManagerMARS::collisionCheckThread()
     updatePathsCost(current_path_copy,other_paths_copy);
     planning_scene_msg_.world = ps_srv.response.scene.world;  //not diff,it contains all pln scn info but only world is updated
     planning_scene_diff_msg_ = planning_scene_msg;            //diff, contains only world
-
-    ROS_BOLDRED_STREAM(planning_scene_msg_);
-    ROS_BOLDCYAN_STREAM(planning_scene_diff_msg_);
 
     scene_mtx_.unlock();
 

@@ -17,12 +17,14 @@
 
 namespace pathplan
 {
-#define K_OFFSET 1.3
 class ReplannerManagerBase;
 typedef std::shared_ptr<ReplannerManagerBase> ReplannerManagerBasePtr;
 
 class ReplannerManagerBase: public std::enable_shared_from_this<ReplannerManagerBase>
 {
+
+#define K_OFFSET 1.3
+
 protected:
 
   /* To be assigned by the constructor */
