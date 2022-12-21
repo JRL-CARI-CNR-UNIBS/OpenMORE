@@ -53,8 +53,11 @@ public:
     return shared_from_this();
   }
 
-  void setPath(const pathplan::PathPtr path)
+  void setPath(const pathplan::PathPtr& path)
   {
+    if(path == nullptr)
+      throw std::runtime_error("path is nullptr");
+
     path_ = path;
   }
 

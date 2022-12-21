@@ -23,7 +23,7 @@ typedef std::shared_ptr<ReplannerManagerBase> ReplannerManagerBasePtr;
 class ReplannerManagerBase: public std::enable_shared_from_this<ReplannerManagerBase>
 {
 
-#define K_OFFSET 1.3
+#define K_OFFSET 1.1
 
 protected:
 
@@ -71,24 +71,24 @@ protected:
   double scaling_                    ;
   double global_override_            ;
 
-  ReplannerBasePtr                          replanner_               ;
-  Eigen::VectorXd                           current_configuration_   ;
-  Eigen::VectorXd                           configuration_replan_    ;
-  CollisionCheckerPtr                       checker_cc_              ;
-  CollisionCheckerPtr                       checker_replanning_      ;
-  TrajectoryPtr                             trajectory_              ;
-  NodePtr                                   path_start_              ;
-  planning_scene::PlanningScenePtr          planning_scn_cc_         ;
-  planning_scene::PlanningScenePtr          planning_scn_replanning_ ;
-  trajectory_processing::SplineInterpolator interpolator_            ;
-  trajectory_msgs::JointTrajectoryPoint     pnt_                     ;
-  trajectory_msgs::JointTrajectoryPoint     pnt_unscaled_            ;
-  trajectory_msgs::JointTrajectoryPoint     pnt_replan_              ;
-  sensor_msgs::JointState                   new_joint_state_unscaled_;
-  sensor_msgs::JointState                   new_joint_state_         ;
-  moveit_msgs::PlanningScene                planning_scene_msg_      ;
-  moveit_msgs::PlanningScene                planning_scene_diff_msg_ ;
-
+  ReplannerBasePtr                          replanner_                   ;
+  Eigen::VectorXd                           current_configuration_       ;
+  Eigen::VectorXd                           configuration_replan_        ;
+  CollisionCheckerPtr                       checker_cc_                  ;
+  CollisionCheckerPtr                       checker_replanning_          ;
+  TrajectoryPtr                             trajectory_                  ;
+  NodePtr                                   path_start_                  ;
+  planning_scene::PlanningScenePtr          planning_scn_cc_             ;
+  planning_scene::PlanningScenePtr          planning_scn_replanning_     ;
+  trajectory_processing::SplineInterpolator interpolator_                ;
+  trajectory_msgs::JointTrajectoryPoint     pnt_                         ;
+  trajectory_msgs::JointTrajectoryPoint     pnt_unscaled_                ;
+  trajectory_msgs::JointTrajectoryPoint     pnt_replan_                  ;
+  sensor_msgs::JointState                   new_joint_state_unscaled_    ;
+  sensor_msgs::JointState                   new_joint_state_             ;
+  moveit_msgs::PlanningScene                planning_scene_msg_          ;
+  moveit_msgs::PlanningScene                planning_scene_diff_msg_     ;
+  moveit_msgs::PlanningScene                planning_scene_msg_benchmark_;
 
   std::string obj_type_                ;
   std::vector<double> spawn_instants_  ;

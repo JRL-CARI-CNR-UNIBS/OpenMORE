@@ -175,11 +175,11 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
       wp_state_vector.at(j).setJointGroupVelocities   (group_name_,pnt->velocities   );
       wp_state_vector.at(j).setJointGroupAccelerations(group_name_,pnt->accelerations);
     }
-    trj_->addSuffixWayPoint(wp_state_vector.at(j),0.0);
+    trj_->addSuffixWayPoint(wp_state_vector.at(j),0.001);
   }
 
   //Time parametrization
-  //trajectory_processing::IterativeSplineParameterization iptp;
+//  trajectory_processing::IterativeSplineParameterization iptp;
 //  trajectory_processing::TimeOptimalTrajectoryGeneration iptp;
   trajectory_processing::IterativeParabolicTimeParameterization iptp;
 
