@@ -5,9 +5,10 @@ The repository contains the implementation of a library of sampling-based path r
 ## Build/Installation
 The software can be installed using rosinstall files.
 
-1. Install ROS: follow the steps described in http://wiki.ros.org/ROS/Installation.
-2. Install wstool: follow the steps described in http://wiki.ros.org/wstool.
-3. Install: follow the steps described in http://wiki.ros.org/rosdep.
+1. Install ROS: follow the steps described in http://wiki.ros.org/ROS/Installation
+2. Install wstool: follow the steps described in http://wiki.ros.org/wstool
+3. Install rosdep: follow the steps described in http://wiki.ros.org/rosdep
+4. Install catkin_tools: follow the steps described in https://catkin-tools.readthedocs.io/en/latest/installing.html
 
 Create your workspace:
 ```
