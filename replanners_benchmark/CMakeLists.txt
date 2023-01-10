@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(replanners_benchmark)
-add_compile_options(-std=c++11 -funroll-loops -Wall -Ofast)
-#add_compile_options(-std=c++14)
+add_compile_options(-std=c++14 -funroll-loops -Wall -Ofast)
 set(CMAKE_BUILD_TYPE Release)
 #set(CMAKE_BUILD_TYPE Debug)
 
