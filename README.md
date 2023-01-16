@@ -1,7 +1,7 @@
 <div align="center">
-  <h1 align="center">replanning_strategies</h1>
+  <h1 align="center">REST</h1>
   <h3 align="center">
-    A sampling-based path replanning algorithms library.
+    A sampling-based path REplanning STrategies library.
   </h3>
 </div>
 
