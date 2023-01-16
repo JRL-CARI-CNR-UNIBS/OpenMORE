@@ -146,12 +146,12 @@ protected:
   virtual void initReplanner()=0;
   virtual bool haveToReplan(const bool path_obstructed)=0;
 
-  bool alwaysReplan()
+  inline bool alwaysReplan()
   {
     return true;
   }
 
-  bool replanIfObstructed(const bool path_obstructed)
+  inline bool replanIfObstructed(const bool path_obstructed)
   {
     return path_obstructed;
   }
@@ -215,7 +215,7 @@ public:
   virtual bool start();
   virtual bool startWithoutReplanning();
 
-  virtual void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)=0;
+  virtual void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration) = 0;
 };
 
 }

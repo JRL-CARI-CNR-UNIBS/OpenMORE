@@ -449,9 +449,9 @@ void ReplannerManagerBase::replanningThread()
         trj_mtx_.unlock();
       }
 
+      replanner_->setCurrentPath(current_path_);
       replanner_->setChecker(checker_replanning_);
       replanner_->setCurrentConf(configuration_replan_);
-      replanner_->setCurrentPath(current_path_);
 
       path_obstructed = (current_path_->getCostFromConf(configuration_replan_) == std::numeric_limits<double>::infinity());
       replanner_mtx_.unlock();
@@ -747,16 +747,17 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
     trj_mtx_.lock();
 
-    real_time_ += dt_;
-    t_+= scaling_*dt_;
-    t_replan_ = t_+time_shift_*scaling_;
-
     scaling_ = 1.0;
     read_safe_scaling_? (scaling_ = readScalingTopics()):
                         (scaling_ = scaling_from_param_);
 
+    real_time_ += dt_;
+    t_+= scaling_*dt_;
+    t_replan_ = t_+time_shift_*scaling_;
+
     interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling_);
     interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,     1.0);
+
     for(unsigned int i=0; i<pnt_.positions.size();i++)
       point2project[i] = pnt_.positions[i];
 
@@ -1313,5 +1314,4 @@ void ReplannerManagerBase::displayTrj()
   PathPtr path = std::make_shared<Path>(nodes,current_path_shared_->getMetrics(),current_path_shared_->getChecker());
   disp->displayPath(path,"pathplan",{0,1,0,1});
 }
-
 }
