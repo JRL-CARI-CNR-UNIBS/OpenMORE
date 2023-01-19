@@ -9,7 +9,7 @@ It contains two main repositories:
 
  This is a list of the implemented replanners:
 
- 1. MARS
+ 1. [MARS](https://ieeexplore.ieee.org/document/10013661?source=authoralert)
  2. [DRRT](https://ieeexplore.ieee.org/document/1641879)
  3. [Anytime DRRT](https://ieeexplore.ieee.org/document/4209270)
  4. [DRRT*](https://ieeexplore.ieee.org/document/8122814)
