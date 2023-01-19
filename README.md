@@ -92,8 +92,7 @@ BibTex:
 @misc{replanning_strategies,
   author = {Tonola, Cesare and Beschi, Manuel},
   title = {{\textit{replanning_strategies}: an open-source library for robot path replanning}},
-  url = {https://github.com/JRL-CARI-CNR-UNIBS/replanning\_strategies}
-}
+  url = {https://github.com/JRL-CARI-CNR-UNIBS/replanning\_strategies}}
 ```
 
 ## Developer Contact
