@@ -78,6 +78,17 @@ This repository is continuously evolving. If you find errors or if you have some
 ## How to cite
 BibTex:
 ```
+@ARTICLE{Tonola2023,
+  author={Tonola, Cesare and Faroni, Marco and Beschi, Manuel and Pedrocchi, Nicola},
+  journal={IEEE Access}, 
+  title={Anytime Informed Multi-Path Replanning Strategy for Complex Environments}, 
+  year={2023},
+  volume={11},
+  number={},
+  pages={4105-4116},
+  doi={10.1109/ACCESS.2023.3235652}}
+  
+  
 @misc{replanning_strategies,
   author = {Tonola, Cesare and Beschi, Manuel},
   title = {{\textit{replanning_strategies}: an open-source library for robot path replanning}},
