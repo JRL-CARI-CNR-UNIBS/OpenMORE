@@ -423,7 +423,6 @@ void ReplannerManagerBase::replanningThread()
       scene_mtx_.lock();
 
       checker_replanning_->setPlanningSceneMsg(planning_scene_diff_msg_);
-
       syncPathCost();
       planning_scene_msg_benchmark_ = planning_scene_msg_;
 

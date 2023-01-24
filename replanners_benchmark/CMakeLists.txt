@@ -8,13 +8,12 @@ find_package(catkin REQUIRED COMPONENTS
   replanners_lib
 )
 catkin_package(
-  INCLUDE_DIRS include
+  INCLUDE_DIRS
   LIBRARIES ${PROJECT_NAME}
   CATKIN_DEPENDS replanners_lib
   DEPENDS
   )
 include_directories(
-  include
   ${catkin_INCLUDE_DIRS}
   )
 

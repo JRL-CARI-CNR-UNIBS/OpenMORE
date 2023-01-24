@@ -1,13 +1,18 @@
-# **replanning_strategies**
+<div align="center">
+  <h1 align="center">replanning_strategies</h1>
+  <h3 align="center">
+    A sampling-based path replanning strategies library
+  </h3>
+</div>
 
-The repository contains the implementation of a library of sampling-based path replanning algorithms and a framework to manage trajectory execution with continuous path replanning. It is based on ROS and *MoveIt!* to get information about the environment.
-<!-- You can read technical specifications about this replanner [here](https://arxiv.org/abs/2103.13245). -->
+The repository contains the implementation of a library of sampling-based path replanning algorithms. It also develops a framework to manage robot's trajectory execution with continuous path replanning and collision checking of the current path. It is based on ROS and *MoveIt!* to get information about the environment. Check [this paper](https://ieeexplore.ieee.org/document/10013661?source=authoralert) for more information.
 ## Build/Installation
 The software can be installed using rosinstall files.
 
-1. Install ROS: follow the steps described in http://wiki.ros.org/ROS/Installation.
-2. Install wstool: follow the steps described in http://wiki.ros.org/wstool.
-3. Install: follow the steps described in http://wiki.ros.org/rosdep.
+1. Install ROS: follow the steps described in http://wiki.ros.org/ROS/Installation
+2. Install wstool: follow the steps described in http://wiki.ros.org/wstool
+3. Install rosdep: follow the steps described in http://wiki.ros.org/rosdep
+4. Install catkin_tools: follow the steps described in https://catkin-tools.readthedocs.io/en/latest/installing.html
 
 Create your workspace:
 ```
@@ -72,11 +77,21 @@ This repository is continuously evolving. If you find errors or if you have some
 ## How to cite
 BibTex:
 ```
+@ARTICLE{Tonola2023,
+  author={Tonola, Cesare and Faroni, Marco and Beschi, Manuel and Pedrocchi, Nicola},
+  journal={IEEE Access}, 
+  title={Anytime Informed Multi-Path Replanning Strategy for Complex Environments}, 
+  year={2023},
+  volume={11},
+  number={},
+  pages={4105-4116},
+  doi={10.1109/ACCESS.2023.3235652}}
+  
+  
 @misc{replanning_strategies,
   author = {Tonola, Cesare and Beschi, Manuel},
   title = {{\textit{replanning_strategies}: an open-source library for robot path replanning}},
-  url = {https://github.com/JRL-CARI-CNR-UNIBS/replanning\_strategies}
-}
+  url = {https://github.com/JRL-CARI-CNR-UNIBS/replanning\_strategies}}
 ```
 
 ## Developer Contact
