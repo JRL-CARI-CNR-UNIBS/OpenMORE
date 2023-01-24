@@ -278,17 +278,13 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
     }
     else if(distance<0)
     {
-      ROS_BOLDGREEN_STREAM("DISTANCE<0");
-
       int idx;
       ConnectionPtr current_conn = replanned_path->findConnection(configuration,idx,true);
       if(current_conn != nullptr) //current node is on replanned path
       {
         if(current_conn->getParent() == current_node || current_conn->getChild() == current_node)
         {
-          ROS_BOLDGREEN_STREAM("QUA0");
           replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
-          ROS_BOLDGREEN_STREAM("QUA1");
         }
         else
         {
@@ -302,7 +298,6 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
                      return false;
                    }
                  }());
-          ROS_BOLDGREEN_STREAM("QUA2");
           if(conn != current_conn)
           {
             ROS_INFO_STREAM("conf "<<configuration.transpose());
@@ -339,9 +334,7 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
                                                  current_path->getConnectionsConst().at(conn_idx+1),current_conn))
             ROS_BOLDRED_STREAM("CONNECTION NOT SPLITTED");
 
-          ROS_BOLDGREEN_STREAM("QUA3");
           replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
-          ROS_BOLDGREEN_STREAM("QUA4");
         }
       }
       else

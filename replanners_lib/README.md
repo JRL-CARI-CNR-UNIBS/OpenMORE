@@ -9,13 +9,13 @@ It contains two main repositories:
 
  This is a list of the implemented replanners:
 
- 1. MARS
+ 1. [MARS](https://ieeexplore.ieee.org/document/10013661?source=authoralert)
  2. [DRRT](https://ieeexplore.ieee.org/document/1641879)
  3. [Anytime DRRT](https://ieeexplore.ieee.org/document/4209270)
  4. [DRRT*](https://ieeexplore.ieee.org/document/8122814)
  5. [MPRRT](https://ieeexplore.ieee.org/document/7027233)
 
-This library depends on [*graph_core*](https://github.com/JRL-CARI-CNR-UNIBS/cari_motion_planning/tree/cesare-devel/graph_core), which contains definition of the necessary classes of a path planning problem and the path planning solvers. Warning: in order to use **replanners_lib**, the branch of graph_core must be *replanning_strategies_devel*.
+This library depends on [*graph_core*](https://github.com/JRL-CARI-CNR-UNIBS/cari_motion_planning/tree/replanning_strategies_devel/graph_core), which contains definition of the necessary classes of a path planning problem and the path planning solvers. Warning: in order to use **replanners_lib**, the branch of graph_core must be *replanning_strategies_devel*.
 
 ## replanners
 It contains the abstract class *replanner_base.cpp* from which you need to inherit to implement your replanner.
@@ -81,7 +81,7 @@ replanner->replan();
 if(replanner->getSuccess())
   pathplan::PathPtr replanned_path = replanner->getReplannedPath();
 ```
-You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/example_replanner.cpp). To launch the example:
+You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/src/example_replanner.cpp). To launch the example:
 ```
 roslaunch replanners_lib example_replanner.launch
 ```
@@ -157,7 +157,7 @@ Finally, create the replanner manager and start the execution:
 pathplan::ReplannerManagerDRRTPtr replanner_manager = std::make_shared<pathplan::ReplannerManagerDRRT>(current_path, solver, nh);
 replanner_manager->start();
 ```
-You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/example_replanner_manager.cpp). To launch the example:
+You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/src/example_replanner_manager.cpp). To launch the example:
 ```
 roslaunch replanners_lib example_replanner_manager.launch
 ```

@@ -363,16 +363,12 @@ void ReplannerManagerBase::updateTrajectory()
 void ReplannerManagerBase::replanningThread()
 {
   ros::Rate lp(replanning_thread_frequency_);
-  ros::WallTime tic,toc,tic_rep,toc_rep,tic_lc;
-
-  ros::WallTime tic1;
-  double time_update_pln_scn;
+  ros::WallTime tic,toc,tic_rep,toc_rep;
 
   PathPtr path2project_on;
   Eigen::VectorXd current_configuration;
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
 
-  int lost_cycles;
   int n_size_before;
   bool success = false;
   bool path_changed = false;
@@ -392,8 +388,6 @@ void ReplannerManagerBase::replanningThread()
     tic = ros::WallTime::now();
 
     trj_mtx_.lock();
-    t_used_ = t_; //elimnina
-    t_replan_used_ = t_replan_; //elimina
 
     interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_,scaling_);
     for(unsigned int i=0; i<pnt_replan_.positions.size();i++)
@@ -490,16 +484,13 @@ void ReplannerManagerBase::replanningThread()
         replanner_mtx_.lock();
         trj_mtx_.lock();
 
-        tic_lc = ros::WallTime::now();
         startReplannedPathFromNewCurrentConf(current_configuration_);
         double time_new_start = (ros::WallTime::now()-tic_lc).toSec();
 
         current_path_ = replanner_->getReplannedPath();
         replanner_->setCurrentPath(current_path_);
 
-        ros::WallTime tic_trj = ros::WallTime::now();
         updateTrajectory();
-        double time_update_trj = (ros::WallTime::now()-tic_trj).toSec();
 
         ros::WallTime tic_paths = ros::WallTime::now();
         paths_mtx_.lock();

@@ -61,8 +61,6 @@ protected:
   double obj_max_size_               ;
   double time_shift_                 ;
   double t_replan_                   ;
-  double t_replan_used_              ; //elimina
-  double t_used_                     ; // elimina
   double replanning_time_            ;
   double replanning_thread_frequency_;
   double scaling_from_param_         ;
@@ -156,7 +154,7 @@ protected:
     return path_obstructed;
   }
 
-  void displayTrj(); //elimina
+  void displayTrj();
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
