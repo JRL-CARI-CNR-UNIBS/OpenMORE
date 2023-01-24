@@ -363,16 +363,12 @@ void ReplannerManagerBase::updateTrajectory()
 void ReplannerManagerBase::replanningThread()
 {
   ros::Rate lp(replanning_thread_frequency_);
-  ros::WallTime tic,toc,tic_rep,toc_rep,tic_lc;
-
-  ros::WallTime tic1;
-  double time_update_pln_scn;
+  ros::WallTime tic,toc,tic_rep,toc_rep;
 
   PathPtr path2project_on;
   Eigen::VectorXd current_configuration;
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
 
-  int lost_cycles;
   int n_size_before;
   bool success = false;
   bool path_changed = false;
@@ -384,16 +380,11 @@ void ReplannerManagerBase::replanningThread()
   Eigen::VectorXd past_projection = configuration_replan_;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
 
-  std::vector<double> time_exceed; //elimina
-  std::vector<double> delay; //elimina
-
   while((not stop_) && ros::ok())
   {
     tic = ros::WallTime::now();
 
     trj_mtx_.lock();
-    t_used_ = t_; //elimnina
-    t_replan_used_ = t_replan_; //elimina
 
     interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_,scaling_);
     for(unsigned int i=0; i<pnt_replan_.positions.size();i++)
@@ -431,9 +422,7 @@ void ReplannerManagerBase::replanningThread()
 
       scene_mtx_.lock();
 
-      tic1 = ros::WallTime::now();//elimina
       checker_replanning_->setPlanningSceneMsg(planning_scene_diff_msg_);
-      time_update_pln_scn = (ros::WallTime::now()-tic1).toSec(); //elimina
 
       syncPathCost();
       planning_scene_msg_benchmark_ = planning_scene_msg_;
@@ -486,63 +475,23 @@ void ReplannerManagerBase::replanningThread()
 
       if(path_changed && (not stop_))
       {
-        ros::WallTime tic_init = ros::WallTime::now();
         replanner_mtx_.lock();
         trj_mtx_.lock();
 
-        tic_lc = ros::WallTime::now();
         startReplannedPathFromNewCurrentConf(current_configuration_);
-        double time_new_start = (ros::WallTime::now()-tic_lc).toSec();
 
         current_path_ = replanner_->getReplannedPath();
         replanner_->setCurrentPath(current_path_);
 
-        ros::WallTime tic_trj = ros::WallTime::now();
         updateTrajectory();
-        double time_update_trj = (ros::WallTime::now()-tic_trj).toSec();
 
-        ros::WallTime tic_paths = ros::WallTime::now();
         paths_mtx_.lock();
-        double time_mtx = (ros::WallTime::now()-tic_paths).toSec();
-        tic_paths = ros::WallTime::now();
         updateSharedPath();
         paths_mtx_.unlock();
-        double time_paths = (ros::WallTime::now()-tic_paths).toSec();
-
 
         past_projection = current_configuration_;
 
-
-        //        lost_cycles = std::round((ros::WallTime::now()-tic_lc).toSec()/dt_);
-
-        // elimina ///////////////////////////////////////////////////////////////////////////
-
-        //        ROS_BOLDCYAN_STREAM("\nt_used_ "<<t_used_<<" t_ "<<t_<<"\ndeltaT update tot "<<(ros::WallTime::now()-tic_lc).toSec()<<" deltaT update trj "<<time_update_trj<<"\nt_replan_used "<<t_replan_used_<<" time cycle "<<(ros::WallTime::now()-tic).toSec()
-        //                            <<"\ntime pln scn "<<time_update_pln_scn<< " lost cycles "<<lost_cycles);
-
-        double time_tot = (ros::WallTime::now()-tic_init).toSec();
-
-        ROS_BOLDCYAN_STREAM("\ndeltaT tot "<<time_tot<<" deltaT new start "<<time_new_start
-                            <<"\ndeltaT update trj "<<time_update_trj<<" time mtx "<<time_mtx<<" time paths "<<time_paths
-                            <<"\ntime cycle "<<(ros::WallTime::now()-tic).toSec());
-
-        if(time_tot>0.002)
-        {
-          ROS_BOLDWHITE_STREAM("TTTTTTTTTTTTTTTTTTTTT: "<<t_);
-          time_exceed.push_back(t_);
-          delay.push_back(time_update_trj);
-          //          throw std::runtime_error("to much time");
-        }
-
-        // if((ros::WallTime::now()-tic).toSec() > time_shift_*scaling_)
-        // {
-        //   throw std::runtime_error("time");
-        // }
-        // ///////////////////////////////////////////////////////////////////////////////////
-
-
         t_ = 0;
-        //        t_ = lost_cycles*scaling_*dt_;
         t_replan_ = t_+time_shift_*scaling_;
 
         trj_mtx_.unlock();
@@ -561,9 +510,6 @@ void ReplannerManagerBase::replanningThread()
 
     lp.sleep();
   }
-
-  for(unsigned int i=0;i<delay.size();i++)
-    ROS_BOLDWHITE_STREAM("time exceed "<<time_exceed[i]<<" delay "<<delay[i]);
 
   ROS_BOLDCYAN_STREAM("Replanning thread is over");
 }

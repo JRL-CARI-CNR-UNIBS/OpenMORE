@@ -61,8 +61,6 @@ protected:
   double obj_max_size_               ;
   double time_shift_                 ;
   double t_replan_                   ;
-  double t_replan_used_              ; //elimina
-  double t_used_                     ; // elimina
   double replanning_time_            ;
   double replanning_thread_frequency_;
   double scaling_from_param_         ;
