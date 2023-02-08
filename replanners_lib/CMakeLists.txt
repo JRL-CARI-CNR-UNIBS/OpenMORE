@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(replanners_lib)
-add_compile_options(-std=c++14 -funroll-loops -Wall -Ofast)
+add_compile_options(-std=c++17 -funroll-loops -Wall -Ofast)
 set(CMAKE_BUILD_TYPE Release)
 #set(CMAKE_BUILD_TYPE Debug)
 
@@ -12,11 +12,12 @@ moveit_planning_helper
 geometry_msgs
 subscription_notifier
 jsk_rviz_plugins
+length_penalty_metrics
 )
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS graph_core roscpp object_loader_msgs moveit_planning_helper geometry_msgs subscription_notifier jsk_rviz_plugins
+  CATKIN_DEPENDS graph_core roscpp object_loader_msgs moveit_planning_helper geometry_msgs subscription_notifier jsk_rviz_plugins length_penalty_metrics
   DEPENDS
   )
 include_directories(
@@ -32,6 +33,7 @@ src/replanners/DRRTStar.cpp
 src/replanners/DRRT.cpp
 src/replanners/anytimeDRRT.cpp
 src/replanners/MARS.cpp
+src/replanners/MARSHA.cpp
 src/replanner_managers/replanner_manager_base.cpp
 src/replanner_managers/replanner_manager_DRRTStar.cpp
 src/replanner_managers/replanner_manager_DRRT.cpp

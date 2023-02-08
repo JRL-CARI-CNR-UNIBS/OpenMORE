@@ -26,13 +26,15 @@ MARS::MARS(const Eigen::VectorXd& current_configuration,
 
   informedOnlineReplanning_verbose_ = false;
   pathSwitch_verbose_ = false;
+
+  examined_flag_ = Node::getReservedFlagsNumber(); //the first free position in Node::flags_ vectore where we can store our new custom flag
 }
 
 MARS::MARS(const Eigen::VectorXd& current_configuration,
            const PathPtr& current_path,
            const double& max_time,
            const TreeSolverPtr &solver,
-           std::vector<PathPtr> &other_paths): MARS(current_configuration,current_path,max_time,solver)
+           const std::vector<PathPtr> &other_paths): MARS(current_configuration,current_path,max_time,solver)
 {
   setOtherPaths(other_paths);
 }
@@ -63,7 +65,7 @@ void MARS::copyTreeRoot()
   }
 }
 
-bool MARS::mergePathToTree(PathPtr &path)
+bool MARS::mergePathToTree(const PathPtr &path)
 {
   TreePtr path_tree = path->getTree();
   NodePtr path_goal = path->getConnections().back()->getChild();
@@ -329,16 +331,17 @@ std::vector<PathPtr> MARS::addAdmissibleCurrentPath(const int &idx_current_conn,
 
 std::vector<ps_goals> MARS::sortNodes(const NodePtr& start_node)
 {
-  /* Sort nodes based on distance from start_node. Prioritize nodes with free subpath to goal:
+  /* Sort nodes based on the metrics utopia. In the case of Euclidean metrics, nodes are sorted based on the disance from start_node.
+   * Prioritize nodes with free subpath to goal:
    *  - firstly, consider nodes with free subpath
-   *  - then, consider nodes with invalid subpath (later the net will be used to search for a better subpath)
+   *  - then, consider nodes with invalid subpath (later the net will be used to search for a better subpath, if full_neat_search_ is true)
    */
 
   std::vector<ps_goals> goals;
   std::vector<NodePtr> considered_nodes;
   std::multimap<double,ps_goals> ps_goals_map, ps_invalid_goals_map;
 
-  double distance;
+  double utopia;
   bool goal_node_added = false;
   for(const PathPtr& p:admissible_other_paths_)
   {
@@ -354,14 +357,14 @@ std::vector<ps_goals> MARS::sortNodes(const NodePtr& start_node)
       if(std::find(considered_nodes.begin(),considered_nodes.end(),n)<considered_nodes.end())
         continue;
 
-      distance = metrics_->utopia(start_node->getConfiguration(),n->getConfiguration());
+      utopia = metrics_->utopia(start_node->getConfiguration(),n->getConfiguration());
 
-      if(distance<TOLERANCE)
+      if(utopia<TOLERANCE)
         continue;
 
       ps_goals ps_goal;
       ps_goal.node = n;
-      ps_goal.utopia = distance;
+      ps_goal.utopia = utopia;
 
       if(n != goal_node_)
       {
@@ -378,20 +381,20 @@ std::vector<ps_goals> MARS::sortNodes(const NodePtr& start_node)
       considered_nodes.push_back(n);
 
       if(ps_goal.subpath_cost<std::numeric_limits<double>::infinity())
-        ps_goals_map.insert(std::pair<double,ps_goals>(distance,ps_goal));
+        ps_goals_map.insert(std::pair<double,ps_goals>(utopia,ps_goal));
       else
       {
         if(full_net_search_)
-          ps_invalid_goals_map.insert(std::pair<double,ps_goals>(distance,ps_goal));
+          ps_invalid_goals_map.insert(std::pair<double,ps_goals>(utopia,ps_goal));
       }
     }
   }
 
-  //Firstly, add the valid goals, ordered by distance
+  //Firstly, add the valid goals, ordered by utopia
   for(const std::pair<double,ps_goals> &p: ps_goals_map)
     goals.push_back(p.second);
 
-  //Then, add the invalid goals, ordered by distance (void map if full_net_search_ == false)
+  //Then, add the invalid goals, ordered by utopia (void map if full_net_search_ == false)
   for(const std::pair<double,ps_goals> &p: ps_invalid_goals_map)
     goals.push_back(p.second);
 
@@ -409,7 +412,7 @@ std::vector<NodePtr> MARS::startNodes(const std::vector<ConnectionPtr>& subpath1
 
     assert(current_node->getParentConnectionsSize() == 1);
 
-    if(not current_node->getAnalyzed())
+    if(not current_node->getFlag(examined_flag_,false))
       start_node_vector.push_back(current_node);
   }
   else
@@ -426,12 +429,12 @@ std::vector<NodePtr> MARS::startNodes(const std::vector<ConnectionPtr>& subpath1
         /* If the path is free, you can consider all the nodes but it is useless to consider
          * the last one before the goal (it is already connected to the goal with a straight line) */
 
-        if(conn->getCost() == std::numeric_limits<double>::infinity() && (not conn->getParent()->getAnalyzed()))
+        if(conn->getCost() == std::numeric_limits<double>::infinity() && (not conn->getParent()->getFlag(examined_flag_,false)))
           start_node_vector.push_back(conn->getParent());
       }
       else
       {
-        if(not conn->getParent()->getAnalyzed())
+        if(not conn->getParent()->getFlag(examined_flag_,false))
           start_node_vector.push_back(conn->getParent());
 
         if(conn->getCost() ==  std::numeric_limits<double>::infinity())
@@ -1295,7 +1298,7 @@ bool MARS::pathSwitch(const PathPtr &current_path,
     }
 
     double diff_subpath_cost = candidate_solution_cost - path2_subpath_cost; // it is the maximum cost to make the connecting_path convenient
-    double utopia = ps_goal.utopia; //the Euclidean distance is the minimum cost that the connecting_path can have
+    double utopia = ps_goal.utopia; // utopia is the minimum cost that the connecting_path can have
 
     if(pathSwitch_disp_ || pathSwitch_verbose_)
     {
@@ -1303,9 +1306,9 @@ bool MARS::pathSwitch(const PathPtr &current_path,
       ROS_BLUE_STREAM("diff_subpath_cost: "<< diff_subpath_cost<<" utopia: " << utopia);
     }
 
-    /* The Euclidean distance between the two nodes must be
-     * less than the maximum cost allowed for the connecting_path */
-    if(utopia < 0.999*diff_subpath_cost)
+    /* The utopia between the two nodes must be less than
+     * the maximum cost allowed for connecting_path */
+    if(diff_subpath_cost-utopia>1e-03)
     {
       at_least_a_trial_ = true;
 
@@ -1659,7 +1662,7 @@ bool MARS::informedOnlineReplanning(const double &max_time)
     {
       ROS_GREEN_STREAM("Starting nodes for replanning:");
       for(const NodePtr& n:start_node_vector)
-        ROS_GREEN_STREAM("n: "<<n->getConfiguration().transpose()<<" "<<n<<" analyzed: "<<n->getAnalyzed());
+        ROS_GREEN_STREAM("n: "<<n->getConfiguration().transpose()<<" "<<n<<" examined: "<<n->getFlag(examined_flag_,false));
 
       ROS_GREEN_STREAM("current best solution path: "<<*replanned_path);
     }
@@ -1721,7 +1724,7 @@ bool MARS::informedOnlineReplanning(const double &max_time)
       solved = pathSwitch(replanned_path,start_node_for_pathSwitch,new_path);
 
       start_node_vector.pop_back();
-      start_node_for_pathSwitch->setAnalyzed(true);
+      start_node_for_pathSwitch->setFlag(examined_flag_,true);
       examined_nodes.push_back(start_node_for_pathSwitch);
 
       assert((solved && new_path->getTree() != nullptr) || (not solved));
@@ -1879,7 +1882,7 @@ bool MARS::informedOnlineReplanning(const double &max_time)
       }
       else
       {
-        if(not current_node->getAnalyzed())
+        if(not current_node->getFlag(examined_flag_,false))
         {
           if(not replanned_path->onLine())
           {
@@ -1933,7 +1936,8 @@ bool MARS::informedOnlineReplanning(const double &max_time)
 
   } //end while(j>=0) cycle
 
-  std::for_each(examined_nodes.begin(),examined_nodes.end(),[&](NodePtr& examined_node) ->void{examined_node->setAnalyzed(false);});
+  std::for_each(examined_nodes.begin(),examined_nodes.end(),
+                [&](NodePtr& examined_node) ->void{examined_node->setFlag(examined_flag_,false);});
 
   if(success_)
   {
@@ -2003,7 +2007,9 @@ bool MARS::informedOnlineReplanning(const double &max_time)
   assert(invalid_connections_.empty());
 
   /* Clear checked connections vector */
-  std::for_each(checked_connections_.begin(),checked_connections_.end(),[&](ConnectionPtr& checked_conn) ->void{checked_conn->setRecentlyChecked(false);});
+  std::for_each(checked_connections_.begin(),checked_connections_.end(),
+                [&](ConnectionPtr& checked_conn) ->void{checked_conn->setRecentlyChecked(false);});
+
   checked_connections_.clear();
 
   toc = ros::WallTime::now();

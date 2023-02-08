@@ -3,10 +3,11 @@
 #include <replanners_lib/replanners/replanner_base.h>
 #include <graph_core/graph/net.h>
 
-#define TIME_PERCENTAGE_VARIABILITY 0.7
-
 namespace pathplan
 {
+
+#define TIME_PERCENTAGE_VARIABILITY 0.7
+
 struct ps_goals
 {
   NodePtr node;
@@ -44,6 +45,7 @@ protected:
   double time_percentage_variability_;
 
   int pathSwitch_path_id_;
+  unsigned int examined_flag_; // used to store which nodes has been already examined
 
   bool an_obstacle_;
   bool is_a_new_node_;
@@ -70,16 +72,17 @@ protected:
   PathPtr getSubpath1(NodePtr& current_node);
   PathPtr bestExistingSolution(const PathPtr& current_solution);
   PathPtr bestExistingSolution(const PathPtr& current_solution, std::multimap<double, std::vector<ConnectionPtr> > &tmp_map);
-  bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost, bool verbose = false);
-  bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost, unsigned int &number_of_candidates, bool verbose = false);
   double maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle);
   void optimizePath(PathPtr &connecting_path, const double &max_time);
-  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node, const double &diff_subpath_cost, const PathPtr &current_solution, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &quickly_solved);
   void simplifyAdmissibleOtherPaths(const PathPtr& current_solution_path, const NodePtr &start_node, const std::vector<PathPtr>& reset_other_paths);
-  bool mergePathToTree(PathPtr& path);
+  bool mergePathToTree(const PathPtr &path);
   void initCheckedConnections();
   void clearInvalidConnections();
   void convertToSubtreeSolution(const PathPtr& net_solution, const std::vector<NodePtr>& black_nodes);
+  bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost, bool verbose = false);
+  bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost, unsigned int &number_of_candidates, bool verbose = false);
+
+  virtual bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node, const double &diff_subpath_cost, const PathPtr &current_solution, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &quickly_solved);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -93,7 +96,7 @@ public:
         const PathPtr& current_path,
         const double& max_time,
         const TreeSolverPtr &solver,
-        std::vector<PathPtr> &other_paths);
+        const std::vector<PathPtr> &other_paths);
 
   NetPtr getNet()
   {
@@ -159,11 +162,11 @@ public:
 
   void copyTreeRoot();
 
-  void setOtherPaths(std::vector<PathPtr> &other_paths, bool mergeTree = true)
+  void setOtherPaths(const std::vector<PathPtr> &other_paths, bool mergeTree = true)
   {
     other_paths_.clear();
 
-    for(PathPtr& path:other_paths)
+    for(const PathPtr& path:other_paths)
       addOtherPath(path,mergeTree);
 
     admissible_other_paths_ = other_paths_;
@@ -183,7 +186,7 @@ public:
       p->setChecker(checker);
   }
 
-  void addOtherPath(PathPtr& path, bool mergeTree = true)
+  void addOtherPath(const PathPtr& path, bool mergeTree = true)
   {
     if(mergeTree)
     {
@@ -200,10 +203,11 @@ public:
   }
 
   bool simplifyReplannedPath(const double& distance);
-  bool pathSwitch(const PathPtr& current_path, const NodePtr& path1_node, PathPtr &new_path);
-  bool informedOnlineReplanning(const double &max_time  = std::numeric_limits<double>::infinity());
 
-  bool replan() override;
+  virtual bool pathSwitch(const PathPtr& current_path, const NodePtr& path1_node, PathPtr &new_path);
+  virtual bool informedOnlineReplanning(const double &max_time  = std::numeric_limits<double>::infinity());
+
+  virtual bool replan() override;
 };
 }
 
