@@ -29,13 +29,39 @@ void MARSHA::init(const LengthPenaltyMetricsPtr& ha_metrics)
 {
   if(ha_metrics == nullptr)
   {
-    metrics_   = nullptr;
+    metrics_    = nullptr;
     ha_metrics_ = nullptr;
   }
   else
     setMetricsHA(ha_metrics);
 
-  full_net_search_ = false;
+  full_net_search_   = false;
+  euclidean_metrics_ = std::make_shared<Metrics>();
+  cost_updated_flag_ = Connection::getReservedFlagsNumber(); //the first free position in Connection::flags_ vector where we can store our new custom flag
+
+  cost_evaluation_condition_ =
+      std::make_shared<std::function<bool (const ConnectionPtr& connection)>>([&](const ConnectionPtr& connection)->bool{
+    if(connection->getFlag(cost_updated_flag_,false) ||
+       (connection->isRecentlyChecked() && connection->getCost() == std::numeric_limits<double>::infinity()))
+    {
+      return false;
+    }
+    else
+    {
+      connection->setFlag(cost_updated_flag_,true);  //connection's cost will be re-evaluated by net using the metrics, set its flag to true
+      flagged_connections_.push_back(connection);
+
+      return true;
+    }
+  });
+
+  //  cost_evaluation_condition_ =
+  //      std::make_shared<std::function<bool (const ConnectionPtr& connection)>>([&](const ConnectionPtr& connection)->bool{
+  //    if(connection->getTimeCostUpdate()<=starting_time_)
+  //      return true;
+  //    else
+  //      return false;
+  //  });
 }
 
 bool MARSHA::setObstaclesPosition(const Eigen::Matrix<double,3,Eigen::Dynamic>& obstacles_positions)
@@ -60,14 +86,50 @@ bool MARSHA::addObstaclePosition(const Eigen::Vector3d& obstacle_position)
 
 void MARSHA::setMetricsHA(const LengthPenaltyMetricsPtr& ha_metrics)
 {
-  ha_metrics_ = ha_metrics ;
-  metrics_    = ha_metrics_;
+  ha_metrics_ = ha_metrics;
+  metrics_    = ha_metrics;
 
   net_->setMetrics(ha_metrics_);
   tree_->setMetrics(ha_metrics_);
   solver_->setMetrics(ha_metrics_);
+  current_path_->setMetrics(ha_metrics_);
 
-  assert(current_path_->getMetrics() == ha_metrics_);
+  for(const PathPtr& p:other_paths_)
+    p->setMetrics(ha_metrics_);
+}
+
+void MARSHA::updateHACost(const PathPtr& path)
+{
+  for(const ConnectionPtr& c:path->getConnections())
+    c->setCost(ha_metrics_->cost(c->getParent()->getConfiguration(),c->getChild()->getConfiguration()));
+
+  path->cost();
+}
+
+void MARSHA::initFlaggedConnections()
+{
+  clearFlaggedConnections();
+
+  flagged_connections_ = current_path_->getConnections();
+  for(const PathPtr& p:other_paths_)
+    flagged_connections_.insert(flagged_connections_.end(),p->getConnectionsConst().begin(),p->getConnectionsConst().end());
+
+  std::for_each(flagged_connections_.begin(),flagged_connections_.end(),
+                [&](const ConnectionPtr& flagged_conn) ->void{
+    flagged_conn->setRecentlyChecked(true);
+    flagged_conn->setFlag(cost_updated_flag_,true);
+  });
+}
+
+void MARSHA::clearFlaggedConnections()
+{
+  std::for_each(flagged_connections_.begin(),flagged_connections_.end(),
+                [&](const ConnectionPtr& flagged_conn) ->void{
+    flagged_conn->setRecentlyChecked(false);
+    flagged_conn->setFlag(cost_updated_flag_,false);
+  });
+
+  flagged_connections_.clear();
 }
 
 bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2_node, const double& diff_subpath_cost,
@@ -127,6 +189,7 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
   if(findValidSolution(already_existing_solutions_map,diff_subpath_cost,already_existing_solution_conn,
                        already_existing_solution_cost,number_of_candidates,false))
   {
+    assert(ha_metrics_ == metrics_);
     connecting_path = std::make_shared<Path>(already_existing_solution_conn,metrics_,checker_);
     connecting_path->setTree(tree_);
     quickly_solved = true;
@@ -134,7 +197,7 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
     assert([&]() ->bool{
              for(const ConnectionPtr& c:already_existing_solution_conn)
              {
-               if(c->getTimeCostUpdate()<starting_time_)
+               if(c->getFlag(cost_updated_flag_,false) != true)
                {
                  return false;
                }
@@ -194,6 +257,9 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
     solver_->setSampler(sampler);
     solver_->addStart(path1_node);
     solver_->setStartTree(subtree);
+
+    solver_->setMetrics(euclidean_metrics_);
+    subtree->setMetrics(euclidean_metrics_);
 
     connecting_path = nullptr;
     subtree_nodes = subtree->getNodesConst(); //nodes already in the subtree
@@ -266,24 +332,14 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
             subtree_valid = false;
             quickly_solved = false;
           }
-          else
-            c->setCost(metrics_->cost(c->getParent(),c->getChild()));
 
           c->setRecentlyChecked(true);
-          checked_connections_.push_back(c);
+          flagged_connections_.push_back(c);
         }
         else //do not re-check connections just added to the subtree
         {
           c->setRecentlyChecked(true);
-          checked_connections_.push_back(c);
-
-          assert([&]() ->bool{
-                   if(c->getTimeCostUpdate()<starting_time_)
-                   {
-                     return false
-                   }
-                   return true;
-                 }());
+          flagged_connections_.push_back(c);
         }
       }
 
@@ -314,6 +370,10 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
     available_search_time = solver_time-(ros::WallTime::now()-tic_before_search).toSec();
   }
 
+  subtree->setMetrics(ha_metrics_);
+  solver_->setMetrics(ha_metrics_);
+
+  //If a collision free solution exists, search for the best route using net, which takes care also of updating the connections cost
   if(valid_connecting_path_found)
   {
     /* Search for the best solution in the subtree which connects path1_node to path2_node_fake */
@@ -338,7 +398,12 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
     double cost = 0.0;
     std::vector<ConnectionPtr> conns = subtree->getConnectionToNode(path2_node_fake);
     for(const ConnectionPtr& c: conns)
+    {
+      if(not c->getFlag(cost_updated_flag_,false))
+        c->setCost(ha_metrics_->cost(c->getParent()->getConfiguration(),c->getChild()->getConfiguration()));
+
       cost += c->getCost();
+    }
 
     if(cost<diff_subpath_cost)
     {
@@ -360,38 +425,19 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
 
         ConnectionPtr new_conn= std::make_shared<Connection>(last_conn->getParent(),path2_node,(path2_node->getParentConnectionsSize()>0));
         new_conn->setCost(last_conn->getCost());
+        new_conn->setTimeCostUpdate(last_conn->getTimeCostUpdate());
         new_conn->add();
-
-        assert([&]() ->bool{
-                 if(last_conn->getTimeCostUpdate()<starting_time_)
-                 {
-                   return false;
-                 }
-
-                 return true;
-               }());
 
         assert(path2_node->getParentConnectionsSize() == 1);
 
         connecting_path_conn.back() = new_conn;
-        connecting_path = std::make_shared<Path>(connecting_path_conn,metrics_,checker_);
+        connecting_path = std::make_shared<Path>(connecting_path_conn,ha_metrics_,checker_);
         connecting_path->setTree(tree_);
-
-        assert([&]() ->bool{
-                 for(const ConnectionPtr& c:connecting_path_conn)
-                 {
-                   if(c->getTimeCostUpdate()<starting_time_)
-                   {
-                     return false;
-                   }
-                 }
-                 return true;
-               }());
 
         last_conn->remove();
 
-        std::vector<ConnectionPtr>::iterator it = std::find(checked_connections_.begin(),checked_connections_.end(),last_conn);
-        assert(it<checked_connections_.end());
+        std::vector<ConnectionPtr>::iterator it = std::find(flagged_connections_.begin(),flagged_connections_.end(),last_conn);
+        assert(it<flagged_connections_.end());
         *it = new_conn;
 
         assert(connecting_path->cost() == std::numeric_limits<double>::infinity() || connecting_path->cost()<diff_subpath_cost);
@@ -447,20 +493,21 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
   return false;
 }
 
+void MARSHA::setCurrentPath(const PathPtr& path)
+{
+  MARS::setCurrentPath(path);
+  setMetricsHA(ha_metrics_);
+}
+void MARSHA::setOtherPaths(const std::vector<PathPtr> &other_paths, const bool merge_tree)
+{
+  MARS::setOtherPaths(other_paths,merge_tree);
+  setMetricsHA(ha_metrics_);
+}
+
 bool MARSHA::replan()
 {
   starting_time_ = ros::WallTime::now().toSec();
-  net_->reEvaluateCostOlderThan(starting_time_);
-
-  //Update the internal time of paths' connections to avoid to recompute their costs during algorithm execution
-  std::vector<PathPtr> paths = other_paths_;
-  paths.push_back(current_path_);
-
-  for(const PathPtr& p: paths)
-  {
-    for(ConnectionPtr& c:p->getConnections())
-      c->setCost(c->getCost()); //setCost updates the internal time
-  }
+  net_->setCostEvaluationCondition(cost_evaluation_condition_);
 
   assert(metrics_ == ha_metrics_);
   if(metrics_ == nullptr)
@@ -469,18 +516,6 @@ bool MARSHA::replan()
     return false;
   }
 
-  bool path_changed = MARS::replan();
-
-  assert([&]() ->bool{
-           if(path_changed)
-           {
-             for(const ConnectionPtr& c:replanned_path_->getConnectionsConst())
-             {
-               if(c->getTimeCostUpdate()<starting_time_)
-               return false;
-             }
-           }
-           return true;
-         }());
+  return MARS::replan();
 }
 }

@@ -6,7 +6,7 @@ ReplannerManagerMARS::ReplannerManagerMARS(const PathPtr &current_path,
                                            const TreeSolverPtr &solver,
                                            const ros::NodeHandle &nh):ReplannerManagerBase(current_path,solver,nh)
 {
-  ReplannerManagerMARS::additionalParam();
+  ReplannerManagerMARS::MARSadditionalParams();
 }
 
 ReplannerManagerMARS::ReplannerManagerMARS(const PathPtr &current_path,
@@ -22,7 +22,7 @@ ReplannerManagerMARS::ReplannerManagerMARS(const PathPtr &current_path,
   }
 }
 
-void ReplannerManagerMARS::additionalParam()
+void ReplannerManagerMARS::MARSadditionalParams()
 {
   if(!nh_.getParam("MARS/dt_replan_relaxed",dt_replan_relaxed_))
   {
@@ -698,7 +698,6 @@ void ReplannerManagerMARS::updatePathsCost(const PathPtr& current_path_updated_c
 
       current_path_conns.at(j)->setCost(current_path_copy_conns.at(j)->getCost());
     }
-
     current_path_shared_->cost();
   }
 

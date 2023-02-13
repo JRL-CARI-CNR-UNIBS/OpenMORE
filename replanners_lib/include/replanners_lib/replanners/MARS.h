@@ -34,7 +34,7 @@ protected:
   NodePtr paths_start_;
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> admissible_other_paths_;
-  std::vector<ConnectionPtr> checked_connections_;
+  std::vector<ConnectionPtr> flagged_connections_;
   std::vector<invalid_connection> invalid_connections_;
 
   double time_first_sol_;
@@ -76,12 +76,13 @@ protected:
   void optimizePath(PathPtr &connecting_path, const double &max_time);
   void simplifyAdmissibleOtherPaths(const PathPtr& current_solution_path, const NodePtr &start_node, const std::vector<PathPtr>& reset_other_paths);
   bool mergePathToTree(const PathPtr &path);
-  void initCheckedConnections();
   void clearInvalidConnections();
   void convertToSubtreeSolution(const PathPtr& net_solution, const std::vector<NodePtr>& black_nodes);
   bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost, bool verbose = false);
   bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost, unsigned int &number_of_candidates, bool verbose = false);
 
+  virtual void initFlaggedConnections();
+  virtual void clearFlaggedConnections();
   virtual bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node, const double &diff_subpath_cost, const PathPtr &current_solution, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &quickly_solved);
 
 public:
@@ -145,7 +146,7 @@ public:
     pathSwitch_disp_ = verbose;
   }
 
-  void setCurrentPath(const PathPtr& path) override
+  virtual void setCurrentPath(const PathPtr& path) override
   {
     current_path_ = path;
 
@@ -162,12 +163,12 @@ public:
 
   void copyTreeRoot();
 
-  void setOtherPaths(const std::vector<PathPtr> &other_paths, bool mergeTree = true)
+  virtual void setOtherPaths(const std::vector<PathPtr> &other_paths, const bool merge_tree = true)
   {
     other_paths_.clear();
 
     for(const PathPtr& path:other_paths)
-      addOtherPath(path,mergeTree);
+      addOtherPath(path,merge_tree);
 
     admissible_other_paths_ = other_paths_;
     success_ = false;
@@ -186,9 +187,9 @@ public:
       p->setChecker(checker);
   }
 
-  void addOtherPath(const PathPtr& path, bool mergeTree = true)
+  virtual void addOtherPath(const PathPtr& path, bool merge_tree = true)
   {
-    if(mergeTree)
+    if(merge_tree)
     {
       if(not mergePathToTree(path))
         assert(0);
