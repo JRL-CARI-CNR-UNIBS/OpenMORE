@@ -8,19 +8,22 @@ namespace pathplan
 
 #define TIME_PERCENTAGE_VARIABILITY 0.7
 
-struct ps_goals
+struct ps_goal
 {
   NodePtr node;
   double utopia;
   PathPtr subpath;
   double subpath_cost;
 };
+typedef std::shared_ptr<ps_goal> ps_goal_ptr;
+
 
 struct invalid_connection
 {
   ConnectionPtr connection;
   double cost;
 };
+typedef std::shared_ptr<invalid_connection> invalid_connection_ptr;
 
 class MARS;
 typedef std::shared_ptr<MARS> MARSPtr;
@@ -35,7 +38,7 @@ protected:
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> admissible_other_paths_;
   std::vector<ConnectionPtr> flagged_connections_;
-  std::vector<invalid_connection> invalid_connections_;
+  std::vector<invalid_connection_ptr> invalid_connections_;
 
   double time_first_sol_;
   double time_replanning_;
@@ -67,8 +70,6 @@ protected:
   std::vector<double> informed_marker_color_sphere_ = {1.0,0.5,0.0,1.0  };
 
   std::vector<PathPtr> addAdmissibleCurrentPath(const int &idx_current_conn, PathPtr& admissible_current_path);
-  std::vector<ps_goals> sortNodes(const NodePtr& node);
-  std::vector<NodePtr> startNodes(const std::vector<ConnectionPtr>& subpath1_conn);
   PathPtr getSubpath1(NodePtr& current_node);
   PathPtr bestExistingSolution(const PathPtr& current_solution);
   PathPtr bestExistingSolution(const PathPtr& current_solution, std::multimap<double, std::vector<ConnectionPtr> > &tmp_map);
@@ -76,28 +77,31 @@ protected:
   void optimizePath(PathPtr &connecting_path, const double &max_time);
   void simplifyAdmissibleOtherPaths(const PathPtr& current_solution_path, const NodePtr &start_node, const std::vector<PathPtr>& reset_other_paths);
   bool mergePathToTree(const PathPtr &path);
-  void clearInvalidConnections();
   void convertToSubtreeSolution(const PathPtr& net_solution, const std::vector<NodePtr>& black_nodes);
+
   bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost, bool verbose = false);
-  bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost, unsigned int &number_of_candidates, bool verbose = false);
+  virtual bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat, std::vector<ConnectionPtr>& solution, double &cost, unsigned int &number_of_candidates, bool verbose = false);
 
   virtual void initFlaggedConnections();
+  virtual void clearInvalidConnections();
   virtual void clearFlaggedConnections();
+  virtual std::vector<ps_goal_ptr> sortNodes(const NodePtr& node);
+  virtual std::vector<NodePtr> startNodes(const std::vector<ConnectionPtr>& subpath1_conn);
   virtual bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node, const double &diff_subpath_cost, const PathPtr &current_solution, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &quickly_solved);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   MARS(const Eigen::VectorXd& current_configuration,
-        const PathPtr& current_path,
-        const double& max_time,
-        const TreeSolverPtr &solver);
+       const PathPtr& current_path,
+       const double& max_time,
+       const TreeSolverPtr &solver);
 
   MARS(const Eigen::VectorXd& current_configuration,
-        const PathPtr& current_path,
-        const double& max_time,
-        const TreeSolverPtr &solver,
-        const std::vector<PathPtr> &other_paths);
+       const PathPtr& current_path,
+       const double& max_time,
+       const TreeSolverPtr &solver,
+       const std::vector<PathPtr> &other_paths);
 
   NetPtr getNet()
   {
@@ -109,11 +113,38 @@ public:
     return other_paths_;
   }
 
-  virtual void setVerbosity(const bool& verbose)
+  void setVerbosity(const bool& verbose)
   {
     verbose_ = verbose;
     informedOnlineReplanning_verbose_ = verbose;
     pathSwitch_verbose_ = verbose;
+  }
+
+  void setVerbosityLevel(const int& verbose)
+  {
+    switch(verbose)
+    {
+    case 0:
+      verbose_ = false;
+      pathSwitch_verbose_ = false;
+      informedOnlineReplanning_verbose_ = false;
+      break;
+    case 1:
+      verbose_ = true;
+      pathSwitch_verbose_ = false;
+      informedOnlineReplanning_verbose_ = true;
+      break;
+    case 2:
+      verbose_ = true;
+      pathSwitch_verbose_ = true;
+      informedOnlineReplanning_verbose_ = true;
+      break;
+    default:
+      ROS_ERROR("Verbosity level should be <= 2, set equal to 2");
+      verbose_ = true;
+      pathSwitch_verbose_ = true;
+      informedOnlineReplanning_verbose_ = true;
+    }
   }
 
   void setFullNetSearch(const bool full_net_search)

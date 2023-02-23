@@ -3,20 +3,6 @@
 namespace pathplan
 {
 
-//ReplannerManagerMARSHA::ReplannerManagerMARSHA(const PathPtr &current_path,
-//                                               const TreeSolverPtr &solver,
-//                                               const ros::NodeHandle &nh):ReplannerManagerMARS(current_path,solver,nh)
-//{
-//  other_paths_ = {};
-//  ha_metrics_ = nullptr;
-//  MARSHAadditionalParams();
-//}
-
-//ReplannerManagerMARSHA::ReplannerManagerMARSHA(const PathPtr &current_path,
-//                                               const TreeSolverPtr &solver,
-//                                               const ros::NodeHandle &nh,
-//                                               std::vector<PathPtr> &other_paths):ReplannerManagerMARSHA(current_path,solver,nh,nullptr,other_paths){}
-
 ReplannerManagerMARSHA::ReplannerManagerMARSHA(const PathPtr &current_path,
                                                const TreeSolverPtr &solver,
                                                const ros::NodeHandle &nh,
@@ -32,22 +18,22 @@ void ReplannerManagerMARSHA::MARSHAadditionalParams()
 {
   unaware_obstacles_.clear();
   if(!nh_.getParam("MARSHA/unaware_obstacles",unaware_obstacles_))
-    ROS_ERROR("MARSHA/unaware_obstacles_ not set, set void");
+    ROS_ERROR("MARSHA/unaware_obstacles_ not set");
 
   poi_names_.clear();
-  if(nh_.getParam("MARSHA/poi_names_",poi_names_))
+  if(nh_.getParam("MARSHA/poi_names",poi_names_))
   {
     if(ha_metrics_)
-      ha_metrics_->setPoiNames(poi_names_);
+      ha_metrics_->getSSM()->setPoiNames(poi_names_);
   }
   else
-    ROS_ERROR("MARSHA/poi_names_ not set, set void");
+    ROS_ERROR("MARSHA/poi_names_ not set");
 }
 
 void ReplannerManagerMARSHA::syncPathCost()
 {
   ReplannerManagerMARS::syncPathCost();
-  ha_metrics_->setObstaclesPosition(obstalces_positions_);
+  ha_metrics_->getSSM()->setObstaclesPositions(obstalces_positions_);
 }
 
 void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
@@ -70,7 +56,7 @@ void ReplannerManagerMARSHA::initReplanner()
     ROS_WARN("full net search not available for MARSHA");
 
   full_net_search_ = false;
-  replanner->setFullNetSearch(false);
+  replanner->setFullNetSearch(full_net_search_);
 
   replanner_ = replanner;
 
@@ -85,7 +71,7 @@ Eigen::Matrix <double,3,Eigen::Dynamic> ReplannerManagerMARSHA::updateObstaclesP
 
   for(const moveit_msgs::CollisionObject& obj:world.collision_objects)
   {
-    if(std::find(unaware_obstacles_.begin(),unaware_obstacles_.end(),obj.header.frame_id)>=unaware_obstacles_.end())
+    if(std::find(unaware_obstacles_.begin(),unaware_obstacles_.end(),obj.id)>=unaware_obstacles_.end())
     {
       obstacle_position << obj.pose.position.x,obj.pose.position.y,obj.pose.position.z;
 
@@ -104,14 +90,18 @@ void ReplannerManagerMARSHA::collisionCheckThread()
   moveit_msgs::PlanningScene planning_scene_msg;
   Eigen::Matrix <double,3,Eigen::Dynamic> obstacles_positions;
 
-  ssm15066_estimator::SSM15066EstimatorPtr ssm = std::static_pointer_cast<ssm15066_estimator::SSM15066Estimator>(ha_metrics_->getSSM())->clone();
+  ssm15066_estimator::SSM15066Estimator2D ssm_2d_sequential = *(std::static_pointer_cast<ssm15066_estimator::SSM15066Estimator2D>(ha_metrics_->getSSM()->clone()));
+  ssm15066_estimator::SSM15066Estimator2DPtr ssm = std::make_shared<ssm15066_estimator::SSM15066Estimator2D>(ssm_2d_sequential);
 
   //elimina
-  const std::type_info& ti1 = typeid(ssm15066_estimator::SSM15066Estimator);
+  const std::type_info& ti1 = typeid(ssm15066_estimator::SSM15066Estimator2D);
   const std::type_info& ti2 = typeid(*ssm);
 
   if(std::type_index(ti1) != std::type_index(ti2))
+  {
+    ROS_INFO_STREAM("ssm type "<<ti2.name());
     throw std::runtime_error("ssm not correcly cloned");
+  }
   //
 
   LengthPenaltyMetricsPtr metrics_current_path = std::make_shared<LengthPenaltyMetrics>(ssm);
@@ -163,12 +153,12 @@ void ReplannerManagerMARSHA::collisionCheckThread()
     obstacles_positions = updateObstaclesPositions(planning_scene_msg.world);
 
     checker_cc_->setPlanningSceneMsg(planning_scene_msg);
-    metrics_current_path->setObstaclesPosition(obstacles_positions);
+    metrics_current_path->getSSM()->setObstaclesPositions(obstacles_positions);
 
     for(unsigned int i=0;i<checkers.size();i++)
     {
       checkers.at(i)->setPlanningSceneMsg(planning_scene_msg);
-      metrics .at(i)->setObstaclesPosition(obstacles_positions);
+      metrics .at(i)->getSSM()->setObstaclesPositions(obstacles_positions);
     }
     scene_mtx_.unlock();
 

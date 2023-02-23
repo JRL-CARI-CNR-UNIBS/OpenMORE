@@ -2,16 +2,21 @@
 #define MARSHA_H__
 #include <replanners_lib/replanners/MARS.h>
 #include <length_penalty_metrics.h>
+#include <ssm15066_estimators/parallel_ssm15066_estimator2D.h>
 
 namespace pathplan
 {
-
 class MARSHA;
 typedef std::shared_ptr<MARSHA> MARSHAPtr;
 
 class MARSHA: public MARS
 {
 protected:
+
+  /**
+   * @brief expensive_cost_ is used to understand if a connection has been penalized a lot by the ssm
+   */
+  static constexpr double expensive_cost_ = 10.0;
 
   /**
    * @brief cost_updated_flag_ is a custom flag for Connection class which allows to keep track of the connections
@@ -25,19 +30,14 @@ protected:
   std::shared_ptr<std::function<bool (const ConnectionPtr& connection)>> cost_evaluation_condition_;
 
   /**
-   * @brief starting_time_ is the time at the beginning of the replanning. It is used to check if the cost of a connection was recently updated or not
-   */
-  double starting_time_;
-
-  /**
    * @brief ha_metrics_ is the human-aware metrics
    */
   LengthPenaltyMetricsPtr ha_metrics_;
 
   /**
    * @brief euclidean_metrics_ used by the solver to compute the connecting path
-   * If and only if you are not using an optimal planner, using the aware metrics is useless; you can use the faster euclidean metrics to build the tree
-   * and then the aware metrics to evaluate the cost of the solution found
+   * If and only if you are not using an optimal planner, using the aware metrics during path search is useless (time consuming);
+   * you can use the faster euclidean metrics to build the tree and then the aware metrics to evaluate the cost of the solution found
    */
   MetricsPtr euclidean_metrics_;
 
@@ -45,11 +45,15 @@ protected:
   void init(const LengthPenaltyMetricsPtr& ha_metrics);
 
   void initFlaggedConnections() override;
+//  void clearInvalidConnections() override;
   void clearFlaggedConnections() override;
+  std::vector<ps_goal_ptr> sortNodes(const NodePtr& node) override;
+  std::vector<NodePtr> startNodes(const std::vector<ConnectionPtr>& subpath1_conn) override;
   bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node, const double &diff_subpath_cost,
                              const PathPtr &current_solution, const ros::WallTime &tic, const ros::WallTime &tic_cycle,
                              PathPtr &connecting_path, bool &quickly_solved) override;
-
+  bool findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double& cost2beat,
+                         std::vector<ConnectionPtr>& solution, double &cost, unsigned int &number_of_candidates, bool verbose = false) override;
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

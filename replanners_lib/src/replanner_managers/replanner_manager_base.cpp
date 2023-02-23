@@ -42,8 +42,8 @@ void ReplannerManagerBase::fromParam()
   }
   if(!nh_.getParam("parallel_checker_n_threads",parallel_checker_n_threads_))
   {
-    ROS_ERROR("parallel_checker_n_threads not set, set 10");
-    parallel_checker_n_threads_ = 10;
+    ROS_ERROR("parallel_checker_n_threads not set, all the available threads will be used");
+    parallel_checker_n_threads_ = std::thread::hardware_concurrency();
   }
   if(!nh_.getParam("read_safe_scaling",read_safe_scaling_))
   {
@@ -402,13 +402,13 @@ void ReplannerManagerBase::replanningThread()
       projection = path2project_on->projectOnPath(point2project,past_projection,false);
       past_projection = projection;
 
-      assert([&]() ->bool{
-               if(not path2project_on->findConnection(projection))
-               return true;
+//      assert([&]() ->bool{
+//               if(not path2project_on->findConnection(projection))
+//               return true;
 
-               ROS_BOLDRED_STREAM("projection is wrong");
-               return false;
-             }());
+//               ROS_BOLDRED_STREAM("projection is wrong");
+//               return false;
+//             }());
 
       abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(projection);
       abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration);

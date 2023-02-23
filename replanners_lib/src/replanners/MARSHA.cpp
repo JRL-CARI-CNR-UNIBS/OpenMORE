@@ -21,7 +21,6 @@ MARSHA::MARSHA(const Eigen::VectorXd& current_configuration, const PathPtr& curr
                const LengthPenaltyMetricsPtr& ha_metrics):
   MARS(current_configuration,current_path,max_time,solver,other_paths)
 {
-
   init(ha_metrics);
 }
 
@@ -55,20 +54,14 @@ void MARSHA::init(const LengthPenaltyMetricsPtr& ha_metrics)
     }
   });
 
-  //  cost_evaluation_condition_ =
-  //      std::make_shared<std::function<bool (const ConnectionPtr& connection)>>([&](const ConnectionPtr& connection)->bool{
-  //    if(connection->getTimeCostUpdate()<=starting_time_)
-  //      return true;
-  //    else
-  //      return false;
-  //  });
+  net_->setCostEvaluationCondition(cost_evaluation_condition_);
 }
 
 bool MARSHA::setObstaclesPosition(const Eigen::Matrix<double,3,Eigen::Dynamic>& obstacles_positions)
 {
   if(ha_metrics_ != nullptr)
   {
-    ha_metrics_->setObstaclesPosition(obstacles_positions);
+    ha_metrics_->getSSM()->setObstaclesPositions(obstacles_positions);
     return true;
   }
   return false;
@@ -78,7 +71,7 @@ bool MARSHA::addObstaclePosition(const Eigen::Vector3d& obstacle_position)
 {
   if(ha_metrics_ != nullptr)
   {
-    ha_metrics_->addObstaclePosition(obstacle_position);
+    ha_metrics_->getSSM()->addObstaclePosition(obstacle_position);
     return true;
   }
   return false;
@@ -121,6 +114,30 @@ void MARSHA::initFlaggedConnections()
   });
 }
 
+//void MARSHA::clearInvalidConnections()
+//{
+//  //  std::vector<ConnectionPtr> connections = current_path_->getConnections();
+//  //  for(const PathPtr& p:other_paths_)
+//  //    connections.insert(connections.end(),p->getConnectionsConst().begin(),p->getConnectionsConst().end());
+
+//  //  for(invalid_connection& invalid_conn:invalid_connections_)
+//  //  {
+//  //    if(std::find(connections.begin(),connections.end(),invalid_conn.connection)>=connections.end())
+//  //    {
+//  //      assert(invalid_conn.connection->isRecentlyChecked());
+
+//  //      /* Do not affect connections whose cost has been updated by the metrics (cost_updated_flag_ true),
+//  //       * reset only connections whose cost was changed by the collision checker */
+//  //      if(not invalid_conn.connection->getFlag(cost_updated_flag_,false))
+//  //      {
+//  //        invalid_conn.connection->setCost(invalid_conn.cost);
+//  //      }
+//  //    }
+//  //  }
+
+//  invalid_connections_.clear();
+//}
+
 void MARSHA::clearFlaggedConnections()
 {
   std::for_each(flagged_connections_.begin(),flagged_connections_.end(),
@@ -130,6 +147,119 @@ void MARSHA::clearFlaggedConnections()
   });
 
   flagged_connections_.clear();
+}
+
+std::vector<NodePtr> MARSHA::startNodes(const std::vector<ConnectionPtr>& subpath1_conn)
+{
+  /* Unlike MARS, avoid nodes for which the subpath to reach them is expensive */
+
+  std::vector<NodePtr> start_node_vector;
+  if(subpath1_conn.front()->getCost() >= expensive_cost_)
+  {
+    NodePtr current_node = subpath1_conn.front()->getParent();
+
+    assert(current_node->getParentConnectionsSize() == 1);
+
+    if(not current_node->getFlag(examined_flag_,false))
+      start_node_vector.push_back(current_node);
+  }
+  else
+  {
+    /* If the current connection is not too expensive, all the nodes between the current child to the parent
+     * of the connection expensive are considered as starting points for the replanning */
+
+    for(const ConnectionPtr& conn:subpath1_conn)
+    {
+      if(conn == subpath1_conn.front())
+        continue;
+      else if(conn == subpath1_conn.back())
+      {
+        /* If the path is free, you can consider all the nodes but it is useless to consider
+         * the last one before the goal (it is already connected to the goal with a straight line) */
+
+        if(conn->getCost() >= expensive_cost_ && (not conn->getParent()->getFlag(examined_flag_,false)))
+          start_node_vector.push_back(conn->getParent());
+      }
+      else
+      {
+        if(not conn->getParent()->getFlag(examined_flag_,false))
+          start_node_vector.push_back(conn->getParent());
+
+        if(conn->getCost() >= expensive_cost_)
+          break;
+      }
+    }
+  }
+
+  if(reverse_start_nodes_)
+    std::reverse(start_node_vector.begin(),start_node_vector.end());
+
+  if(informedOnlineReplanning_verbose_ || informedOnlineReplanning_disp_)
+    ROS_GREEN_STREAM("NEW J: "<<(int) (start_node_vector.size()-1));
+
+  return start_node_vector;
+}
+
+std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
+{
+  /* Sort nodes based on the metrics utopia.
+   * Prioritize nodes with low cost subpath to goal:
+   */
+
+  std::vector<NodePtr> nodes;
+  ps_goal_ptr pathswitch_goal;
+  std::vector<ps_goal_ptr> goals;
+  std::vector<NodePtr> considered_nodes;
+  std::multimap<double,ps_goal_ptr> ps_goals_map;
+
+  double utopia;
+  bool goal_node_added = false;
+  for(const PathPtr& p:admissible_other_paths_)
+  {
+    nodes = p->getNodes();
+    if(goal_node_added)
+    {
+      assert(nodes.back() == goal_node_);
+      nodes.pop_back();
+    }
+
+    for(const NodePtr& n:nodes)
+    {
+      if(std::find(considered_nodes.begin(),considered_nodes.end(),n)<considered_nodes.end())
+        continue;
+
+      utopia = metrics_->utopia(start_node->getConfiguration(),n->getConfiguration());
+
+      if(utopia<TOLERANCE)
+        continue;
+
+      pathswitch_goal = std::make_shared<ps_goal>();
+      pathswitch_goal->node = n;
+      pathswitch_goal->utopia = utopia;
+
+      if(n != goal_node_)
+      {
+        pathswitch_goal->subpath = p->getSubpathFromNode(n);
+        pathswitch_goal->subpath_cost = pathswitch_goal->subpath->cost();
+      }
+      else
+      {
+        goal_node_added = true;
+        pathswitch_goal->subpath = nullptr;
+        pathswitch_goal->subpath_cost = 0.0;
+      }
+
+      considered_nodes.push_back(n);
+
+      if(pathswitch_goal->subpath_cost < expensive_cost_)
+        ps_goals_map.insert(std::pair<double,ps_goal_ptr>(utopia,pathswitch_goal));
+    }
+  }
+
+  for(const std::pair<double,ps_goal_ptr> &p: ps_goals_map)
+    goals.push_back(p.second);
+
+  return goals;
 }
 
 bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& path2_node, const double& diff_subpath_cost,
@@ -175,6 +305,7 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
   double net_time = maxSolverTime(tic,tic_cycle);
 
   NetPtr net = std::make_shared<Net>(subtree);
+  net->setCostEvaluationCondition(cost_evaluation_condition_);
   std::multimap<double,std::vector<ConnectionPtr>> already_existing_solutions_map = net->getConnectionBetweenNodes(path1_node,path2_node,diff_subpath_cost,
                                                                                                                    black_list,net_time,search_in_subtree);
   double time_search = (ros::WallTime::now()-tic_search).toSec();
@@ -321,9 +452,9 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
 
           if(not checker_->checkConnection(c))
           {
-            invalid_connection invalid_conn;
-            invalid_conn.connection = c;
-            invalid_conn.cost = c->getCost();
+            invalid_connection_ptr invalid_conn = std::make_shared<invalid_connection>();
+            invalid_conn->connection = c;
+            invalid_conn->cost = c->getCost();
             invalid_connections_.push_back(invalid_conn);
 
             c->setCost(std::numeric_limits<double>::infinity());
@@ -388,6 +519,7 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
     std::vector<ConnectionPtr> connecting_path_conn;
 
     ros::WallTime tic_net = ros::WallTime::now();
+    net->setCostEvaluationCondition(cost_evaluation_condition_);
     std::multimap<double,std::vector<ConnectionPtr>> connecting_paths_map = net->getConnectionBetweenNodes(path1_node,path2_node_fake,diff_subpath_cost,
                                                                                                            black_list,net_time,search_in_subtree);
 
@@ -400,7 +532,11 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
     for(const ConnectionPtr& c: conns)
     {
       if(not c->getFlag(cost_updated_flag_,false))
+      {
         c->setCost(ha_metrics_->cost(c->getParent()->getConfiguration(),c->getChild()->getConfiguration()));
+        c->setFlag(cost_updated_flag_,true);
+        flagged_connections_.push_back(c);
+      }
 
       cost += c->getCost();
     }
@@ -434,11 +570,16 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
         connecting_path = std::make_shared<Path>(connecting_path_conn,ha_metrics_,checker_);
         connecting_path->setTree(tree_);
 
-        last_conn->remove();
+        assert(last_conn->isRecentlyChecked());
+        assert(last_conn->getFlag(cost_updated_flag_,false));
+        new_conn->setRecentlyChecked(last_conn->isRecentlyChecked());
+        new_conn->setFlag(cost_updated_flag_,last_conn->getFlag(cost_updated_flag_,false));
 
         std::vector<ConnectionPtr>::iterator it = std::find(flagged_connections_.begin(),flagged_connections_.end(),last_conn);
         assert(it<flagged_connections_.end());
         *it = new_conn;
+
+        last_conn->remove();
 
         assert(connecting_path->cost() == std::numeric_limits<double>::infinity() || connecting_path->cost()<diff_subpath_cost);
 
@@ -493,6 +634,202 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
   return false;
 }
 
+bool MARSHA::findValidSolution(const std::multimap<double,std::vector<ConnectionPtr>> &map, const double &cost2beat, std::vector<ConnectionPtr> &solution, double& cost, unsigned int &number_of_candidates, bool verbose)
+{
+  solution.clear();
+  number_of_candidates = 0;
+
+  if(not map.empty())
+  {
+    if(verbose)
+      ROS_CYAN_STREAM("Map not empty, size "<<map.size());
+
+    bool free;
+    int i,size;
+    double updated_cost;
+
+    for(const std::pair<double,std::vector<ConnectionPtr>> &solution_pair:map)
+    {
+      if(solution_pair.first == std::numeric_limits<double>::infinity())
+      {
+        updated_cost = std::numeric_limits<double>::infinity();
+
+        if(verbose)
+          ROS_CYAN_STREAM("solution cost inf -> updated cost inf");
+
+        assert([&]() ->bool{
+                 i=0;
+                 double updated_cost_check = 0.0;
+                 size = solution_pair.second.size();
+
+                 while(updated_cost_check<std::numeric_limits<double>::infinity() && i<size)
+                 {
+                   updated_cost_check += solution_pair.second.at(i)->getCost();
+                   if(solution_pair.second.at(i)->getCost() == std::numeric_limits<double>::infinity() && not solution_pair.second.at(i)->isRecentlyChecked())
+                   {
+                     ROS_INFO("no recently checked");
+                     return false;
+                   }
+                   i++;
+                 }
+
+                 if(updated_cost_check == updated_cost)
+                 return true;
+                 else
+                 return false;
+               }());
+      }
+      else //some connections are shared between solutions and during checking some of them can be set to infinity cost -> update cost
+      {
+        if(verbose)
+          ROS_CYAN_STREAM("solution cost not inf, updating the cost..");
+
+        i=0;
+        updated_cost = 0.0;
+        size = solution_pair.second.size();
+
+        while(updated_cost<std::numeric_limits<double>::infinity() && i<size)
+        {
+          if(verbose)
+            ROS_CYAN_STREAM("connection: "<<solution_pair.second.at(i)<<" cost: "<<solution_pair.second.at(i)->getCost());
+
+          updated_cost += solution_pair.second.at(i)->getCost();
+          assert([&]() ->bool{
+                   if(solution_pair.second.at(i)->getCost() == std::numeric_limits<double>::infinity())
+                   {
+                     if(solution_pair.second.at(i)->isRecentlyChecked())
+                     {
+                       return true;
+                     }
+                     else
+                     {
+                       ROS_INFO("cost inf but not recently checked");
+                       return false;
+                     }
+                   }
+                   else
+                   {
+                     if(solution_pair.second.at(i)->getFlag(cost_updated_flag_,false))
+                     {
+                       ROS_BOLDYELLOW_STREAM("connection "<<*solution_pair.second.at(i));
+
+                       if(std::find(flagged_connections_.begin(),flagged_connections_.end(),solution_pair.second.at(i))>=flagged_connections_.end())
+                       return false;
+
+                       return true;
+                     }
+                     else
+                     {
+                       ROS_BOLDRED_STREAM("connection "<<*solution_pair.second.at(i));
+                       return false;
+                     }
+                   }
+                 }());
+          i++;
+        }
+      }
+
+      if(verbose)
+        ROS_CYAN_STREAM("updated cost: "<<updated_cost<<" cost2beat: "<<cost2beat);
+
+      if(updated_cost<cost2beat)
+      {
+        if(verbose)
+          ROS_CYAN_STREAM("new candidate solution");
+
+        number_of_candidates++;
+
+        free = true;
+        for(const ConnectionPtr& conn: solution_pair.second)
+        {
+          if(not conn->isRecentlyChecked())
+          {
+            conn->setRecentlyChecked(true);
+            flagged_connections_.push_back(conn);
+
+            if(verbose)
+              ROS_CYAN_STREAM("conn "<<conn<<" not recently checked");
+
+            assert(conn->getCost() != std::numeric_limits<double>::infinity());
+
+            if(not checker_->checkConnection(conn))
+            {
+              free = false;
+
+              /* Save the invalid connection */
+              invalid_connection_ptr invalid_conn = std::make_shared<invalid_connection>();
+              invalid_conn->connection = conn;
+              invalid_conn->cost = conn->getCost();
+              invalid_connections_.push_back(invalid_conn);
+
+              /* Set the cost equal to infinity */
+              conn->setCost(std::numeric_limits<double>::infinity());
+
+              if(verbose)
+                ROS_INFO_STREAM("conn "<<conn<<" obstructed!");
+
+              break;
+            }
+          }
+          else
+          {
+            if(verbose)
+              ROS_CYAN_STREAM("conn "<<conn<<" already checked, cost: "<<conn->getCost());
+
+            assert(std::find(flagged_connections_.begin(),flagged_connections_.end(),conn)<flagged_connections_.end());
+
+            if(conn->getCost() == std::numeric_limits<double>::infinity()) //it should not happen..
+            {
+              assert(0);
+              free = false;
+              break;
+            }
+          }
+        }
+
+        if(free)
+        {
+          if(verbose)
+            ROS_CYAN_STREAM("Solution free, cost: "<<updated_cost);
+
+          solution = solution_pair.second;
+          cost = updated_cost;
+
+          //updated_cost != solution_pair.first can happen only with updated_cost == infinity and solution_pair.first not
+          assert(cost < std::numeric_limits<double>::infinity());
+          assert([&]() ->bool{
+                   if(std::abs(updated_cost-solution_pair.first)>1.04)
+                   {
+                     ROS_INFO_STREAM("updated cost "<<updated_cost<<" solution_pair.first "<<solution_pair.first <<" NET_ERROR_TOLERANCE "<<NET_ERROR_TOLERANCE<< " err "<<std::abs(solution_pair.first-updated_cost));
+                     return false;
+                   }
+                   return true;
+                 }());
+
+          return true;
+        }
+      }
+      else
+      {
+        if(verbose)
+          ROS_CYAN_STREAM("not a candidate solution");
+
+        if(updated_cost<std::numeric_limits<double>::infinity()) //solutions ordered by cost in the map, so, if this solution is not obstructed and it is worst than cost2beat, no better solutions exist (subsequent solutions will have higher cost or cost infinite)
+        {
+          if(verbose)
+            ROS_CYAN_STREAM("update cost not infinite, no better solutions available -> exit");
+
+          return false;
+        }
+      }
+
+      if(verbose)
+        ROS_CYAN_STREAM("-------------------------");
+    }
+  }
+  return false;
+}
+
 void MARSHA::setCurrentPath(const PathPtr& path)
 {
   MARS::setCurrentPath(path);
@@ -506,8 +843,7 @@ void MARSHA::setOtherPaths(const std::vector<PathPtr> &other_paths, const bool m
 
 bool MARSHA::replan()
 {
-  starting_time_ = ros::WallTime::now().toSec();
-  net_->setCostEvaluationCondition(cost_evaluation_condition_);
+  replanned_path_ = nullptr;
 
   assert(metrics_ == ha_metrics_);
   if(metrics_ == nullptr)

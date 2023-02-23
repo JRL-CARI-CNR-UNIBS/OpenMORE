@@ -4,6 +4,7 @@
 #include<replanners_lib/replanner_managers/replanner_manager_DRRTStar.h>
 #include<replanners_lib/replanner_managers/replanner_manager_MPRRT.h>
 #include<replanners_lib/replanner_managers/replanner_manager_MARS.h>
+#include<replanners_lib/replanner_managers/replanner_manager_MARSHA.h>
 
 int main(int argc, char **argv)
 {
@@ -23,45 +24,22 @@ int main(int argc, char **argv)
   nh.getParam("n_iter_per_query",n_iter_per_query);
 
   std::string replanner_type;
-  if (!nh.getParam("replanner_type",replanner_type))
-  {
-    ROS_INFO("replanner_type not set");
-    return 0;
-  }
+  nh.getParam("replanner_type",replanner_type);
 
   std::string group_name;
-  if (!nh.getParam("group_name",group_name))
-  {
-    ROS_ERROR("group_name not set, exit");
-    return 0;
-  }
+  nh.getParam("group_name",group_name);
 
   std::vector<double> start_configuration;
-  if (!nh.getParam("start_configuration",start_configuration))
-  {
-    ROS_ERROR("start_configuration not set, exit");
-    return 0;
-  }
+  nh.getParam("start_configuration",start_configuration);
 
   std::vector<double> stop_configuration;
-  if (!nh.getParam("stop_configuration",stop_configuration))
-  {
-    ROS_ERROR("stop_configuration not set, exit");
-    return 0;
-  }
+  nh.getParam("stop_configuration",stop_configuration);
 
   double max_distance;
-  if(!nh.getParam("max_distance",max_distance))
-  {
-    ROS_ERROR("max_distance not set, set 0.5");
-    max_distance = 0.5;
-  }
+  nh.getParam("max_distance",max_distance);
 
   bool display;
-  if (!nh.getParam("display",display))
-  {
-    display = false;
-  }
+  nh.getParam("display",display);
 
   //  ///////////////////////////////////UPLOADING THE ROBOT ARM/////////////////////////////////////////////////////////////
   moveit::planning_interface::MoveGroupInterface move_group(group_name);
@@ -194,7 +172,7 @@ int main(int argc, char **argv)
       {
         replanner_manager.reset(new pathplan::ReplannerManagerAnytimeDRRT(current_path,solver,nh));
       }
-      else if(replanner_type == "MARS")
+      else if(replanner_type == "MARS" || replanner_type == "MARSHA")
       {
         int n_other_paths;
         if (!nh.getParam("/MARS/n_other_paths",n_other_paths))
@@ -205,6 +183,8 @@ int main(int argc, char **argv)
 
         for(unsigned int i=0;i<n_other_paths;i++)
         {
+          std::srand(std::time(NULL));
+
           solver = std::make_shared<pathplan::RRT>(metrics,checker,sampler);
           new_path = trajectory->computePath(start_conf,goal_conf,solver,true);
 
@@ -217,7 +197,49 @@ int main(int argc, char **argv)
           }
         }
 
-        replanner_manager = std::make_shared<pathplan::ReplannerManagerMARS>(current_path,solver,nh,other_paths);
+        if(replanner_type == "MARSHA")
+        {
+
+          std::string base_frame;
+          nh.getParam("MARSHA/base_frame",base_frame);
+
+          std::string tool_frame;
+          nh.getParam("MARSHA/tool_frame",tool_frame);
+
+          double ssm_max_step_size;
+          nh.getParam("MARSHA/ssm_max_step_size",ssm_max_step_size);
+
+          int ssm_threads;
+          nh.getParam("MARSHA/ssm_threads",ssm_threads);
+
+          double max_cart_acc;
+          nh.getParam("MARSHA/max_cart_acc",max_cart_acc);
+
+          double tr;
+          nh.getParam("MARSHA/Tr",tr);
+
+          double min_distance;
+          nh.getParam("MARSHA/min_distance",min_distance);
+
+          double v_h;
+          nh.getParam("MARSHA/v_h",v_h);
+
+          Eigen::Vector3d grav; grav << 0, 0, -9.806;
+          rosdyn::ChainPtr chain = rosdyn::createChain(*robot_model_loader.getURDF(),base_frame,tool_frame,grav);
+//          ssm15066_estimator::SSM15066EstimatorPtr ssm = std::make_shared<ssm15066_estimator::ParallelSSM15066Estimator2D>(chain,ssm_max_step_size,ssm_threads);
+          ssm15066_estimator::SSM15066EstimatorPtr ssm = std::make_shared<ssm15066_estimator::SSM15066Estimator2D>(chain,ssm_max_step_size);
+
+          ssm->setHumanVelocity(v_h);
+          ssm->setMaxCartAcc(max_cart_acc);
+          ssm->setReactionTime(tr);
+          ssm->setMinDistance(min_distance);
+
+          pathplan::LengthPenaltyMetricsPtr ha_metrics = std::make_shared<pathplan::LengthPenaltyMetrics>(ssm);
+
+          replanner_manager = std::make_shared<pathplan::ReplannerManagerMARSHA>(current_path,solver,nh,ha_metrics,other_paths);
+        }
+        else
+          replanner_manager = std::make_shared<pathplan::ReplannerManagerMARS>(current_path,solver,nh,other_paths);
       }
       else
       {

@@ -54,16 +54,6 @@ protected:
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  //  ReplannerManagerMARSHA(const PathPtr &current_path,
-  //                         const TreeSolverPtr &solver,
-  //                         const ros::NodeHandle &nh);
-
-  //  ReplannerManagerMARSHA(const PathPtr &current_path,
-  //                         const TreeSolverPtr &solver,
-  //                         const ros::NodeHandle &nh,
-  //                         std::vector<PathPtr> &other_paths);
-
   ReplannerManagerMARSHA(const PathPtr &current_path,
                          const TreeSolverPtr &solver,
                          const ros::NodeHandle &nh,
@@ -75,7 +65,7 @@ public:
     ha_metrics_ = ha_metrics;
 
     if(not poi_names_.empty())
-      ha_metrics_->setPoiNames(poi_names_);
+      ha_metrics_->getSSM()->setPoiNames(poi_names_);
 
     if(replanner_)
       std::static_pointer_cast<MARSHA>(replanner_)->setMetricsHA(ha_metrics_);

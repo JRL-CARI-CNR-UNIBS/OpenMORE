@@ -8,7 +8,11 @@
 #include <replanners_lib/replanners/DRRT.h>
 #include <replanners_lib/replanners/anytimeDRRT.h>
 #include <replanners_lib/replanners/MARS.h>
+#include <replanners_lib/replanners/MARSHA.h>
 #include <graph_core/parallel_moveit_collision_checker.h>
+#include <ssm15066_estimators/parallel_ssm15066_estimator2D.h>
+#include <length_penalty_metrics.h>
+#include <graph_core/solvers/birrt.h>
 
 int main(int argc, char **argv)
 {
@@ -72,6 +76,29 @@ int main(int argc, char **argv)
   if (!nh.getParam("display",display))
   {
     display = false;
+  }
+
+  bool verbosity;
+  if (!nh.getParam("verbosity",verbosity))
+  {
+    verbosity = false;
+  }
+
+  int ssm_threads;
+  std::string base_frame, tool_frame;
+  std::vector<std::string> poi_names;
+  double ssm_max_step_size, max_cart_acc, tr, min_distance, v_h;
+  if(replanner_type == "MARSHA")
+  {
+    nh.getParam("MARSHA/base_frame",base_frame);
+    nh.getParam("MARSHA/tool_frame",tool_frame);
+    nh.getParam("MARSHA/ssm_threads",ssm_threads);
+    nh.getParam("MARSHA/ssm_max_step_size",ssm_max_step_size);
+    nh.getParam("MARSHA/max_cart_acc",max_cart_acc);
+    nh.getParam("MARSHA/Tr",tr);
+    nh.getParam("MARSHA/min_distance",min_distance);
+    nh.getParam("MARSHA/v_h",v_h);
+    nh.getParam("MARSHA/poi_names",poi_names);
   }
 
   //  ///////////////////////////////////UPLOADING THE ROBOT ARM/////////////////////////////////////////////////////////////
@@ -162,7 +189,28 @@ int main(int argc, char **argv)
       return 1;
     }
 
-    pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
+    pathplan::MetricsPtr metrics;
+
+    Eigen::Vector3d grav; grav << 0, 0, -9.806;
+    rosdyn::ChainPtr chain;
+    ssm15066_estimator::SSM15066EstimatorPtr ssm;
+    if(replanner_type == "MARSHA")
+    {
+      chain = rosdyn::createChain(*robot_model_loader.getURDF(),base_frame,tool_frame,grav);
+      // ssm = std::make_shared<ssm15066_estimator::ParallelSSM15066Estimator2D>(chain,ssm_max_step_size,ssm_threads);
+      ssm = std::make_shared<ssm15066_estimator::SSM15066Estimator2D>(chain,ssm_max_step_size);
+
+      ssm->setHumanVelocity(v_h);
+      ssm->setMaxCartAcc(max_cart_acc);
+      ssm->setReactionTime(tr);
+      ssm->setMinDistance(min_distance);
+      ssm->setPoiNames(poi_names);
+
+      metrics = std::make_shared<pathplan::LengthPenaltyMetrics>(ssm);
+    }
+    else
+      metrics = std::make_shared<pathplan::Metrics>();
+
     pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
     pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf,goal_conf,lb,ub);
     pathplan::RRTPtr solver = std::make_shared<pathplan::RRT>(metrics,checker,sampler);
@@ -183,10 +231,10 @@ int main(int argc, char **argv)
       disp->displayPath(current_path,"pathplan",{0.0,1.0,0.0,1.0});
 
     std::vector<pathplan::PathPtr> all_paths;
-    all_paths.push_back(current_path);
+    //    all_paths.push_back(current_path);
 
     std::srand(std::time(NULL));
-    int n_conn = std::rand() % (current_path->getConnections().size());
+    int n_conn = std::rand() % ((int) std::ceil(current_path->getConnections().size()/2.0));
     Eigen::VectorXd parent = current_path->getConnections().at(n_conn)->getParent()->getConfiguration();
     Eigen::VectorXd child = current_path->getConnections().at(n_conn)->getChild()->getConfiguration();
 
@@ -220,7 +268,7 @@ int main(int argc, char **argv)
     {
       replanner =  std::make_shared<pathplan::AnytimeDynamicRRT>(current_configuration,current_path,max_time,solver);
     }
-    else if(replanner_type == "MARS")
+    else if(replanner_type == "MARS" || replanner_type == "MARSHA")
     {
       int n_other_paths;
       if (!nh.getParam("/MARS/n_other_paths",n_other_paths))
@@ -228,6 +276,7 @@ int main(int argc, char **argv)
         ROS_ERROR("n_other_paths not set, set 1");
         n_other_paths = 1;
       }
+
       bool reverse;
       if (!nh.getParam("/MARS/reverse_start_nodes",reverse))
       {
@@ -241,16 +290,27 @@ int main(int argc, char **argv)
         full_search = true;
       }
 
-      std::vector<pathplan::PathPtr> other_paths;
+      bool opt;
+      if (!nh.getParam("/MARS/opt_paths",opt))
+      {
+        ROS_ERROR("opt_paths not set, set false");
+        opt = false;
+      }
+
+      pathplan::PathPtr new_path;
       for(unsigned int i=0;i<n_other_paths;i++)
       {
-        pathplan::RRTPtr solver2 = std::make_shared<pathplan::RRT>(metrics,checker,sampler);
-        pathplan::PathPtr path = trajectory.computePath(start_conf,goal_conf,solver2,true);
+        std::srand(std::time(NULL));
+        pathplan::NodePtr start_node = std::make_shared<pathplan::Node>(start_conf);
+        pathplan::NodePtr goal_node  = std::make_shared<pathplan::Node>(goal_conf );
 
-        if(path)
+        solver = std::make_shared<pathplan::BiRRT>(metrics,checker,sampler);
+        //        new_path = trajectory.computePath(start_conf,goal_conf,solver,opt);
+
+        if(solver->computePath(start_node,goal_node,nh,new_path))
         {
-          other_paths.push_back(path);
-          if(!path->getTree())
+          all_paths.push_back(new_path);
+          if(!new_path->getTree())
             assert(0);
 
           if(display)
@@ -258,14 +318,22 @@ int main(int argc, char **argv)
         }
       }
 
-      all_paths.insert(all_paths.end(),other_paths.begin(),other_paths.end());
+      if(replanner_type == "MARSHA")
+      {
+        pathplan::LengthPenaltyMetricsPtr ha_metrics = std::dynamic_pointer_cast<pathplan::LengthPenaltyMetrics>(metrics);
 
-      pathplan::MARSPtr MARS_replanner = std::make_shared<pathplan::MARS>(current_configuration,current_path,max_time,solver);
-      MARS_replanner->setOtherPaths(other_paths);
-      MARS_replanner->reverseStartNodes(reverse);
-      MARS_replanner->setFullNetSearch(full_search);
+        pathplan::MARSHAPtr MARSHA_replanner = std::make_shared<pathplan::MARSHA>(current_configuration,current_path,max_time,solver,all_paths,ha_metrics);
+        replanner = MARSHA_replanner;
+      }
+      else
+      {
+        pathplan::MARSPtr MARS_replanner = std::make_shared<pathplan::MARS>(current_configuration,current_path,max_time,solver);
+        MARS_replanner->setOtherPaths(all_paths);
+        MARS_replanner->reverseStartNodes(reverse);
+        MARS_replanner->setFullNetSearch(full_search);
 
-      replanner = MARS_replanner;
+        replanner = MARS_replanner;
+      }
     }
     else
     {
@@ -275,6 +343,23 @@ int main(int argc, char **argv)
 
     //      /////////////////////////////////////REPLANNING ////////////////////////////////////////////////////////
     replanner->setDisp(disp);
+    replanner->setVerbosity(verbosity);
+
+    if(replanner_type == "MARS" || replanner_type == "MARSHA")
+    {
+      if(verbosity)
+      {
+        int verbosity_level;
+        if (!nh.getParam("/MARS/verbosity_level",verbosity_level))
+        {
+          ROS_ERROR("verbosity_level not set, set 0");
+          verbosity_level = 0;
+        }
+
+        pathplan::MARSPtr mars = std::dynamic_pointer_cast<pathplan::MARS>(replanner);
+        mars->setVerbosityLevel(verbosity_level);
+      }
+    }
 
     pathplan::MoveitUtils moveit_utils(planning_scene,group_name);
     if (!add_obj.waitForExistence(ros::Duration(10)))
@@ -291,18 +376,19 @@ int main(int argc, char **argv)
       object_loader_msgs::AddObjects add_srv;
       object_loader_msgs::RemoveObjects remove_srv;
       object_loader_msgs::Object obj;
-      obj.object_type="scatola";
+      obj.object_type="little_box";
 
       if(j!=2)
       {
-        std::vector<pathplan::ConnectionPtr> subpath_conns = current_path_copy->getSubpathFromConf(current_configuration,true)->getConnections();
+        pathplan::PathPtr subpath = current_path_copy->getSubpathFromConf(current_configuration,true);
+        std::vector<pathplan::ConnectionPtr> subpath_conns = subpath->getConnections();
 
         std::srand(std::time(NULL));
         int obj_conn_pos;
         if(subpath_conns.size() == 1)
           obj_conn_pos = 0;
         else
-          obj_conn_pos = (std::rand() % (subpath_conns.size()));
+          obj_conn_pos = (std::rand() % ((int)std::ceil(subpath_conns.size()/1.7)));
 
         pathplan::ConnectionPtr obj_conn = subpath_conns.at(obj_conn_pos);
         pathplan::NodePtr obj_child = obj_conn->getChild();
@@ -327,11 +413,19 @@ int main(int argc, char **argv)
         }
         else
         {
+          if(ssm)
+          {
+            Eigen::Vector3d obs_location; obs_location<<obj.pose.pose.position.x,obj.pose.pose.position.y,obj.pose.pose.position.z;
+            ssm->addObstaclePosition(obs_location);
+          }
+
           remove_srv.request.obj_ids.clear();
           for (const std::string& str: add_srv.response.ids)
           {
             remove_srv.request.obj_ids.push_back(str);
           }
+
+          ROS_BOLDMAGENTA_STREAM("Obstacle spawned");
         }
 
         ros::Duration(1).sleep();
@@ -351,6 +445,7 @@ int main(int argc, char **argv)
 
       checker->setPlanningSceneMsg(ps_srv.response.scene);
 
+      in_collision = false;
       if(!checker->check(current_configuration))
       {
         start_conf = start_conf+delta;
@@ -370,9 +465,14 @@ int main(int argc, char **argv)
         break;
       }
 
+      if(in_collision)
+        continue;
+
       bool valid = current_path->isValid();
       if(j != 2 && valid)
         assert(0);
+
+      ROS_INFO_STREAM("current path "<<*current_path);
 
       for(const pathplan::PathPtr& p:all_paths)
         p->isValid();
@@ -381,31 +481,51 @@ int main(int argc, char **argv)
       replanner->setMaxTime(max_time);
 
       ros::WallTime tic = ros::WallTime::now();
-      success =  replanner->replan();
+      replanner->replan();
+      success = replanner->getSuccess();
       ros::WallTime toc = ros::WallTime::now();
 
       if(success)
       {
-        ROS_INFO_STREAM("-Cycle n: "<<std::to_string(j)<<" success: "<<success<<" duration: "<<(toc-tic).toSec()<<" cost: "<<replanner->getReplannedPath()->cost());
-
+        ROS_INFO_STREAM("- - - - Cycle n: "<<std::to_string(j)<<" success: "<<success<<" duration: "<<(toc-tic).toSec()<<" cost: "<<replanner->getReplannedPath()->cost()<<" - - - - ");
         current_path = replanner->getReplannedPath();
         replanner->setCurrentPath(current_path);
-
+        ROS_INFO_STREAM("Path found "<<*current_path);
         current_path_copy = current_path->clone();
 
         current_configuration = current_path->getWaypoints().front();
         replanner->setCurrentConf(current_configuration);
 
         if(display)
-          disp->displayPath(current_path,"pathplan",{1.0,1.0,0.0,1.0});
+          disp->displayPathAndWaypoints(current_path,"pathplan",{1.0,1.0,0.0,1.0});
+
       }
       else
       {
-        ROS_INFO_STREAM("-Cycle n: "<<std::to_string(j)<<" success: "<<success<<" duration: "<<(toc-tic).toSec());
+        ROS_INFO_STREAM("- - - - Cycle n: "<<std::to_string(j)<<" success: "<<success<<" duration: "<<(toc-tic).toSec()<<" - - - - ");
+      }
 
-        //pathplan::PathPtr subpath1 = current_path->getSubpathFromConf(current_configuration,true);
-        //ROS_INFO_STREAM("-Cycle n: "<<std::to_string(j)<<" success: "<<success<<" duration: "<<(toc-tic).toSec()<< " subpath1 cost: "<<subpath1->cost()<<" subpath1 norm: "<<subpath1->getNormFromConf(current_configuration));
-        //break;
+      if(ssm)
+      {
+        ssm->setVerbose(1);
+        for(const pathplan::ConnectionPtr& c:current_path->getConnections())
+        {
+          ROS_INFO("--------");
+          c->setCost(metrics->cost(c->getParent(),c->getChild()));
+          ROS_INFO_STREAM(*c);
+        }
+        ssm->setVerbose(0);
+      }
+
+      ROS_INFO_STREAM("Path cost "<< current_path->cost());
+
+      if(success && not current_path->isValid())
+        throw std::runtime_error("not valid");
+
+      if(display)
+      {
+        disp->nextButton();
+        disp->clearMarkers();
       }
 
       if(j != 2)
@@ -416,17 +536,11 @@ int main(int argc, char **argv)
           return 1;
         }
 
+        if(ssm)
+          ssm->clearObstaclesPositions();
+
         ros::Duration(1).sleep();
       }
-    }
-
-    if(in_collision)
-      continue;
-
-    if(display)
-    {
-      disp->nextButton();
-      disp->clearMarkers();
     }
 
     start_conf = start_conf+delta;

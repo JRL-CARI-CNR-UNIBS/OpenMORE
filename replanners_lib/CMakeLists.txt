@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(replanners_lib)
 add_compile_options(-std=c++17 -funroll-loops -Wall -Ofast)
-set(CMAKE_BUILD_TYPE Release)
-#set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 
 find_package(catkin REQUIRED COMPONENTS
 graph_core

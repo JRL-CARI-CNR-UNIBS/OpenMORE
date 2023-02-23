@@ -1,25 +1,51 @@
+# TEST CONFIGURATIONS:
+n_iter: 500
+
+# PLANNING CONFIGURATIONS:
+group_name: "cartesian_arm"
+start_configuration: [0.2,0.2,0.2]
+stop_configuration:  [0.8,0.8,0.8]
+utopia_tolerance: 0.05
+extend: false
+max_distance: 0.1
+checker_resolution: 0.005
+parallel_checker_n_threads: 4
+
+# REPLANNER CONFIGURATIONS:
+
 # Available replanners:
 # - MPRRT
 # - DRRT*
 # - DRRT
 # - anytimeDRRT
 # - MARS
+# - MARSHA
 
-replanner_type: "DRRT*"
-group_name: "cartesian_arm"
-start_configuration: [0.2,0.2,0.2]
-stop_configuration:  [0.8,0.8,0.8]
-max_distance: 0.2
-extend: false
-utopia_tolerance: 0.05
+replanner_type: "MARSHA"
 max_time: 0.2
-n_iter: 500
-display: false
 
 MPRRT:
   n_threads_replan: 5
 
 MARS:
-  n_other_paths: 2
+  n_other_paths: 3
+  opt_paths: false
   reverse_start_nodes: true
-  full_net_search: true
+  full_net_search: false
+  dt_replan_relaxed: 0.20
+  verbosity_level: 2
+
+MARSHA:
+  base_frame: "link_X"
+  tool_frame: "end_effector"
+  ssm_max_step_size: 0.05 #0.005
+  ssm_threads: 4
+  poi_names: ["end_effector"]
+  max_cart_acc: 2.5
+  Tr: 0.15
+  min_distance: 0.08
+  v_h: 0.0
+
+# VERBOSITY:
+display: true
+verbosity: true
