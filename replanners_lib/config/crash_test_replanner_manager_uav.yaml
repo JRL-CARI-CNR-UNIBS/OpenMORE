@@ -3,7 +3,7 @@ n_query: 50
 n_iter_per_query: 10
 
 #PLANNING CONFIGURATIONS:
-group_name: "uav_arm"
+group_name: "cartesian_arm"
 start_configuration: [0.0,0.0,0.0]
 stop_configuration:  [10,10,2]
 utopia_tolerance: 0.05

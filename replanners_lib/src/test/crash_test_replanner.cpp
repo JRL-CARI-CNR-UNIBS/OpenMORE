@@ -26,82 +26,47 @@ int main(int argc, char **argv)
   ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::AddObjects>("add_object_to_scene");
   ros::ServiceClient remove_obj=nh.serviceClient<object_loader_msgs::RemoveObjects>("remove_object_from_scene");
 
-  //  ////////////////////////////////////////// GETTING ROS PARAM ///////////////////////////////////////////////
-  int n_iter = 1;
-  nh.getParam("n_iter",n_iter);
-
-  std::string replanner_type;
-  if (!nh.getParam("replanner_type",replanner_type))
-  {
-    ROS_INFO("replanner_type not set");
-    return 0;
-  }
-
-  double max_time;
-  if (!nh.getParam("max_time",max_time))
-  {
-    ROS_INFO("max_time not set, use inf");
-    max_time=std::numeric_limits<double>::infinity();
-  }
-
-  std::string group_name;
-  if (!nh.getParam("group_name",group_name))
-  {
-    ROS_ERROR("group_name not set, exit");
-    return 0;
-  }
-
-  std::vector<double> start_configuration;
-  if (!nh.getParam("start_configuration",start_configuration))
-  {
-    ROS_ERROR("start_configuration not set, exit");
-    return 0;
-  }
-
-  std::vector<double> stop_configuration;
-  if (!nh.getParam("stop_configuration",stop_configuration))
-  {
-    ROS_ERROR("stop_configuration not set, exit");
-    return 0;
-  }
-
-  double max_distance;
-  if(!nh.getParam("max_distance",max_distance))
-  {
-    ROS_ERROR("max_distance not set, set 0.5");
-    max_distance = 0.5;
-  }
-
-  bool display;
-  if (!nh.getParam("display",display))
-  {
-    display = false;
-  }
-
-  bool verbosity;
-  if (!nh.getParam("verbosity",verbosity))
-  {
-    verbosity = false;
-  }
-
-  int ssm_threads;
-  std::string base_frame, tool_frame;
+  //  ////////////////////////////////////////// GET ROS PARAM ///////////////////////////////////////////////
   std::vector<std::string> poi_names;
-  double ssm_max_step_size, max_cart_acc, tr, min_distance, v_h;
-  if(replanner_type == "MARSHA")
+  int n_iter, n_other_paths, ssm_threads;
+  std::vector<double> start_configuration, stop_configuration;
+  std::string group_name, replanner_type, base_frame, tool_frame;
+  bool full_search, reverse, opt, display, verbosity, ssm_parallel;
+  double max_time, max_distance, ssm_max_step_size, max_cart_acc, tr, min_distance, v_h;
+
+  nh.getParam("n_iter",n_iter);
+  nh.getParam("replanner_type",replanner_type);
+  nh.getParam("max_time",max_time);
+  nh.getParam("group_name",group_name);
+  nh.getParam("start_configuration",start_configuration);
+  nh.getParam("stop_configuration",stop_configuration);
+  nh.getParam("max_distance",max_distance);
+  nh.getParam("display",display);
+  nh.getParam("verbosity",verbosity);
+
+  if(replanner_type == "MARS" || replanner_type == "MARSHA" )
   {
-    nh.getParam("MARSHA/base_frame",base_frame);
-    nh.getParam("MARSHA/tool_frame",tool_frame);
-    nh.getParam("MARSHA/ssm_threads",ssm_threads);
-    nh.getParam("MARSHA/ssm_max_step_size",ssm_max_step_size);
-    nh.getParam("MARSHA/max_cart_acc",max_cart_acc);
-    nh.getParam("MARSHA/Tr",tr);
-    nh.getParam("MARSHA/min_distance",min_distance);
-    nh.getParam("MARSHA/v_h",v_h);
-    nh.getParam("MARSHA/poi_names",poi_names);
+    nh.getParam("/MARS/n_other_paths",n_other_paths);
+    nh.getParam("/MARS/reverse_start_nodes",reverse);
+    nh.getParam("/MARS/full_net_search",full_search);
+    nh.getParam("/MARS/opt_paths",opt);
+
+    if(replanner_type == "MARSHA")
+    {
+      nh.getParam("MARSHA/base_frame",base_frame);
+      nh.getParam("MARSHA/tool_frame",tool_frame);
+      nh.getParam("MARSHA/ssm_threads",ssm_threads);
+      nh.getParam("MARSHA/ssm_parallel",ssm_parallel);
+      nh.getParam("MARSHA/ssm_max_step_size",ssm_max_step_size);
+      nh.getParam("MARSHA/max_cart_acc",max_cart_acc);
+      nh.getParam("MARSHA/Tr",tr);
+      nh.getParam("MARSHA/min_distance",min_distance);
+      nh.getParam("MARSHA/v_h",v_h);
+      nh.getParam("MARSHA/poi_names",poi_names);
+    }
   }
 
-  //  ///////////////////////////////////UPLOADING THE ROBOT ARM/////////////////////////////////////////////////////////////
+  //  ///////////////////////////////////UPLOAD THE ROBOT ARM/////////////////////////////////////////////////////////////
   moveit::planning_interface::MoveGroupInterface move_group(group_name);
   robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
   robot_model::RobotModelPtr kinematic_model = robot_model_loader.getModel();
@@ -124,7 +89,7 @@ int main(int argc, char **argv)
     }
   }
 
-  //  /////////////////////////////////////UPDATING THE PLANNING STATIC SCENE////////////////////////////////////
+  //  /////////////////////////////////////UPDATE THE PLANNING STATIC SCENE////////////////////////////////////
   moveit_msgs::GetPlanningScene ps_srv;
   if (!ps_client.waitForExistence(ros::Duration(10)))
   {
@@ -153,7 +118,7 @@ int main(int argc, char **argv)
   ros::Duration(0.1).sleep();
 
   Eigen::VectorXd start_conf = Eigen::Map<Eigen::VectorXd>(start_configuration.data(), start_configuration.size());
-  Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
+  Eigen::VectorXd goal_conf  = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
 
   Eigen::VectorXd delta = (goal_conf-start_conf)/(n_iter);
   delta[2] = 0.0;
@@ -166,39 +131,33 @@ int main(int argc, char **argv)
     distance = (goal_conf-start_conf).norm();
     ROS_INFO_STREAM("Iter n: "<<std::to_string(i)<<" start: "<<start_conf.transpose()<< " goal: "<<goal_conf.transpose()<< " distance: "<<distance);
 
-    disp->clearMarker(id_start);
-    disp->clearMarker(id_goal);
-
-    disp->changeNodeSize();
-    id_start = disp->displayNode(std::make_shared<pathplan::Node>(start_conf),"pathplan",{1.0,0.0,0.0,1.0});
-    id_goal = disp->displayNode(std::make_shared<pathplan::Node>(goal_conf),"pathplan",{1.0,0.0,0.0,1.0});
-    disp->defaultNodeSize();
-
     if(display)
       disp->nextButton();
 
-    if (!ps_client.call(ps_srv))
+    if(!ps_client.call(ps_srv))
     {
       ROS_ERROR("call to srv not ok");
       return 1;
     }
 
-    if (!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
+    if(!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
     {
       ROS_ERROR("unable to update planning scene");
       return 1;
     }
 
     pathplan::MetricsPtr metrics;
-
-    Eigen::Vector3d grav; grav << 0, 0, -9.806;
-    rosdyn::ChainPtr chain;
     ssm15066_estimator::SSM15066EstimatorPtr ssm;
+
     if(replanner_type == "MARSHA")
     {
+      Eigen::Vector3d grav; grav << 0, 0, -9.806;
+      rosdyn::ChainPtr chain;
       chain = rosdyn::createChain(*robot_model_loader.getURDF(),base_frame,tool_frame,grav);
-      // ssm = std::make_shared<ssm15066_estimator::ParallelSSM15066Estimator2D>(chain,ssm_max_step_size,ssm_threads);
-      ssm = std::make_shared<ssm15066_estimator::SSM15066Estimator2D>(chain,ssm_max_step_size);
+      if(ssm_parallel)
+        ssm = std::make_shared<ssm15066_estimator::ParallelSSM15066Estimator2D>(chain,ssm_max_step_size,ssm_threads);
+      else
+        ssm = std::make_shared<ssm15066_estimator::SSM15066Estimator2D>(chain,ssm_max_step_size);
 
       ssm->setHumanVelocity(v_h);
       ssm->setMaxCartAcc(max_cart_acc);
@@ -227,28 +186,15 @@ int main(int argc, char **argv)
       continue;
     }
 
-    if(display)
-      disp->displayPath(current_path,"pathplan",{0.0,1.0,0.0,1.0});
-
     std::vector<pathplan::PathPtr> all_paths;
-    //    all_paths.push_back(current_path);
 
     std::srand(std::time(NULL));
     int n_conn = std::rand() % ((int) std::ceil(current_path->getConnections().size()/2.0));
     Eigen::VectorXd parent = current_path->getConnections().at(n_conn)->getParent()->getConfiguration();
-    Eigen::VectorXd child = current_path->getConnections().at(n_conn)->getChild()->getConfiguration();
+    Eigen::VectorXd child  = current_path->getConnections().at(n_conn)->getChild( )->getConfiguration();
 
     Eigen::VectorXd current_configuration = parent + (child-parent)*0.1;
     ROS_INFO_STREAM("Current configuration: "<<current_configuration.transpose());
-
-    if(display)
-    {
-      disp->changeNodeSize();
-      disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),"pathplan",{1.0,0.5,0.5,1.0});
-      disp->defaultNodeSize();
-
-      disp->nextButton();
-    }
 
     // //////////////////////////////////////////DEFINING THE REPLANNER//////////////////////////////////////////////
     pathplan::ReplannerBasePtr replanner = nullptr;
@@ -270,33 +216,6 @@ int main(int argc, char **argv)
     }
     else if(replanner_type == "MARS" || replanner_type == "MARSHA")
     {
-      int n_other_paths;
-      if (!nh.getParam("/MARS/n_other_paths",n_other_paths))
-      {
-        ROS_ERROR("n_other_paths not set, set 1");
-        n_other_paths = 1;
-      }
-
-      bool reverse;
-      if (!nh.getParam("/MARS/reverse_start_nodes",reverse))
-      {
-        ROS_ERROR("reverse_start_nodes not set, set false");
-        reverse = false;
-      }
-      bool full_search;
-      if (!nh.getParam("/MARS/full_net_search",full_search))
-      {
-        ROS_ERROR("full_net_search not set, set true");
-        full_search = true;
-      }
-
-      bool opt;
-      if (!nh.getParam("/MARS/opt_paths",opt))
-      {
-        ROS_ERROR("opt_paths not set, set false");
-        opt = false;
-      }
-
       pathplan::PathPtr new_path;
       for(unsigned int i=0;i<n_other_paths;i++)
       {
@@ -308,14 +227,7 @@ int main(int argc, char **argv)
         //        new_path = trajectory.computePath(start_conf,goal_conf,solver,opt);
 
         if(solver->computePath(start_node,goal_node,nh,new_path))
-        {
           all_paths.push_back(new_path);
-          if(!new_path->getTree())
-            assert(0);
-
-          if(display)
-            disp->displayPath(current_path,"pathplan",{0.0,0.0,1.0,1.0});
-        }
       }
 
       if(replanner_type == "MARSHA")
@@ -350,11 +262,7 @@ int main(int argc, char **argv)
       if(verbosity)
       {
         int verbosity_level;
-        if (!nh.getParam("/MARS/verbosity_level",verbosity_level))
-        {
-          ROS_ERROR("verbosity_level not set, set 0");
-          verbosity_level = 0;
-        }
+        nh.getParam("/MARS/verbosity_level",verbosity_level);
 
         pathplan::MARSPtr mars = std::dynamic_pointer_cast<pathplan::MARS>(replanner);
         mars->setVerbosityLevel(verbosity_level);
@@ -368,19 +276,35 @@ int main(int argc, char **argv)
       return 1;
     }
 
-    pathplan::PathPtr current_path_copy = current_path->clone();
     bool in_collision = false;
     bool success;
     for(int j=0;j<3;j++)
     {
+
+      if(display)
+      {
+        disp->clearMarkers();
+        disp->displayPath(current_path,"pathplan",{0.0,1.0,0.0,1.0});
+
+        for(const pathplan::PathPtr& p:all_paths)
+          disp->displayPath(p,"pathplan",{0.0,0.0,1.0,1.0});
+
+
+        disp->changeNodeSize();
+        id_start = disp->displayNode(std::make_shared<pathplan::Node>(start_conf),"pathplan",{1.0,0.0,0.0,1.0});
+        id_goal  = disp->displayNode(std::make_shared<pathplan::Node>(goal_conf ),"pathplan",{1.0,0.0,0.0,1.0});
+        disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),"pathplan",{1.0,0.5,0.5,1.0});
+        disp->defaultNodeSize();
+      }
+
       object_loader_msgs::AddObjects add_srv;
       object_loader_msgs::RemoveObjects remove_srv;
       object_loader_msgs::Object obj;
-      obj.object_type="little_box";
+      obj.object_type="sphere";
 
       if(j!=2)
       {
-        pathplan::PathPtr subpath = current_path_copy->getSubpathFromConf(current_configuration,true);
+        pathplan::PathPtr subpath = current_path->getSubpathFromConf(current_configuration,true);
         std::vector<pathplan::ConnectionPtr> subpath_conns = subpath->getConnections();
 
         std::srand(std::time(NULL));
@@ -391,7 +315,7 @@ int main(int argc, char **argv)
           obj_conn_pos = (std::rand() % ((int)std::ceil(subpath_conns.size()/1.7)));
 
         pathplan::ConnectionPtr obj_conn = subpath_conns.at(obj_conn_pos);
-        pathplan::NodePtr obj_child = obj_conn->getChild();
+        pathplan::NodePtr obj_child  = obj_conn->getChild ();
         pathplan::NodePtr obj_parent = obj_conn->getParent();
         Eigen::VectorXd obj_pos = obj_parent->getConfiguration() + 0.75*(obj_child->getConfiguration()-obj_parent->getConfiguration());
 
@@ -399,6 +323,7 @@ int main(int argc, char **argv)
         tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
         obj.pose.header.frame_id="world";
 
+        add_srv.request.objects.clear();
         add_srv.request.objects.push_back(obj);
         if (!add_obj.call(add_srv))
         {
@@ -448,8 +373,8 @@ int main(int argc, char **argv)
       in_collision = false;
       if(!checker->check(current_configuration))
       {
-        start_conf = start_conf+delta;
-        goal_conf = goal_conf-delta;
+        start_conf = start_conf + delta;
+        goal_conf  = goal_conf  - delta;
 
         if(j!=2)
         {
@@ -469,8 +394,7 @@ int main(int argc, char **argv)
         continue;
 
       bool valid = current_path->isValid();
-      if(j != 2 && valid)
-        assert(0);
+      assert((j!=2 && not valid) || (j==2 && valid));
 
       ROS_INFO_STREAM("current path "<<*current_path);
 
@@ -491,14 +415,12 @@ int main(int argc, char **argv)
         current_path = replanner->getReplannedPath();
         replanner->setCurrentPath(current_path);
         ROS_INFO_STREAM("Path found "<<*current_path);
-        current_path_copy = current_path->clone();
 
         current_configuration = current_path->getWaypoints().front();
         replanner->setCurrentConf(current_configuration);
 
         if(display)
           disp->displayPathAndWaypoints(current_path,"pathplan",{1.0,1.0,0.0,1.0});
-
       }
       else
       {
@@ -522,11 +444,9 @@ int main(int argc, char **argv)
       if(success && not current_path->isValid())
         throw std::runtime_error("not valid");
 
+
       if(display)
-      {
         disp->nextButton();
-        disp->clearMarkers();
-      }
 
       if(j != 2)
       {

@@ -1,8 +1,9 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="demo_package" default="cartesian_moveit_config"     doc="name of the package in which the demo.launch file is."   />
-  <arg name="objects" default="object_test_replanner.yaml"       doc="file containing the description of the objects to spawn."/>
-  <arg name="static_scene" default="static_scene_cartesian.yaml" doc="file containing the description of the static scene."    />
+  <arg name="demo_package" default="cartesian_moveit_config"                                   doc="name of the package in which the demo.launch file is."   />
+  <arg name="objects"      default="object_test_replanner.yaml"                                doc="file containing the description of the objects to spawn."/>
+  <arg name="static_scene" default="static_scene_cartesian.yaml"                               doc="file containing the description of the static scene."    />
+  <arg name="rviz"         default="$(eval find(arg('demo_package')) + '/launch/moveit.rviz')" doc="file containing the rviz configuration."                 />
 
   <rosparam command="load" file="$(find replanners_bench_cells)/config/$(arg objects)"/>
   <rosparam command="load" file="$(find replanners_bench_cells)/config/$(arg static_scene)"/>
@@ -31,7 +32,7 @@
   </include>
 
   <include file="$(eval find(arg('demo_package')) + '/launch/moveit_rviz.launch')">
-    <arg name="rviz_config" value="$(eval find(arg('demo_package')) + '/launch/moveit.rviz')"/>
+    <arg name="rviz_config" value="$(arg rviz)"/>
     <arg name="debug" value="false"/>
   </include>
 </launch>

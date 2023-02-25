@@ -7,7 +7,7 @@
 replanner_type: "anytimeDRRT"
 group_name: "cartesian_arm"
 start_configuration: [0.2, 0.2, 0.2]
-stop_configuration: [0.8, 0.8, 0.8]
+stop_configuration: [2.8, 2.8, 2.8]
 dt_replan: 0.2
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30

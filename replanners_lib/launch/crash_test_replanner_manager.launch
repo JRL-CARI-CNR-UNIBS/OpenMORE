@@ -1,8 +1,9 @@
 <?xml version="1.0"?>
 <launch>
-  <include file="$(find replanners_lib)/launch/cell.launch">
-    <arg name="demo_package" value="cartesian_moveit_config"/>
-    <arg name="static_scene" value="static_scene_crash_test.yaml"/>
+  <include file="$(find replanners_bench_cells)/launch/cell.launch">
+    <arg name="demo_package" value="replanners_bench_3d_simple_moveit_config"/>
+    <arg name="static_scene" value="static_scene_replanners_bench_3d_simple.yaml"/>
+    <arg name="rviz"         value="$(find replanners_bench_cells)/config/rviz_crash_test_3d_simple_config.rviz"/>
   </include>
 
   <rosparam command="load" file="$(find replanners_lib)/config/crash_test_replanner_manager.yaml"/>

@@ -5,7 +5,7 @@ n_iter_per_query: 10
 #PLANNING CONFIGURATIONS:
 group_name: "cartesian_arm"
 start_configuration: [0.2,0.2,0.2]
-stop_configuration:  [0.8,0.8,0.8]
+stop_configuration:  [2.8,2.8,2.8]
 utopia_tolerance: 0.05
 extend: false
 max_distance: 0.1

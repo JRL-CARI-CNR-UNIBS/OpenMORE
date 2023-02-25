@@ -286,6 +286,24 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
                                                         path2_node->getConfiguration(),
                                                         diff_subpath_cost,
                                                         black_list,true); //collision check before adding a node
+  subtree->hideInvalidBranches(subtree->getRoot());
+
+  assert([&]() ->bool{
+           std::vector<NodePtr> leaves;
+           subtree->getLeaves(leaves);
+
+           for(const NodePtr& n:leaves)
+           {
+             std::vector<ConnectionPtr> conns = subtree->getConnectionToNode(n);
+             for(const ConnectionPtr& c:conns)
+             {
+               if(c->getCost() == std::numeric_limits<double>::infinity())
+               return false;
+             }
+           }
+           return true;
+         }());
+
   if(pathSwitch_disp_)
   {
     disp_->changeConnectionSize({0.025,0.025,0.025});
@@ -362,6 +380,16 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
       else
         ROS_BLUE_STREAM("No candidate solutions found in the subtree (search time "<<(ros::WallTime::now()-tic_search).toSec()<<" seconds)");
     }
+
+    //Remove the invalid branches from the subtree
+    for(const std::pair<double,std::vector<ConnectionPtr>>& p:already_existing_solutions_map)
+    {
+      for(const ConnectionPtr& c:p.second)
+      {
+        if(c->getCost() == std::numeric_limits<double>::infinity())
+          subtree->hideFromSubtree(c->getChild());
+      }
+    }
   }
 
   /* If no solutions already exist, search for a new one. The ellipsoide determined
@@ -432,6 +460,9 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
 
       bool subtree_valid = true;
       ConnectionPtr obstructed_connection = nullptr;
+
+      ROS_BOLDWHITE_STREAM("connecting path before check "<<*connecting_path); //elimina
+
       for(const ConnectionPtr& c:connecting_path->getConnections())
       {
         available_search_time = solver_time-(ros::WallTime::now()-tic_before_search).toSec();
@@ -447,8 +478,18 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
         //lazy collision check of the connections that already were in the subtree
         if(it<subtree_nodes.end())
         {
-          if(not subtree_valid || c->isRecentlyChecked())
+          if(not subtree_valid)
             continue;
+          if(c->isRecentlyChecked())
+          {
+            if(c->getCost() == std::numeric_limits<double>::infinity())
+            {
+              ROS_INFO_STREAM(*c);
+              assert(0);
+            }
+            else
+              continue;
+          }
 
           if(not checker_->checkConnection(c))
           {
@@ -464,11 +505,15 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
             quickly_solved = false;
           }
 
-          c->setRecentlyChecked(true);
-          flagged_connections_.push_back(c);
+          if(not c->isRecentlyChecked())
+          {
+            c->setRecentlyChecked(true);
+            flagged_connections_.push_back(c);
+          }
         }
         else //do not re-check connections just added to the subtree
         {
+          assert(not c->isRecentlyChecked());
           c->setRecentlyChecked(true);
           flagged_connections_.push_back(c);
         }
@@ -476,6 +521,19 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
 
       if(subtree_valid)
       {
+        assert([&]() ->bool{
+                 PathPtr clone = connecting_path->clone();
+                 if(connecting_path->isValid())
+                 return true;
+
+                 ROS_BOLDYELLOW_STREAM("clone "<<*clone);
+                 ROS_BOLDRED_STREAM("connecting path "<<*connecting_path);
+                 for(const NodePtr& n:subtree_nodes)
+                 ROS_BOLDWHITE_STREAM("subtree node "<<n->getConfiguration().transpose()<<" ("<<n<<")");
+
+                 return false;
+               }());
+
         valid_connecting_path_found = true;
         break;
       }
@@ -610,6 +668,18 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
         subtree->purgeFromHere(path2_node_fake); //disconnect and remove the fake node
         assert(not tree_->isInTree(path2_node_fake));
 
+        assert([&]() ->bool{
+                 if(connecting_path->isValid())
+                 {
+                   return true;
+                 }
+                 else
+                 {
+                   ROS_BOLDRED_STREAM("connecting path "<<*connecting_path);
+                   return false;
+                 }
+               }());
+
         return true;
       }
       else
@@ -711,7 +781,7 @@ bool MARSHA::findValidSolution(const std::multimap<double,std::vector<Connection
                    {
                      if(solution_pair.second.at(i)->getFlag(cost_updated_flag_,false))
                      {
-                       ROS_BOLDYELLOW_STREAM("connection "<<*solution_pair.second.at(i));
+                       ROS_BOLDYELLOW_STREAM("connection "<<*solution_pair.second.at(i)); //elimina
 
                        if(std::find(flagged_connections_.begin(),flagged_connections_.end(),solution_pair.second.at(i))>=flagged_connections_.end())
                        return false;
