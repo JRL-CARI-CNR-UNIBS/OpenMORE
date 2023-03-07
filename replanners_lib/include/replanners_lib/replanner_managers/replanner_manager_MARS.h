@@ -29,12 +29,12 @@ protected:
   void MARSadditionalParams();
   void displayCurrentPath();
   void displayOtherPaths();
-  void syncPathCost() override;
-  void updateSharedPath() override;
-  void updatePathsCost(const PathPtr& current_path_updated_copy, const std::vector<PathPtr>& other_paths_updated_copy);
-  void attributeInitialization() override;
+  void downloadPathCost() override;
+  bool uploadPathsCost(const PathPtr& current_path_updated_copy, const std::vector<PathPtr>& other_paths_updated_copy);
   void displayThread() override;
   bool haveToReplan(const bool path_obstructed) override;
+  virtual void updateSharedPath() override;
+  virtual void attributeInitialization() override;
 
   virtual bool replan() override;
   virtual void initReplanner() override;

@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<launch>
+  <include file="$(find replanners_bench_cells)/launch/cell.launch">
+    <arg name="demo_package" value="high_dof_6_moveit_config"/>
+    <arg name="static_scene" value="static_scene_replanners_bench_high_dof.yaml"/>
+    <arg name="rviz"         value="$(find replanners_bench_cells)/config/rviz_crash_test_6d_config.rviz"/>
+  </include>
+
+  <rosparam command="load" file="$(find replanners_lib)/config/crash_test_replanner_manager_6d.yaml"/>
+
+  <node pkg="replanners_lib"
+        name="crash_test_replanner_managers"
+        type="crash_test_replanner_managers"
+        output="screen"
+        launch-prefix="gdb -ex run --args">
+        <!-- "gdb -ex run -XX-args" -->
+        <!-- valgrind -XX-leak-check=full -->
+ </node>
+
+</launch>

@@ -6,9 +6,11 @@ n_iter_per_query: 10
 group_name: "cartesian_arm"
 start_configuration: [0.2,0.2,0.2]
 stop_configuration:  [2.8,2.8,2.8]
+final_start_configuration: [0.2,2.8,2.8]
+final_stop_configuration:  [2.8,0.2,0.2]
 utopia_tolerance: 0.05
 extend: false
-max_distance: 0.1
+max_distance: 0.25
 checker_resolution: 0.01
 parallel_checker_n_threads: 4
 
@@ -26,40 +28,43 @@ replanner_type: "MARSHA"
 dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
-benchmark: true
+benchmark: false
 spawn_objs: true
-spawn_instants: [0.5, 2]
-obj_type: "little_box"
-obj_max_size: 0.05
+spawn_instants: [0.5, 2, 3.5]
+obj_type: "sphere"
+obj_max_size: 0.1
 scaling: 0.5
 read_safe_scaling: false
 read_real_joints_values_: false
+joint_target_topic: "/joint_target"
+unscaled_joint_target_topic: "/unscaled_joint_target"
 
 MPRRT:
   n_threads_replan: 5
 
 MARS:
-  n_other_paths: 3
+  n_other_paths: 2
   reverse_start_nodes: true
   full_net_search: false
   dt_replan_relaxed: 0.20
   verbosity_level: 1
 
 MARSHA:
-  base_frame: "link_X"
+  base_frame: "world"
   tool_frame: "end_effector"
-  ssm_max_step_size: 0.05
+  ssm_max_step_size: 0.025
+  ssm_parallel: true
   ssm_threads: 4
-  unaware_obstacles: ["manipulation/box/n_0","manipulation/box/n_1"]
+  unaware_obstacles: ["manipulation/big_box/n_0","manipulation/box/n_0","manipulation/box/n_1"]
   poi_names: ["end_effector"]
   max_cart_acc: 2.5
   Tr: 0.15
-  min_distance: 0.8
+  min_distance: 0.2
   v_h: 1.6
 
 #VERBOSITY:
 display: false
-replanner_verbosity: true
+replanner_verbosity: false
 display_timing_warning: false
 display_replanning_success: true
 display_replan_trj_point: false

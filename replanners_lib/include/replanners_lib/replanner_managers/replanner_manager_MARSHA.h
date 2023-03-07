@@ -12,7 +12,16 @@ typedef std::shared_ptr<ReplannerManagerMARSHA> ReplannerManagerMARSHAPtr;
 class ReplannerManagerMARSHA: public ReplannerManagerMARS
 {
 protected:
+  /**
+   * @brief ha_metrics_ human aware metrics -> used by replanningThread and CollisionCheckThread (a copy)
+   */
   LengthPenaltyMetricsPtr ha_metrics_;
+
+  /**
+   * @brief metrics_shared_ and other_metrics_shared_ are the euclidean metrics used in the shared paths (they don't need to use the expensive human aware one)
+   */
+  MetricsPtr metrics_shared_;
+  std::vector<MetricsPtr> other_metrics_shared_;
 
   /**
    * @brief unaware_obstacles_ is a list of obstacles to NOT consider for human-aware planning (eg., static obstacles).
@@ -41,16 +50,31 @@ protected:
   void collisionCheckThread() override;
 
   /**
-   * @brief syncPathCost overrides syncPathCost from ReplannerManagerMARS to download the obstacles_positions_ list into ha_metrics_.
+   * @brief setSharedMetrics set euclidean metrics for all the shared paths
+   */
+  void setSharedMetrics();
+
+  /**
+   * @brief downloadPathCost overrides downloadPathCost of ReplannerManagerMARS to download the obstacles_positions_ list into ha_metrics_.
    * This operation is not strictly related to path cost synchronization, but operations prior to replanning can be inserted into this method.
    * This way you don't need to edit replanningThread.
    */
-  void syncPathCost() override;
+  void downloadPathCost() override;
+
+  /**
+   * @brief updateSharedPath overrides updateSharedPath of ReplannerManagerMARS in order to set Euclidean metrics into the new shared paths.
+   */
+  void updateSharedPath() override;
 
   /**
    * @brief MARSHAadditionalParams reads the ROS-parameter specific for MARSHA
    */
   void MARSHAadditionalParams();
+
+  /**
+   * @brief attributeInitialization initializes member classes in the way needed by MARSHA. It can also overwrite base class initialization
+   */
+  void attributeInitialization() override;
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

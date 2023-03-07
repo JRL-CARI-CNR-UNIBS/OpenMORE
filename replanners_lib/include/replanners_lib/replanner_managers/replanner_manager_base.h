@@ -4,6 +4,7 @@
 #include <mutex>
 #include <thread>
 #include <std_msgs/Int64.h>
+#include <condition_variable>
 #include <std_msgs/ColorRGBA.h>
 #include <boost/filesystem.hpp>
 #include <replanners_lib/trajectory.h>
@@ -43,6 +44,7 @@ protected:
   bool goal_reached_              ;
   bool spawn_objs_                ;
   bool read_safe_scaling_         ;
+  bool download_scene_info_       ;
   bool replanner_verbosity_       ;
   bool display_replan_config_     ;
   bool display_current_config_    ;
@@ -100,12 +102,12 @@ protected:
   std::thread benchmark_thread_ ;
   std::thread replanning_thread_;
 
-  std::mutex trj_mtx_      ;
-  std::mutex paths_mtx_    ;
-  std::mutex scene_mtx_    ;
-  std::mutex replanner_mtx_;
-  std::mutex ovr_mtx_      ;
-  std::mutex bench_mtx_    ;
+  std::mutex trj_mtx_         ;
+  std::mutex paths_mtx_       ;
+  std::mutex scene_mtx_       ;
+  std::mutex replanner_mtx_   ;
+  std::mutex ovr_mtx_         ;
+  std::mutex bench_mtx_       ;
 
   std::vector<std::string>                                                        scaling_topics_names_ ;
   std::vector<std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>>> scaling_topics_vector_;
@@ -126,10 +128,10 @@ protected:
   virtual void subscribeTopicsAndServices();
   virtual bool replan();
   virtual void fromParam();
-  virtual void syncPathCost();
+  virtual void downloadPathCost();
   virtual void updateSharedPath();
   virtual void updateTrajectory();
-  virtual void updatePathCost(const PathPtr& current_path_updated_copy);
+  virtual bool uploadPathCost(const PathPtr& current_path_updated_copy);
   virtual void attributeInitialization();
   virtual void replanningThread();
   virtual void collisionCheckThread();

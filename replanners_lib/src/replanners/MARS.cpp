@@ -70,8 +70,14 @@ bool MARS::mergePathToTree(const PathPtr &path)
   TreePtr path_tree = path->getTree();
   NodePtr path_goal = path->getConnections().back()->getChild();
 
-  for(const ConnectionPtr& conn:path->getConnections())
-    assert(not conn->isNet());
+  assert([&]() ->bool{
+           for(const ConnectionPtr& conn:path->getConnections())
+           {
+             if(conn->isNet())
+             return false;
+           }
+           return true;
+         }());
 
   if(tree_ == path_tree)
     return true;
@@ -185,11 +191,20 @@ bool MARS::mergePathToTree(const PathPtr &path)
           if(not tree_->changeRoot(root))
             assert(0);
 
-          std::vector<NodePtr> children = path_start->getChildren();
           path_tree->removeNode(path_start);
 
-          for(const NodePtr& n: children)
-            assert(n->getParentConnectionsSize() == 1);
+          assert([&]() ->bool{
+                   std::vector<NodePtr> children = path_start->getChildren();
+                   for(const NodePtr& n: children)
+                   {
+                     if(n->getParentConnectionsSize() != 1)
+                     {
+                       ROS_INFO_STREAM("n "<<*n);
+                       return false;
+                     }
+                   }
+                   return true;
+                 }());
 
           connections = path_tree->getConnectionToNode(path_goal);
         }
@@ -1279,7 +1294,13 @@ bool MARS::pathSwitch(const PathPtr &current_path,
     if(path2_node != goal_node_)
     {
       path2_subpath_conn = path2_subpath->getConnections();
-      assert(path2_subpath->isValid());
+      assert([&]() ->bool{
+               path2_subpath->setMetrics(metrics_);
+               if(path2_subpath->isValid())
+               return true;
+               else
+               return false;
+             }());
 
       if(full_net_search_)
       {
@@ -1984,7 +2005,7 @@ bool MARS::informedOnlineReplanning(const double &max_time)
 
   if(success_)
   {
-    assert(replanned_path_cost == replanned_path->cost());
+    assert(std::abs(replanned_path_cost - replanned_path->cost())<1e-06);
 
     double net_search_time;
     available_time_ = MAX_TIME-(ros::WallTime::now()-tic).toSec();
@@ -2020,7 +2041,8 @@ bool MARS::informedOnlineReplanning(const double &max_time)
       replanned_path_cost = replanned_path->cost();
     }
     ros::WallTime toc_find_sol = ros::WallTime::now();
-    assert(replanned_path->cost()<=subpath1->cost() && replanned_path->cost()<std::numeric_limits<double>::infinity());
+    assert(replanned_path->cost()<std::numeric_limits<double>::infinity());
+    assert(replanned_path->cost()<=subpath1->cost());
 
     if(informedOnlineReplanning_verbose_)
       ROS_GREEN_STREAM("At the end of replanning, in the graph there are "<<best_replanned_path_map.size()<<" paths better the one found! (found in "<<(toc_net_search-tic_net_search).toSec()<<" s), time to check solutions "<<(toc_find_sol-tic_find_sol).toSec()<<" s");
@@ -2058,19 +2080,13 @@ bool MARS::informedOnlineReplanning(const double &max_time)
            return true;
          }());
 
-  ROS_BOLDWHITE_STREAM("replanned path cost "<<replanned_path_->cost()); //elimina
-
   /* Clear the vector of connections set invalid during the replanner call */
   clearInvalidConnections();
   assert(invalid_connections_.empty());
 
-  ROS_BOLDWHITE_STREAM("replanned path cost "<<replanned_path_->cost()); //elimina
-
   /* Clear flagged connections vector -> after clearInvalidConnections */
   clearFlaggedConnections();
   assert(flagged_connections_.empty());
-
-  ROS_BOLDWHITE_STREAM("replanned path cost "<<replanned_path_->cost()); //elimina
 
   toc = ros::WallTime::now();
   available_time_ = MAX_TIME-(toc-tic).toSec();
@@ -2118,8 +2134,36 @@ bool MARS::replan()
     ROS_GREEN_STREAM("Cost from here: "<<current_path_->getCostFromConf(current_configuration_));
   }
 
+
+  assert([&]() ->bool{
+           double cost = current_path_->cost();
+           current_path_->setChecker(checker_);
+           current_path_->isValid();
+           if(std::abs(cost - current_path_->cost())>1e-04)
+           {
+             ROS_INFO_STREAM("cost "<<cost<<" current cost "<<current_path_->cost());
+             return false;
+           }
+           else
+           return true;
+         }());
+
   double max_time = max_time_-(tic-ros::WallTime::now()).toSec();
   success_ = informedOnlineReplanning(max_time);
+
+  assert([&]() ->bool{
+           if(not success_)
+           {
+             return true;
+           }
+           else
+           {
+             if(replanned_path_->isValid())
+             return true;
+             else
+             return false;
+           }
+         }());
 
   bool path_changed = false;
   if(success_)

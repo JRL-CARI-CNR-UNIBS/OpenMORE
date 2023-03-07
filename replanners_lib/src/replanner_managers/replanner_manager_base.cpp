@@ -120,6 +120,7 @@ void ReplannerManagerBase::attributeInitialization()
 {
   stop_                            = false;
   goal_reached_                    = false;
+  download_scene_info_             = true ;
   current_path_sync_needed_        = false;
   spline_order_                    = 1    ;
   replanning_time_                 = 0.0  ;
@@ -271,14 +272,16 @@ void ReplannerManagerBase::updateSharedPath()
   current_path_shared_ = current_path_->clone();
   current_path_shared_->setChecker(checker_cc_);
   current_path_sync_needed_ = true;
+
+  download_scene_info_ = false;
 }
 
-void ReplannerManagerBase::syncPathCost()
+void ReplannerManagerBase::downloadPathCost()
 {
   paths_mtx_.lock();
 
-  std::vector<ConnectionPtr> current_path_conn        = current_path_->getConnections();
-  std::vector<ConnectionPtr> current_path_shared_conn = current_path_shared_    ->getConnections();
+  std::vector<ConnectionPtr> current_path_conn        = current_path_       ->getConnections();
+  std::vector<ConnectionPtr> current_path_shared_conn = current_path_shared_->getConnections();
 
   std::vector<ConnectionPtr>::iterator it        = current_path_conn       .end();
   std::vector<ConnectionPtr>::iterator it_shared = current_path_shared_conn.end();
@@ -301,8 +304,10 @@ void ReplannerManagerBase::syncPathCost()
   paths_mtx_.unlock();
 }
 
-void ReplannerManagerBase::updatePathCost(const PathPtr& current_path_updated_copy)
+bool ReplannerManagerBase::uploadPathCost(const PathPtr& current_path_updated_copy)
 {
+  bool updated = true;
+
   paths_mtx_.lock();
   if(not current_path_sync_needed_)
   {
@@ -317,12 +322,17 @@ void ReplannerManagerBase::updatePathCost(const PathPtr& current_path_updated_co
       current_path_conns.at(z)->setCost(current_path_copy_conns.at(z)->getCost());
     }
     current_path_shared_->cost();
+
   }
+  else
+    updated = false;
 
   if(current_path_shared_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity() && (display_timing_warning_ || display_replanning_success_))
     ROS_BOLDMAGENTA_STREAM("Obstacle detected!");
 
   paths_mtx_.unlock();
+
+  return updated;
 }
 
 void ReplannerManagerBase::updateTrajectory()
@@ -362,7 +372,9 @@ void ReplannerManagerBase::updateTrajectory()
 
 void ReplannerManagerBase::replanningThread()
 {
-  ros::Rate lp(replanning_thread_frequency_);
+  ros::WallRate lp(replanning_thread_frequency_);
+  ros::WallRate fast_lp(2000);
+
   ros::WallTime tic,toc,tic_rep,toc_rep;
 
   PathPtr path2project_on;
@@ -384,6 +396,12 @@ void ReplannerManagerBase::replanningThread()
   {
     tic = ros::WallTime::now();
 
+    if(not download_scene_info_)
+    {
+      fast_lp.sleep(); //wait for 0.5 ms
+      continue;
+    }
+
     trj_mtx_.lock();
 
     interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_,scaling_);
@@ -402,13 +420,13 @@ void ReplannerManagerBase::replanningThread()
       projection = path2project_on->projectOnPath(point2project,past_projection,false);
       past_projection = projection;
 
-//      assert([&]() ->bool{
-//               if(not path2project_on->findConnection(projection))
-//               return true;
+      //      assert([&]() ->bool{
+      //               if(not path2project_on->findConnection(projection))
+      //               return true;
 
-//               ROS_BOLDRED_STREAM("projection is wrong");
-//               return false;
-//             }());
+      //               ROS_BOLDRED_STREAM("projection is wrong");
+      //               return false;
+      //             }());
 
       abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(projection);
       abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration);
@@ -421,11 +439,9 @@ void ReplannerManagerBase::replanningThread()
       replanner_mtx_.unlock();
 
       scene_mtx_.lock();
-
       checker_replanning_->setPlanningSceneMsg(planning_scene_diff_msg_);
-      syncPathCost();
+      downloadPathCost();
       planning_scene_msg_benchmark_ = planning_scene_msg_;
-
       scene_mtx_.unlock();
 
       replanner_mtx_.lock();
@@ -523,7 +539,7 @@ void ReplannerManagerBase::collisionCheckThread()
 
   double duration;
   ros::WallTime tic,toc;
-  ros::Rate lp(collision_checker_thread_frequency_);
+  ros::WallRate lp(collision_checker_thread_frequency_);
 
   moveit_msgs::PlanningScene planning_scene_msg;
 
@@ -575,9 +591,13 @@ void ReplannerManagerBase::collisionCheckThread()
       current_path_copy->isValidFromConf(current_configuration_copy,conn_idx,checker_cc_);
 
     scene_mtx_.lock();
-    updatePathCost(current_path_copy);
-    planning_scene_msg_.world = ps_srv.response.scene.world;  //not diff,it contains all pln scn info but only world is updated
-    planning_scene_diff_msg_ = planning_scene_msg;            //diff, contains only world
+    if(uploadPathCost(current_path_copy)) //if path cost can be updated, update also the planning scene used to check the path
+    {
+      planning_scene_msg_.world = ps_srv.response.scene.world;  //not diff,it contains all pln scn info but only world is updated
+      planning_scene_diff_msg_ = planning_scene_msg;            //diff, contains only world
+
+      download_scene_info_ = true;      //dowloadPathCost can be called because the scene and path cost are referred now to the last path found
+    }
     scene_mtx_.unlock();
 
     toc=ros::WallTime::now();
@@ -684,7 +704,7 @@ void ReplannerManagerBase::trajectoryExecutionThread()
   Eigen::VectorXd point2project(pnt_.positions.size());
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
 
-  ros::Rate lp(trj_exec_thread_frequency_);
+  ros::WallRate lp(trj_exec_thread_frequency_);
 
   while((not stop_) && ros::ok())
   {
@@ -776,7 +796,7 @@ void ReplannerManagerBase::displayThread()
   disp->clearMarkers();
 
   double display_thread_frequency = 2*trj_exec_thread_frequency_;
-  ros::Rate lp(display_thread_frequency);
+  ros::WallRate lp(display_thread_frequency);
 
   while((not stop_) && ros::ok())
   {
@@ -867,7 +887,7 @@ void ReplannerManagerBase::spawnObjectsThread()
 
   std::reverse(spawn_instants_.begin(),spawn_instants_.end());
 
-  ros::Rate lp(trj_exec_thread_frequency_);
+  ros::WallRate lp(trj_exec_thread_frequency_);
 
   while(not stop_ && ros::ok())
   {
@@ -1020,7 +1040,7 @@ void ReplannerManagerBase::benchmarkThread()
   double cycle_duration;
   ros::WallTime tic, toc;
   double freq = 2*trj_exec_thread_frequency_;
-  ros::Rate lp(freq);
+  ros::WallRate lp(freq);
 
   while((not stop_) && ros::ok())
   {

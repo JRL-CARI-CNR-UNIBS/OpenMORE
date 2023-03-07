@@ -1,0 +1,73 @@
+#TEST CONFIGURATIONS:
+n_query: 50
+n_iter_per_query: 10
+
+#PLANNING CONFIGURATIONS:
+group_name: "manipulator"
+start_configuration: [1.1160822571268618, -0.36605717084420153, -0.6613339554670044, 0.2598214740910541, -0.8031200900767068, -0.2716137877745939]
+final_start_configuration: [-1.1155641983069562, -0.36099297017660414, -0.679692439733893, -0.26550089158378515, -0.7902169742242835, -0.2874408819936133]
+stop_configuration: [-1.12199514293867, 0.38763777484579987, 0.5963607094801189, -0.27169757220422974, 0.8502837814992195, 0.2539459644858469]
+final_stop_configuration: [1.1160219817234516, 0.3778465742834835, 0.6200910254031209, 0.28335764210798137, 0.8444095013250474, 0.25389556034796174]
+utopia_tolerance: 0.05
+extend: false
+max_distance: 0.25
+checker_resolution: 0.01
+parallel_checker_n_threads: 6
+
+#REPLANNER CONFIGURATIONS:
+
+# Available replanners:
+# - MPRRT
+# - DRRT*
+# - DRRT
+# - anytimeDRRT
+# - MARS
+# - MARSHA
+
+replanner_type: "MARSHA"
+dt_replan: 0.20
+trj_execution_thread_frequency: 500
+collision_checker_thread_frequency: 30
+benchmark: false
+spawn_objs: true
+spawn_instants: [0.5, 3, 5] #[0.5, 2, 3.5]
+obj_type: "sphere02"
+obj_max_size: 0.2
+scaling: 0.5
+read_safe_scaling: false
+read_real_joints_values_: false
+joint_target_topic: "/joint_target"
+unscaled_joint_target_topic: "/unscaled_joint_target"
+
+MPRRT:
+  n_threads_replan: 5
+
+MARS:
+  n_other_paths: 2
+  reverse_start_nodes: true
+  full_net_search: false
+  dt_replan_relaxed: 0.20
+  verbosity_level: 1
+
+MARSHA:
+  base_frame: "world"
+  tool_frame: "flange"
+  ssm_max_step_size: 0.025
+  ssm_parallel: true
+  ssm_threads: 6
+  unaware_obstacles: ["manipulation/mid_box/n_0","manipulation/mid_box/n_1","manipulation/mid_box/n_2","manipulation/mid_box/n_3","manipulation/mid_box/n_4","manipulation/plane/n_0"]
+  poi_names: ["a_forearm","b_mount_flange","b_forearm","flange"]
+  max_cart_acc: 2.5
+  Tr: 0.15
+  min_distance: 0.2
+  v_h: 1.6
+
+#VERBOSITY:
+display: false
+replanner_verbosity: false
+display_timing_warning: false
+display_replanning_success: true
+display_replan_trj_point: false
+display_replan_config: false
+display_current_trj_point: false
+display_current_config: false

@@ -159,11 +159,12 @@ int main(int argc, char **argv)
       else
         ssm = std::make_shared<ssm15066_estimator::SSM15066Estimator2D>(chain,ssm_max_step_size);
 
-      ssm->setHumanVelocity(v_h);
-      ssm->setMaxCartAcc(max_cart_acc);
-      ssm->setReactionTime(tr);
-      ssm->setMinDistance(min_distance);
+      ssm->setHumanVelocity(v_h,false);
+      ssm->setMaxCartAcc(max_cart_acc,false);
+      ssm->setReactionTime(tr,false);
+      ssm->setMinDistance(min_distance,false);
       ssm->setPoiNames(poi_names);
+      ssm->updateMembers();
 
       metrics = std::make_shared<pathplan::LengthPenaltyMetrics>(ssm);
     }

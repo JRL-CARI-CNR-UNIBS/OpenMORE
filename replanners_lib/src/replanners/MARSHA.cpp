@@ -38,6 +38,7 @@ void MARSHA::init(const LengthPenaltyMetricsPtr& ha_metrics)
   euclidean_metrics_ = std::make_shared<Metrics>();
   cost_updated_flag_ = Connection::getReservedFlagsNumber(); //the first free position in Connection::flags_ vector where we can store our new custom flag
 
+  //Lambda function definition for Net -> it determines when cost of a connection should be re-evaluated
   cost_evaluation_condition_ =
       std::make_shared<std::function<bool (const ConnectionPtr& connection)>>([&](const ConnectionPtr& connection)->bool{
     if(connection->getFlag(cost_updated_flag_,false) ||
@@ -461,8 +462,6 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
       bool subtree_valid = true;
       ConnectionPtr obstructed_connection = nullptr;
 
-      ROS_BOLDWHITE_STREAM("connecting path before check "<<*connecting_path); //elimina
-
       for(const ConnectionPtr& c:connecting_path->getConnections())
       {
         available_search_time = solver_time-(ros::WallTime::now()-tic_before_search).toSec();
@@ -781,10 +780,11 @@ bool MARSHA::findValidSolution(const std::multimap<double,std::vector<Connection
                    {
                      if(solution_pair.second.at(i)->getFlag(cost_updated_flag_,false))
                      {
-                       ROS_BOLDYELLOW_STREAM("connection "<<*solution_pair.second.at(i)); //elimina
-
                        if(std::find(flagged_connections_.begin(),flagged_connections_.end(),solution_pair.second.at(i))>=flagged_connections_.end())
-                       return false;
+                       {
+                         ROS_BOLDRED_STREAM("connection "<<*solution_pair.second.at(i));
+                         return false;
+                       }
 
                        return true;
                      }

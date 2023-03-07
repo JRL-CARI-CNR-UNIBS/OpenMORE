@@ -288,16 +288,17 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
         }
         else
         {
-          assert([&]() ->bool{
-                   if(conn == current_conn)
-                   return true;
-                   else
-                   {
-                     ROS_INFO_STREAM("conn "<<*conn<<"\n"<<conn);
-                     ROS_INFO_STREAM("current_conn "<<*current_conn<<"\n"<<current_conn);
-                     return false;
-                   }
-                 }());
+//          assert([&]() ->bool{
+//                   if(conn == current_conn)
+//                   return true;
+//                   else
+//                   {
+//                     ROS_INFO_STREAM("current conf "<<configuration);
+//                     ROS_INFO_STREAM("conn "<<*conn<<"\n"<<conn);
+//                     ROS_INFO_STREAM("current_conn "<<*current_conn<<"\n"<<current_conn);
+//                     return false;
+//                   }
+//                 }());
           if(conn != current_conn)
           {
             ROS_INFO_STREAM("conf "<<configuration.transpose());
@@ -491,9 +492,9 @@ void ReplannerManagerMARS::updateSharedPath()
   other_paths_mtx_.unlock();
 }
 
-void ReplannerManagerMARS::syncPathCost()
+void ReplannerManagerMARS::downloadPathCost()
 {
-  ReplannerManagerBase::syncPathCost();
+  ReplannerManagerBase::downloadPathCost();
 
   other_paths_mtx_.lock();
 
@@ -567,7 +568,7 @@ void ReplannerManagerMARS::collisionCheckThread()
 
   int other_path_size = other_paths_copy.size();
 
-  ros::Rate lp(collision_checker_thread_frequency_);
+  ros::WallRate lp(collision_checker_thread_frequency_);
   ros::WallTime tic;
 
   moveit_msgs::PlanningScene planning_scene_msg;
@@ -666,10 +667,14 @@ void ReplannerManagerMARS::collisionCheckThread()
 
     /* Update the cost of the paths */
     scene_mtx_.lock();
-    updatePathsCost(current_path_copy,other_paths_copy);
-    planning_scene_msg_.world = ps_srv.response.scene.world;  //not diff,it contains all pln scn info but only world is updated
-    planning_scene_diff_msg_ = planning_scene_msg;            //diff, contains only world
+    if(uploadPathsCost(current_path_copy,other_paths_copy))
+    {
+      planning_scene_msg_.world = ps_srv.response.scene.world;  //not diff,it contains all pln scn info but only world is updated
+      planning_scene_diff_msg_ = planning_scene_msg;            //diff, contains only world
 
+      download_scene_info_ = true;      //dowloadPathCost can be called because the scene and path cost are referred now to the last path found
+
+    }
     scene_mtx_.unlock();
 
     double duration = (ros::WallTime::now()-tic).toSec();
@@ -683,8 +688,10 @@ void ReplannerManagerMARS::collisionCheckThread()
   ROS_BOLDCYAN_STREAM("Collision check thread is over");
 }
 
-void ReplannerManagerMARS::updatePathsCost(const PathPtr& current_path_updated_copy, const std::vector<PathPtr>& other_paths_updated_copy)
+bool ReplannerManagerMARS::uploadPathsCost(const PathPtr& current_path_updated_copy, const std::vector<PathPtr>& other_paths_updated_copy)
 {
+  bool updated = true;
+
   paths_mtx_.lock();
   if(not current_path_sync_needed_)
   {
@@ -700,6 +707,8 @@ void ReplannerManagerMARS::updatePathsCost(const PathPtr& current_path_updated_c
     }
     current_path_shared_->cost();
   }
+  else
+    updated = false;
 
   if(current_path_shared_->getCostFromConf(current_configuration_) == std::numeric_limits<double>::infinity() && (display_timing_warning_ || display_replanning_success_))
     ROS_BOLDMAGENTA_STREAM("Obstacle detected!");
@@ -722,9 +731,13 @@ void ReplannerManagerMARS::updatePathsCost(const PathPtr& current_path_updated_c
       }
       other_paths_shared_.at(i)->cost();
     }
+    else
+      updated = false;
   }
   other_paths_mtx_.unlock();
   paths_mtx_.unlock();       //here to sync the cost of all paths
+
+  return updated;
 }
 
 void ReplannerManagerMARS::displayCurrentPath()
@@ -745,7 +758,7 @@ void ReplannerManagerMARS::displayOtherPaths()
   disp->changeNodeSize(marker_scale);
 
   double display_thread_frequency = 0.75*trj_exec_thread_frequency_;
-  ros::Rate lp(display_thread_frequency);
+  ros::WallRate lp(display_thread_frequency);
 
   while((not stop_) && ros::ok())
   {

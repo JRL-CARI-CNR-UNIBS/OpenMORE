@@ -30,10 +30,25 @@ void ReplannerManagerMARSHA::MARSHAadditionalParams()
     ROS_ERROR("MARSHA/poi_names_ not set");
 }
 
-void ReplannerManagerMARSHA::syncPathCost()
+void ReplannerManagerMARSHA::attributeInitialization()
 {
-  ReplannerManagerMARS::syncPathCost();
+  ReplannerManagerMARS::attributeInitialization();
+
+  metrics_shared_ = std::make_shared<Metrics>();
+  current_path_shared_->setMetrics(metrics_shared_);
+
+  other_metrics_shared_.clear();
+  for(const PathPtr& p:other_paths_shared_)
+  {
+    other_metrics_shared_.push_back(std::make_shared<Metrics>());
+    p->setMetrics(other_metrics_shared_.back());
+  }
+}
+
+void ReplannerManagerMARSHA::downloadPathCost()
+{
   ha_metrics_->getSSM()->setObstaclesPositions(obstalces_positions_);
+  ReplannerManagerMARS::downloadPathCost();
 }
 
 void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
@@ -83,6 +98,66 @@ Eigen::Matrix <double,3,Eigen::Dynamic> ReplannerManagerMARSHA::updateObstaclesP
   return obstacles_positions;
 }
 
+void ReplannerManagerMARSHA::setSharedMetrics()
+{
+  //Euclidean metrics to the current path shared
+  current_path_shared_->setMetrics(metrics_shared_);
+
+  //Create new metrics if in the meanwhile a new path was added
+  int new_paths = other_paths_shared_.size()-other_metrics_shared_.size();
+  assert(new_paths>=0);
+
+  for(int i=0;i<new_paths;i++)
+    other_metrics_shared_.push_back(std::make_shared<Metrics>());
+
+  //Set euclidean metrics to each shared path
+  for(unsigned int i=0;i<other_paths_shared_.size();i++)
+    other_paths_shared_[i]->setMetrics(other_metrics_shared_[i]);
+}
+
+void ReplannerManagerMARSHA::updateSharedPath()
+{
+  ReplannerManagerBase::updateSharedPath();
+
+  other_paths_mtx_.lock();
+  bool sync_needed;
+
+  for(unsigned int i=0;i<other_paths_shared_.size();i++)
+  {
+    sync_needed = false;
+    if(other_paths_shared_.at(i)->getConnectionsSize() == other_paths_.at(i)->getConnectionsSize())
+    {
+      for(unsigned int j=0;j<other_paths_shared_.at(i)->getConnectionsSize();j++)
+      {
+        if(other_paths_shared_.at(i)->getConnections().at(j)->getParent()->getConfiguration() != other_paths_.at(i)->getConnections().at(j)->getParent()->getConfiguration())
+        {
+          sync_needed = true;
+          break;
+        }
+      }
+
+      if(other_paths_shared_.at(i)->getConnections().back()->getChild()->getConfiguration() != other_paths_shared_.at(i)->getConnections().back()->getChild()->getConfiguration())
+        sync_needed = true;
+    }
+    else
+    {
+      sync_needed = true;
+    }
+
+    if(sync_needed)
+    {
+      other_paths_sync_needed_.at(i) = true; //NB: sync needed false set by the collision check thread
+
+      CollisionCheckerPtr checker = other_paths_shared_.at(i)->getChecker();
+      other_paths_shared_.at(i) = other_paths_.at(i)->clone();
+      other_paths_shared_.at(i)->setChecker(checker);
+    }
+  }
+
+  setSharedMetrics(); //The difference from the method of ReplanningManagerMARS
+  other_paths_mtx_.unlock();
+}
+
 void ReplannerManagerMARSHA::collisionCheckThread()
 {
   moveit_msgs::GetPlanningScene ps_srv;
@@ -90,19 +165,13 @@ void ReplannerManagerMARSHA::collisionCheckThread()
   moveit_msgs::PlanningScene planning_scene_msg;
   Eigen::Matrix <double,3,Eigen::Dynamic> obstacles_positions;
 
-  ssm15066_estimator::SSM15066Estimator2D ssm_2d_sequential = *(std::static_pointer_cast<ssm15066_estimator::SSM15066Estimator2D>(ha_metrics_->getSSM()->clone()));
-  ssm15066_estimator::SSM15066Estimator2DPtr ssm = std::make_shared<ssm15066_estimator::SSM15066Estimator2D>(ssm_2d_sequential);
-
-  //elimina
-  const std::type_info& ti1 = typeid(ssm15066_estimator::SSM15066Estimator2D);
-  const std::type_info& ti2 = typeid(*ssm);
-
-  if(std::type_index(ti1) != std::type_index(ti2))
-  {
-    ROS_INFO_STREAM("ssm type "<<ti2.name());
-    throw std::runtime_error("ssm not correcly cloned");
-  }
-  //
+  ssm15066_estimator::SSM15066Estimator2DPtr ssm = std::make_shared<ssm15066_estimator::SSM15066Estimator2D>(ha_metrics_->getSSM()->getChain()->clone());
+  ssm->setPoiNames     (ha_metrics_->getSSM()->getPoiNames     ());
+  ssm->setMaxCartAcc   (ha_metrics_->getSSM()->getMaxCartAcc   ());
+  ssm->setMaxStepSize  (ha_metrics_->getSSM()->getMaxStepSize  ());
+  ssm->setMinDistance  (ha_metrics_->getSSM()->getMinDistance  ());
+  ssm->setReactionTime (ha_metrics_->getSSM()->getReactionTime ());
+  ssm->setHumanVelocity(ha_metrics_->getSSM()->getHumanVelocity());
 
   LengthPenaltyMetricsPtr metrics_current_path = std::make_shared<LengthPenaltyMetrics>(ssm);
 
@@ -129,7 +198,7 @@ void ReplannerManagerMARSHA::collisionCheckThread()
 
   int other_path_size = other_paths_copy.size();
 
-  ros::Rate lp(collision_checker_thread_frequency_);
+  ros::WallRate lp(collision_checker_thread_frequency_);
   ros::WallTime tic;
 
   while((not stop_) && ros::ok())
@@ -236,11 +305,14 @@ void ReplannerManagerMARSHA::collisionCheckThread()
 
     /* Update the cost of the paths */
     scene_mtx_.lock();
-    updatePathsCost(current_path_copy,other_paths_copy);
-    planning_scene_msg_.world = ps_srv.response.scene.world;  //not diff,it contains all pln scn info but only world is updated
-    planning_scene_diff_msg_ = planning_scene_msg;            //diff, contains only world
+    if(uploadPathsCost(current_path_copy,other_paths_copy)) //if path cost can be updated, update also the planning scene used to check the path
+    {
+      planning_scene_msg_.world = ps_srv.response.scene.world;  //not diff,it contains all pln scn info but only world is updated
+      planning_scene_diff_msg_ = planning_scene_msg;            //diff, contains only world
+      obstalces_positions_ = obstacles_positions;
 
-    obstalces_positions_ = obstacles_positions;
+      download_scene_info_ = true;      //dowloadPathCost can be called because the scene and path cost are referred now to the last path found
+    }
     scene_mtx_.unlock();
 
     double duration = (ros::WallTime::now()-tic).toSec();

@@ -1,5 +1,6 @@
 object_geometries:
-  sphere     : {sphere: 0.1, color: [1,0.0,0.0,1]}
+  sphere02   : {sphere: 0.2, color: [1,0.0,0.0,0.5]}
+  sphere     : {sphere: 0.1, color: [1,0.0,0.0,0.5]}
   red_box    : {box: [0.2, 0.2, 0.45], color: [1.00,0.00,0.00,1]}
   box        : {box: [0.2, 0.2, 0.45], color: [0.75,0.75,0.75,1]}
   little_box : {box: [0.1, 0.1, 0.10], color: [0.75,0.75,0.75,1]}
