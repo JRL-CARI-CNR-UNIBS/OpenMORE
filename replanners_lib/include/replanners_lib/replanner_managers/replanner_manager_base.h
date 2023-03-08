@@ -10,6 +10,7 @@
 #include <replanners_lib/trajectory.h>
 #include <jsk_rviz_plugins/OverlayText.h>
 #include <object_loader_msgs/AddObjects.h>
+#include <object_loader_msgs/MoveObjects.h>
 #include <object_loader_msgs/RemoveObjects.h>
 #include <replanners_lib/replanners/replanner_base.h>
 #include <moveit_planning_helper/spline_interpolator.h>
@@ -121,6 +122,7 @@ protected:
   std::string unscaled_joint_target_topic_;
 
   ros::ServiceClient add_obj_               ;
+  ros::ServiceClient move_obj_              ;
   ros::ServiceClient remove_obj_            ;
   ros::ServiceClient plannning_scene_client_;
 

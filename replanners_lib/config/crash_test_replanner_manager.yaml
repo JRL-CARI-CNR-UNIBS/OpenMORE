@@ -24,7 +24,7 @@ parallel_checker_n_threads: 4
 # - MARS
 # - MARSHA
 
-replanner_type: "MARSHA"
+replanner_type: "MARS"
 dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30

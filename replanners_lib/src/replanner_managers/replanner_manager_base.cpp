@@ -251,7 +251,8 @@ void ReplannerManagerBase::subscribeTopicsAndServices()
 
   if(spawn_objs_)
   {
-    add_obj_    = nh_.serviceClient<object_loader_msgs::AddObjects>   ("/add_object_to_scene"     );
+    add_obj_    = nh_.serviceClient<object_loader_msgs::AddObjects   >("/add_object_to_scene"     );
+    move_obj_   = nh_.serviceClient<object_loader_msgs::MoveObjects  >("/move_object_in_scene"    );
     remove_obj_ = nh_.serviceClient<object_loader_msgs::RemoveObjects>("/remove_object_from_scene");
 
     if(not add_obj_.waitForExistence(ros::Duration(10)))
@@ -864,6 +865,7 @@ void ReplannerManagerBase::displayThread()
 void ReplannerManagerBase::spawnObjectsThread()
 {
   object_loader_msgs::AddObjects srv_add_object;
+  object_loader_msgs::MoveObjects srv_move_objects;
   object_loader_msgs::RemoveObjects srv_remove_object;
 
   CollisionCheckerPtr checker = checker_cc_->clone();
@@ -873,21 +875,38 @@ void ReplannerManagerBase::spawnObjectsThread()
   std::string last_link = planning_scene->getRobotModel()->getJointModelGroup(group_name_)->getLinkModelNames().back();
 
   PathPtr path_copy;
-  Eigen::VectorXd conf, obj_pos, obj_conf;
-  Eigen::VectorXd point2project(pnt_.positions.size());
+  Eigen::VectorXd obj_conf, configuration_replan;
   Eigen::VectorXd goal = current_path_shared_->getGoalNode()->getConfiguration();
 
-  Eigen::Vector3d conf_3d, obj_pos_3d;
+  Eigen::Vector3d configuration_replan_3d, obj_pos_3d;
   Eigen::Vector3d goal_3d = forwardIk(goal,last_link,moveit_utils);
 
-  trajectory_msgs::JointTrajectoryPoint pnt;
+  std::vector<std::string> ids;
+  std::vector<double> moving_time;
+  std::vector<Eigen::Vector3d> velocities;
+  std::vector<Eigen::Vector3d> objects_locations;
+  std::vector<object_loader_msgs::Object> spawned_objects;
+
+  double velocity = 0.1; // m/s
+  double dt_move = 0.25; // change objects locations every 0.25 seconds
 
   geometry_msgs::Quaternion q;
   q.x = 0.0; q.y = 0.0; q.z = 0.0; q.w = 1.0;
 
+  std::random_device rseed;
+  std::mt19937 gen(rseed());
+  std::uniform_real_distribution<double> dist_vel(-1.0,1.0);
+  std::uniform_real_distribution<double> dist_abs(0.2,0.8);
+
+  object_loader_msgs::Object new_obj;
+  new_obj.object_type = obj_type_;
+  new_obj.pose.header.frame_id = "world";
+  new_obj.pose.pose.orientation = q;
+
   std::reverse(spawn_instants_.begin(),spawn_instants_.end());
 
-  ros::WallRate lp(trj_exec_thread_frequency_);
+  //  ros::WallRate lp(trj_exec_thread_frequency_);
+  ros::WallRate lp(100);
 
   while(not stop_ && ros::ok())
   {
@@ -897,74 +916,115 @@ void ReplannerManagerBase::spawnObjectsThread()
       {
         spawn_instants_.pop_back();
 
-        object_loader_msgs::Object obj;
-        obj.object_type = obj_type_;
-        obj.pose.header.frame_id = "world";
-        obj.pose.pose.orientation = q;
-
-        trj_mtx_.lock();
+        replanner_mtx_.lock();
         paths_mtx_.lock();
 
         path_copy = current_path_shared_->clone();
-        interpolator_.interpolate(ros::Duration(t_replan_),pnt,scaling_);
+        configuration_replan = configuration_replan_;
 
         paths_mtx_.unlock();
-        trj_mtx_.unlock();
+        replanner_mtx_.unlock();
 
         path_copy->setChecker(checker);
-        path_copy = path_copy->getSubpathFromConf(configuration_replan_,true);
+        path_copy = path_copy->getSubpathFromConf(configuration_replan,true);
 
-        for(unsigned int i=0; i<pnt.positions.size();i++)
-          point2project(i) = pnt.positions.at(i);
-
-        conf = path_copy->projectOnPath(point2project,false);
-        conf_3d = forwardIk(conf,last_link,moveit_utils);
+        configuration_replan_3d = forwardIk(configuration_replan,last_link,moveit_utils);
 
         double obj_abscissa = 0.0;
-        std::srand(std::time(NULL));
-
-        do
+        while(not stop_ && ros::ok())
         {
-          while(obj_abscissa<0.2 || obj_abscissa>0.8) //to not obstruct goal and current robot position
-            obj_abscissa = double(rand())/double(RAND_MAX);
+          obj_abscissa = dist_abs(gen); //0.2~0.8
 
           obj_conf = path_copy->pointOnCurvilinearAbscissa(obj_abscissa);
-          obj_pos_3d = forwardIk(obj_conf,last_link,moveit_utils,obj.pose.pose);
+          obj_pos_3d = forwardIk(obj_conf,last_link,moveit_utils);
 
-          if((obj_pos_3d-conf_3d).norm()>obj_max_size_ && (obj_conf-conf).norm()>obj_max_size_ && (obj_pos_3d-goal_3d).norm()>obj_max_size_ && (obj_conf-goal).norm()>obj_max_size_)
-          {
-            obj_pos = obj_pos_3d;
+          // to no collide with the robot or the goal
+          if((obj_pos_3d-configuration_replan_3d).norm()>obj_max_size_ &&
+             (obj_conf-configuration_replan).norm()     >obj_max_size_ &&
+             (obj_pos_3d-goal_3d).norm()                >obj_max_size_ &&
+             (obj_conf-goal).norm()                     >obj_max_size_  )
             break;
-          }
-        }while((not stop_) && ros::ok());
+        }
+
+        new_obj.pose.pose.position.x = obj_pos_3d[0];
+        new_obj.pose.pose.position.y = obj_pos_3d[1];
+        new_obj.pose.pose.position.z = obj_pos_3d[2];
+
+        srv_add_object.request.objects.clear();
+        srv_add_object.request.objects.push_back(new_obj);
 
         if(stop_ || not ros::ok())
           break;
+      }
+    }
 
-        srv_add_object.request.objects.clear();
-        srv_add_object.request.objects.push_back(obj);
+    if(not objects_locations.empty())
+    {
+      srv_move_objects.request.poses.clear();
+      srv_move_objects.request.obj_ids.clear();
 
-        ROS_BOLDMAGENTA_STREAM("Obstacle spawned!");
-        if(not add_obj_.call(srv_add_object))
+      for(unsigned int i=0;i<objects_locations.size();i++)
+      {
+        if(real_time_>(moving_time.at(i)+dt_move))
         {
-          ROS_ERROR("call to add obj srv not ok");
+          objects_locations.at(i) = objects_locations.at(i) + dt_move*velocities.at(i);
+          spawned_objects.at(i).pose.pose.position.x = objects_locations.at(i)[0];
+          spawned_objects.at(i).pose.pose.position.y = objects_locations.at(i)[1];
+          spawned_objects.at(i).pose.pose.position.z = objects_locations.at(i)[2];
+          spawned_objects.at(i).pose.pose.orientation = q;
 
-          stop_ = true;
+          moving_time.at(i) = real_time_;
+
+          srv_move_objects.request.obj_ids.push_back(ids.at(i));
+          srv_move_objects.request.poses.push_back(spawned_objects.at(i).pose);
+        }
+
+        if(stop_ || not ros::ok())
           break;
-        }
+      }
 
-        if(not srv_add_object.response.success)
-          ROS_ERROR("add obj srv error");
-        else
-        {
-          bench_mtx_.lock();
-          obj_ids_.push_back(srv_add_object.response.ids.front());
-          obj_pos_.push_back(obj_pos);
-          bench_mtx_.unlock();
+      if(stop_ || not ros::ok())
+        break;
 
-          for (const std::string& str:srv_add_object.response.ids)
-            srv_remove_object.request.obj_ids.push_back(str);
-        }
+      if(not add_obj_.call(srv_add_object))
+      {
+        ROS_ERROR("call to add obj srv not ok");
+
+        stop_ = true;
+        break;
+      }
+
+      if(not srv_add_object.response.success)
+        ROS_ERROR("add obj srv error");
+      else
+      {
+        ROS_BOLDMAGENTA_STREAM("Obstacle spawned!");
+
+        Eigen::Vector3d v;
+        v << (dist_vel(gen)),(dist_vel(gen)),(dist_vel(gen));
+        v = (v/v.norm())*velocity;
+
+        velocities.push_back(v);
+        spawned_objects.push_back(new_obj);
+        moving_time.push_back(real_time_);
+        objects_locations.push_back(obj_pos_3d);
+        ids.push_back(srv_add_object.response.ids.front());
+
+        for (const std::string& str:srv_add_object.response.ids)
+          srv_remove_object.request.obj_ids.push_back(str);
+      }
+
+      if(not move_obj_.call(srv_move_objects))
+        ROS_ERROR("call to move obj srv not ok");
+
+      if(not srv_move_objects.response.success)
+        ROS_ERROR("move obj srv error");
+      else
+      {
+        bench_mtx_.lock();
+        obj_ids_ = ids;               //also contains the new added obj
+        obj_pos_ = objects_locations; //also contains the new added obj
+        bench_mtx_.unlock();
       }
     }
     lp.sleep();

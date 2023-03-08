@@ -1,12 +1,23 @@
 object_geometries:
-  sphere02   : {sphere: 0.2, color: [1,0.0,0.0,0.5]}
-  sphere     : {sphere: 0.1, color: [1,0.0,0.0,0.5]}
-  red_box    : {box: [0.2, 0.2, 0.45], color: [1.00,0.00,0.00,1]}
-  box        : {box: [0.2, 0.2, 0.45], color: [0.75,0.75,0.75,1]}
-  little_box : {box: [0.1, 0.1, 0.10], color: [0.75,0.75,0.75,1]}
-  mid_box    : {box: [0.4, 0.4, 0.50], color: [0.75,0.75,0.75,1]}
-  mid_red_box: {box: [0.6, 0.6, 0.60], color: [1.00,0.00,0.00,1]}
-  short_box  : {box: [0.5, 0.5, 0.50], color: [0.75,0.75,0.75,1]}
-  big_box    : {box: [0.5, 0.5, 3.00], color: [0.75,0.75,0.75,1]}
-  huge_box   : {box: [0.8, 0.8, 3.00], color: [0.75,0.75,0.75,1]}
-  plane      : {box: [5.0, 5.0, 0.10], color: [0.75,0.75,0.75,1]}
+  sphere02   : {sphere: 0.2, color: [1,0.0,0.0,0.5], position: [0.0,0.0,0.0], quaternion: [0, 0, 0, 1]}
+  sphere     : {sphere: 0.1, color: [1,0.0,0.0,0.5], position: [0.0,0.0,0.0], quaternion: [0, 0, 0, 1]}
+  red_box    : {box: [0.2, 0.2, 0.45], color: [1.00,0.00,0.00,1], position: [0.0,0.0,0.0], quaternion: [0, 0, 0, 1]}
+  box        : {box: [0.2, 0.2, 0.45], color: [0.75,0.75,0.75,1], position: [0.0,0.0,0.0], quaternion: [0, 0, 0, 1]}
+  little_box : {box: [0.1, 0.1, 0.10], color: [0.75,0.75,0.75,1], position: [0.0,0.0,0.0], quaternion: [0, 0, 0, 1]}
+  mid_box    : {box: [0.4, 0.4, 0.50], color: [0.75,0.75,0.75,1], position: [0.0,0.0,0.0], quaternion: [0, 0, 0, 1]}
+  mid_red_box: {box: [0.6, 0.6, 0.60], color: [1.00,0.00,0.00,1], position: [0.0,0.0,0.0], quaternion: [0, 0, 0, 1]}
+  short_box  : {box: [0.5, 0.5, 0.50], color: [0.75,0.75,0.75,1], position: [0.0,0.0,0.0], quaternion: [0, 0, 0, 1]}
+  big_box    : {box: [0.5, 0.5, 3.00], color: [0.75,0.75,0.75,1], position: [0.0,0.0,0.0], quaternion: [0, 0, 0, 1]}
+  huge_box   : {box: [0.8, 0.8, 3.00], color: [0.75,0.75,0.75,1], position: [0.0,0.0,0.0], quaternion: [0, 0, 0, 1]}
+  plane      : {box: [5.0, 5.0, 0.10], color: [0.75,0.75,0.75,1], position: [0.0,0.0,0.0], quaternion: [0, 0, 0, 1]}
+    # sphere02   : {sphere: 0.2, color: [1,0.0,0.0,0.5]}
+    # sphere     : {sphere: 0.1, color: [1,0.0,0.0,0.5]}
+    # red_box    : {box: [0.2, 0.2, 0.45], color: [1.00,0.00,0.00,1]}
+    # box        : {box: [0.2, 0.2, 0.45], color: [0.75,0.75,0.75,1]}
+    # little_box : {box: [0.1, 0.1, 0.10], color: [0.75,0.75,0.75,1]}
+    # mid_box    : {box: [0.4, 0.4, 0.50], color: [0.75,0.75,0.75,1]}
+    # mid_red_box: {box: [0.6, 0.6, 0.60], color: [1.00,0.00,0.00,1]}
+    # short_box  : {box: [0.5, 0.5, 0.50], color: [0.75,0.75,0.75,1]}
+    # big_box    : {box: [0.5, 0.5, 3.00], color: [0.75,0.75,0.75,1]}
+    # huge_box   : {box: [0.8, 0.8, 3.00], color: [0.75,0.75,0.75,1]}
+    # plane      : {box: [5.0, 5.0, 0.10], color: [0.75,0.75,0.75,1]}
