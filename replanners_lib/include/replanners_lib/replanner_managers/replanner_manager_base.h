@@ -194,7 +194,7 @@ public:
     return pnt_unscaled;
   }
 
-  void setCurrentPath(const PathPtr& current_path)
+  virtual void setCurrentPath(const PathPtr& current_path)
   {
     current_path_ = current_path;
   }

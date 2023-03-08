@@ -52,7 +52,7 @@ public:
                         const ros::NodeHandle &nh,
                         std::vector<PathPtr> &other_paths);
 
-  void setOtherPaths(const std::vector<PathPtr>& other_paths)
+  virtual void setOtherPaths(const std::vector<PathPtr>& other_paths)
   {
     other_paths_ = other_paths;
   }

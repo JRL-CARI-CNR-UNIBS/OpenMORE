@@ -41,11 +41,8 @@ protected:
    */
   MetricsPtr euclidean_metrics_;
 
-  void updateHACost(const PathPtr& path);
   void init(const LengthPenaltyMetricsPtr& ha_metrics);
-
   void initFlaggedConnections() override;
-//  void clearInvalidConnections() override;
   void clearFlaggedConnections() override;
   std::vector<ps_goal_ptr> sortNodes(const NodePtr& node) override;
   std::vector<NodePtr> startNodes(const std::vector<ConnectionPtr>& subpath1_conn) override;

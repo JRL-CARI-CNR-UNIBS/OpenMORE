@@ -92,14 +92,6 @@ void MARSHA::setMetricsHA(const LengthPenaltyMetricsPtr& ha_metrics)
     p->setMetrics(ha_metrics_);
 }
 
-void MARSHA::updateHACost(const PathPtr& path)
-{
-  for(const ConnectionPtr& c:path->getConnections())
-    c->setCost(ha_metrics_->cost(c->getParent()->getConfiguration(),c->getChild()->getConfiguration()));
-
-  path->cost();
-}
-
 void MARSHA::initFlaggedConnections()
 {
   clearFlaggedConnections();
@@ -114,30 +106,6 @@ void MARSHA::initFlaggedConnections()
     flagged_conn->setFlag(cost_updated_flag_,true);
   });
 }
-
-//void MARSHA::clearInvalidConnections()
-//{
-//  //  std::vector<ConnectionPtr> connections = current_path_->getConnections();
-//  //  for(const PathPtr& p:other_paths_)
-//  //    connections.insert(connections.end(),p->getConnectionsConst().begin(),p->getConnectionsConst().end());
-
-//  //  for(invalid_connection& invalid_conn:invalid_connections_)
-//  //  {
-//  //    if(std::find(connections.begin(),connections.end(),invalid_conn.connection)>=connections.end())
-//  //    {
-//  //      assert(invalid_conn.connection->isRecentlyChecked());
-
-//  //      /* Do not affect connections whose cost has been updated by the metrics (cost_updated_flag_ true),
-//  //       * reset only connections whose cost was changed by the collision checker */
-//  //      if(not invalid_conn.connection->getFlag(cost_updated_flag_,false))
-//  //      {
-//  //        invalid_conn.connection->setCost(invalid_conn.cost);
-//  //      }
-//  //    }
-//  //  }
-
-//  invalid_connections_.clear();
-//}
 
 void MARSHA::clearFlaggedConnections()
 {
