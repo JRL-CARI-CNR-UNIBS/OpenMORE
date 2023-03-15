@@ -6,7 +6,8 @@ Panels:
       Expanded:
         - /MotionPlanning1/Scene Robot1
         - /MotionPlanning1/Planning Request1
-      Splitter Ratio: 0.5
+        - /Safe override1
+      Splitter Ratio: 0.5030180811882019
     Tree Height: 781
   - Class: rviz/Help
     Name: Help
@@ -171,9 +172,34 @@ Visualization Manager:
       Marker Topic: /marker_visualization_topic
       Name: Marker
       Namespaces:
-        {}
+        pathplan: true
       Queue Size: 100
       Value: true
+    - Buffer length: 100
+      Class: jsk_rviz_plugin/Plotter2D
+      Enabled: true
+      Name: Safe override
+      Show Value: true
+      Topic: /safe_ovr_1_float
+      Value: true
+      auto color change: true
+      auto scale: true
+      background color: 136; 138; 133
+      backround alpha: 0
+      border: true
+      foreground alpha: 0.699999988079071
+      foreground color: 239; 41; 41
+      height: 128
+      left: 20
+      linewidth: 2
+      max color: 78; 154; 6
+      max value: 1
+      min value: -1
+      show caption: true
+      text size: 12
+      top: 20
+      update interval: 0.03999999910593033
+      width: 128
   Enabled: true
   Global Options:
     Background Color: 186; 189; 182
@@ -190,7 +216,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 7.039650917053223
+      Distance: 6.739896297454834
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -206,7 +232,7 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.0047966241836548
+      Pitch: 1.0097966194152832
       Target Frame: world
       Yaw: 3.0631206035614014
     Saved: ~

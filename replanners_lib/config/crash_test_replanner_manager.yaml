@@ -29,15 +29,21 @@ dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 benchmark: false
-spawn_objs: true
-spawn_instants: [0.5, 2, 3.5]
-obj_type: "sphere"
-obj_max_size: 0.1
 scaling: 0.5
-read_safe_scaling: false
+read_safe_scaling: true
 read_real_joints_values_: false
 joint_target_topic: "/joint_target"
 unscaled_joint_target_topic: "/unscaled_joint_target"
+overrides: ["/safe_ovr_1"]
+virtual_obj:
+  spawn_objs: true
+  spawn_instants: [0.5, 0.7, 0.9, 1.1, 1.3, 1.5] #[0.5, 2, 3.5]
+  obj_type: "sphere"
+  obj_max_size: 0.1
+  obj_vel: 0 #0.5
+  dt_move: 0.1
+  moves_before_change_direction: 10
+  obs_pose_topic: "/poses"
 
 MPRRT:
   n_threads_replan: 5
@@ -68,6 +74,6 @@ replanner_verbosity: false
 display_timing_warning: false
 display_replanning_success: true
 display_replan_trj_point: false
-display_replan_config: true
-display_current_trj_point: true
-display_current_config: true
+display_replan_config: false
+display_current_trj_point: false
+display_current_config: false

@@ -57,6 +57,7 @@ protected:
 
   int spline_order_              ;
   int parallel_checker_n_threads_;
+  int direction_change_          ;
 
   double t_                          ;
   double dt_                         ;
@@ -71,6 +72,8 @@ protected:
   double goal_tol_                   ;
   double scaling_                    ;
   double global_override_            ;
+  double obj_vel_                    ;
+  double dt_move_                    ;
 
   ReplannerBasePtr                          replanner_                   ;
   Eigen::VectorXd                           current_configuration_       ;
@@ -115,9 +118,11 @@ protected:
   std::map<std::string,double> overrides_;
 
   ros::Publisher target_pub_         ;
+  ros::Publisher obj_pose_pub_       ;
   ros::Publisher text_overlay_pub_   ;
   ros::Publisher unscaled_target_pub_;
 
+  std::string obs_pose_topic_             ;
   std::string joint_target_topic_         ;
   std::string unscaled_joint_target_topic_;
 

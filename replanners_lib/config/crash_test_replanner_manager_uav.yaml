@@ -26,13 +26,18 @@ dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 benchmark: true
-spawn_objs: true
-spawn_instants: [1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49]
-obj_type: "box"
-obj_max_size: 0.1
 scaling: 0.5
 read_safe_scaling: false
 read_real_joints_values_: false
+virtual_obj:
+  spawn_objs: true
+  spawn_instants:  [1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49]
+  obj_type: "sphere"
+  obj_max_size: 0.1
+  obj_vel: 0.5
+  dt_move: 0.25
+  moves_before_change_direction: 3
+  obs_pose_topic: "/poses"
 
 MPRRT:
   n_threads_replan: 5

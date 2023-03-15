@@ -6,6 +6,10 @@
     <arg name="rviz"         value="$(find replanners_bench_cells)/config/rviz_crash_test_3d_simple_config.rviz"/>
   </include>
 
+  <node pkg="velocity_scaling_iso15066" type="velocity_scaling_iso15066_node" name="safety" output="screen">
+    <rosparam file="$(find replanners_lib)/config/3dsafety.yaml" command="load"/>
+  </node>
+
   <rosparam command="load" file="$(find replanners_lib)/config/crash_test_replanner_manager.yaml"/>
 
   <node pkg="replanners_lib"

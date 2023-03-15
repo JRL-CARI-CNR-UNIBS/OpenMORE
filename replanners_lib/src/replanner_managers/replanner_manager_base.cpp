@@ -1,4 +1,4 @@
-﻿#include "replanners_lib/replanner_managers/replanner_manager_base.h"
+#include "replanners_lib/replanner_managers/replanner_manager_base.h"
 
 namespace pathplan
 {
@@ -100,19 +100,31 @@ void ReplannerManagerBase::fromParam()
     display_current_config_ = true;
   if(!nh_.getParam("benchmark",benchmark_))
     benchmark_ = false;
-  if(!nh_.getParam("spawn_objs",spawn_objs_))
+  if(!nh_.getParam("virtual_obj/spawn_objs",spawn_objs_))
     spawn_objs_ = false;
   else
   {
     spawn_instants_.clear();
-    if(!nh_.getParam("spawn_instants",spawn_instants_))
+    if(!nh_.getParam("virtual_obj/spawn_instants",spawn_instants_))
       spawn_instants_.push_back(0.5);
 
-    if(!nh_.getParam("obj_type",obj_type_))
+    if(!nh_.getParam("virtual_obj/obj_type",obj_type_))
       obj_type_ = "little_box";
 
-    if(!nh_.getParam("obj_max_size",obj_max_size_))
+    if(!nh_.getParam("virtual_obj/obj_max_size",obj_max_size_))
       obj_max_size_ = 0.07;
+
+    if(!nh_.getParam("virtual_obj/obj_vel",obj_vel_))
+      obj_vel_ = 0.0;
+
+    if(!nh_.getParam("virtual_obj/dt_move",dt_move_))
+      dt_move_ = std::numeric_limits<double>::infinity();
+
+    if(!nh_.getParam("virtual_obj/moves_before_change_direction",direction_change_))
+      direction_change_ = std::numeric_limits<int>::infinity();
+
+    if(!nh_.getParam("virtual_obj/obs_pose_topic",obs_pose_topic_))
+      obs_pose_topic_ = "/poses";
   }
 }
 
@@ -251,6 +263,8 @@ void ReplannerManagerBase::subscribeTopicsAndServices()
 
   if(spawn_objs_)
   {
+    obj_pose_pub_ = nh_.advertise<geometry_msgs::PoseArray>(obs_pose_topic_,10);
+
     add_obj_    = nh_.serviceClient<object_loader_msgs::AddObjects   >("/add_object_to_scene"     );
     move_obj_   = nh_.serviceClient<object_loader_msgs::MoveObjects  >("/move_object_in_scene"    );
     remove_obj_ = nh_.serviceClient<object_loader_msgs::RemoveObjects>("/remove_object_from_scene");
@@ -260,6 +274,13 @@ void ReplannerManagerBase::subscribeTopicsAndServices()
       ROS_ERROR("unable to connect to /add_object_to_scene");
       spawn_objs_ = false;
     }
+
+    if(not move_obj_.waitForExistence(ros::Duration(10)))
+    {
+      ROS_ERROR("unable to connect to /move_object_in_scene");
+      spawn_objs_ = false;
+    }
+
     if(not remove_obj_.waitForExistence(ros::Duration(10)))
     {
       ROS_ERROR("unable to connect to /remove_object_to_scene");
@@ -874,29 +895,29 @@ void ReplannerManagerBase::spawnObjectsThread()
   MoveitUtils moveit_utils(planning_scene,group_name_);
   std::string last_link = planning_scene->getRobotModel()->getJointModelGroup(group_name_)->getLinkModelNames().back();
 
-  PathPtr path_copy;
-  Eigen::VectorXd obj_conf, configuration_replan;
-  Eigen::VectorXd goal = current_path_shared_->getGoalNode()->getConfiguration();
+  PathPtr current_path;
+  Eigen::VectorXd obj_conf, replan_conf;
+  Eigen::VectorXd goal_conf = current_path_shared_->getGoalNode()->getConfiguration();
 
-  Eigen::Vector3d configuration_replan_3d, obj_pos_3d;
-  Eigen::Vector3d goal_3d = forwardIk(goal,last_link,moveit_utils);
+  Eigen::Vector3d replan_pose, obj_pose;
+  Eigen::Vector3d goal_pose = forwardIk(goal_conf,last_link,moveit_utils);
 
   std::vector<std::string> ids;
   std::vector<double> moving_time;
+  std::vector<unsigned int> n_move;
   std::vector<Eigen::Vector3d> velocities;
   std::vector<Eigen::Vector3d> objects_locations;
   std::vector<object_loader_msgs::Object> spawned_objects;
 
-  double velocity = 0.1; // m/s
-  double dt_move = 0.25; // change objects locations every 0.25 seconds
+  bool obs_update;
 
   geometry_msgs::Quaternion q;
   q.x = 0.0; q.y = 0.0; q.z = 0.0; q.w = 1.0;
 
   std::random_device rseed;
   std::mt19937 gen(rseed());
-  std::uniform_real_distribution<double> dist_vel(-1.0,1.0);
-  std::uniform_real_distribution<double> dist_abs(0.2,0.8);
+  std::uniform_real_distribution<double> random_vel(-1.0,1.0);
+  std::uniform_real_distribution<double> random_abs(0.2,0.8);
 
   object_loader_msgs::Object new_obj;
   new_obj.object_type = obj_type_;
@@ -904,12 +925,16 @@ void ReplannerManagerBase::spawnObjectsThread()
   new_obj.pose.pose.orientation = q;
 
   std::reverse(spawn_instants_.begin(),spawn_instants_.end());
-
-  //  ros::WallRate lp(trj_exec_thread_frequency_);
   ros::WallRate lp(100);
 
   while(not stop_ && ros::ok())
   {
+    obs_update = false;
+
+    srv_add_object.request.objects.clear();
+    srv_move_objects.request.poses.clear();
+    srv_move_objects.request.obj_ids.clear();
+
     if(not spawn_instants_.empty())
     {
       if(real_time_>=spawn_instants_.back())
@@ -919,38 +944,35 @@ void ReplannerManagerBase::spawnObjectsThread()
         replanner_mtx_.lock();
         paths_mtx_.lock();
 
-        path_copy = current_path_shared_->clone();
-        configuration_replan = configuration_replan_;
+        current_path = current_path_shared_->clone();
+        replan_conf = configuration_replan_;
 
         paths_mtx_.unlock();
         replanner_mtx_.unlock();
 
-        path_copy->setChecker(checker);
-        path_copy = path_copy->getSubpathFromConf(configuration_replan,true);
+        current_path->setChecker(checker);
+        current_path = current_path->getSubpathFromConf(replan_conf,true);
 
-        configuration_replan_3d = forwardIk(configuration_replan,last_link,moveit_utils);
+        replan_pose = forwardIk(replan_conf,last_link,moveit_utils);
 
         double obj_abscissa = 0.0;
         while(not stop_ && ros::ok())
         {
-          obj_abscissa = dist_abs(gen); //0.2~0.8
+          obj_abscissa = random_abs(gen); //0.2~0.8
 
-          obj_conf = path_copy->pointOnCurvilinearAbscissa(obj_abscissa);
-          obj_pos_3d = forwardIk(obj_conf,last_link,moveit_utils);
+          obj_conf = current_path->pointOnCurvilinearAbscissa(obj_abscissa);
+          obj_pose = forwardIk(obj_conf,last_link,moveit_utils);
 
           // to no collide with the robot or the goal
-          if((obj_pos_3d-configuration_replan_3d).norm()>obj_max_size_ &&
-             (obj_conf-configuration_replan).norm()     >obj_max_size_ &&
-             (obj_pos_3d-goal_3d).norm()                >obj_max_size_ &&
-             (obj_conf-goal).norm()                     >obj_max_size_  )
+          if((obj_pose-replan_pose).norm()>obj_max_size_ && (obj_conf-replan_conf).norm()>obj_max_size_ &&
+             (obj_pose-goal_pose  ).norm()>obj_max_size_ && (obj_conf-goal_conf  ).norm()>obj_max_size_  )
             break;
         }
 
-        new_obj.pose.pose.position.x = obj_pos_3d[0];
-        new_obj.pose.pose.position.y = obj_pos_3d[1];
-        new_obj.pose.pose.position.z = obj_pos_3d[2];
+        new_obj.pose.pose.position.x = obj_pose[0];
+        new_obj.pose.pose.position.y = obj_pose[1];
+        new_obj.pose.pose.position.z = obj_pose[2];
 
-        srv_add_object.request.objects.clear();
         srv_add_object.request.objects.push_back(new_obj);
 
         if(stop_ || not ros::ok())
@@ -958,21 +980,29 @@ void ReplannerManagerBase::spawnObjectsThread()
       }
     }
 
-    if(not objects_locations.empty())
+    if(not objects_locations.empty() && obj_vel_>0.0)
     {
-      srv_move_objects.request.poses.clear();
-      srv_move_objects.request.obj_ids.clear();
-
       for(unsigned int i=0;i<objects_locations.size();i++)
       {
-        if(real_time_>(moving_time.at(i)+dt_move))
+        if(real_time_>(moving_time.at(i)+dt_move_))
         {
-          objects_locations.at(i) = objects_locations.at(i) + dt_move*velocities.at(i);
+          if(n_move.at(i)>direction_change_) //change direction of motion
+          {
+            Eigen::Vector3d v;
+            v << (random_vel(gen)),(random_vel(gen)),(random_vel(gen));
+            v = (v/v.norm())*obj_vel_;
+
+            velocities.at(i) = v;
+            n_move.at(i) = 0;
+          }
+
+          objects_locations.at(i) = objects_locations.at(i) + dt_move_*velocities.at(i);
           spawned_objects.at(i).pose.pose.position.x = objects_locations.at(i)[0];
           spawned_objects.at(i).pose.pose.position.y = objects_locations.at(i)[1];
           spawned_objects.at(i).pose.pose.position.z = objects_locations.at(i)[2];
           spawned_objects.at(i).pose.pose.orientation = q;
 
+          n_move.at(i) = n_move.at(i)+1;
           moving_time.at(i) = real_time_;
 
           srv_move_objects.request.obj_ids.push_back(ids.at(i));
@@ -985,7 +1015,10 @@ void ReplannerManagerBase::spawnObjectsThread()
 
       if(stop_ || not ros::ok())
         break;
+    }
 
+    if(not srv_add_object.request.objects.empty())
+    {
       if(not add_obj_.call(srv_add_object))
       {
         ROS_ERROR("call to add obj srv not ok");
@@ -999,33 +1032,62 @@ void ReplannerManagerBase::spawnObjectsThread()
       else
       {
         ROS_BOLDMAGENTA_STREAM("Obstacle spawned!");
+        obs_update = true;
 
         Eigen::Vector3d v;
-        v << (dist_vel(gen)),(dist_vel(gen)),(dist_vel(gen));
-        v = (v/v.norm())*velocity;
+        v << (random_vel(gen)),(random_vel(gen)),(random_vel(gen));
+        v = (v/v.norm())*obj_vel_;
 
+        n_move.push_back(0);
         velocities.push_back(v);
-        spawned_objects.push_back(new_obj);
         moving_time.push_back(real_time_);
-        objects_locations.push_back(obj_pos_3d);
+        spawned_objects.push_back(new_obj);
+        objects_locations.push_back(obj_pose);
         ids.push_back(srv_add_object.response.ids.front());
 
         for (const std::string& str:srv_add_object.response.ids)
           srv_remove_object.request.obj_ids.push_back(str);
       }
+    }
 
+    if(not srv_move_objects.request.poses.empty())
+    {
       if(not move_obj_.call(srv_move_objects))
         ROS_ERROR("call to move obj srv not ok");
 
       if(not srv_move_objects.response.success)
         ROS_ERROR("move obj srv error");
       else
+        obs_update = true;
+    }
+
+    if(obs_update)
+    {
+      geometry_msgs::PoseArray pose_array;
+      pose_array.header.frame_id = "world";
+      pose_array.header.stamp = ros::Time::now();
+
+      geometry_msgs::Pose pose;
+      pose.orientation = q;
+
+      bench_mtx_.lock();
+      obj_ids_ = ids;  //also contains the new added obj
+
+      obj_pos_.clear();
+      for(const Eigen::Vector3d& ol: objects_locations) //also contains the new added obj
       {
-        bench_mtx_.lock();
-        obj_ids_ = ids;               //also contains the new added obj
-        obj_pos_ = objects_locations; //also contains the new added obj
-        bench_mtx_.unlock();
+        Eigen::VectorXd vector = ol.head<3>();
+        obj_pos_.push_back(vector);
+
+        pose.position.x = ol[0];
+        pose.position.y = ol[1];
+        pose.position.z = ol[2];
+
+        pose_array.poses.push_back(pose);
       }
+      bench_mtx_.unlock();
+
+      obj_pose_pub_.publish(pose_array); //publish poses for SSM node
     }
     lp.sleep();
   }

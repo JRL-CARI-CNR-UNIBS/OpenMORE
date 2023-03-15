@@ -29,13 +29,18 @@ dt_replan: 0.20 #max replanning time
 trj_execution_thread_frequency: 500    #trajectory execution thread frequency
 collision_checker_thread_frequency: 30 #collision check thread frequency
 benchmark: true  #to launch the benchmark thread during trajectory execution+replanning
-spawn_objs: true  #to start a thread that will generate random objects on the current path
-spawn_instants: [0.5,3.5,6.5] #instants of time in which to generate random objects
-obj_type: "red_box" #object to generate (see object_test_replanner.yaml in replanners_bench_cell to see a list of available objects)
-obj_max_size: 0.1  #min distance between robot end-effector and object center point to detect collision (used only in benchmark thread to speedup)
 scaling: 0.7  #scaling factor of robot trajectory (value between 0 and 1)
 joint_target_topic: "/joint_target"  #topic on which the trajectory execution thread publishes the scaled joint states
 unscaled_joint_target_topic: "/unscaled_joint_target" #topic on which the trajectory execution thread publishes the unscaled joint states
+virtual_obj:
+  spawn_objs: true  #to start a thread that will generate random objects on the current path
+  spawn_instants: [0.5,3.5,6.5] #instants of time in which to generate random objects
+  obj_type: "red_box" #object to generate (see object_test_replanner.yaml in replanners_bench_cell to see a list of available objects)
+  obj_max_size: 0.1  #min distance between robot end-effector and object center point to detect collision (used only in benchmark thread to speedup)
+  obj_vel: 0.5      #obstacles velocity
+  dt_move: 0.25     #dt between two consecutive motions
+  moves_before_change_direction: 3 #number of motion before changing direction of motion
+  obs_pose_topic: "/poses"  #topic on which the poses of the spawned obstacles are published
 
 #REPLANNER-SPECIFIC PARAMETERS
 MPRRT:
