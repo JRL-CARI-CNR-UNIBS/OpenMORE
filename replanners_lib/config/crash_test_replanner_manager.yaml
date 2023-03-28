@@ -24,14 +24,13 @@ parallel_checker_n_threads: 4
 # - MARS
 # - MARSHA
 
-replanner_type: "MARS"
+replanner_type: "MARSHA"
 dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 benchmark: false
 scaling: 0.5
-read_safe_scaling: true
-read_real_joints_values_: false
+read_safe_scaling: false
 joint_target_topic: "/joint_target"
 unscaled_joint_target_topic: "/unscaled_joint_target"
 overrides: ["/safe_ovr_1"]

@@ -35,12 +35,18 @@ protected:
   LengthPenaltyMetricsPtr ha_metrics_;
 
   /**
+   * @brief ssm_ is the SSM module of ha_metrics_
+   */
+  ssm15066_estimator::SSM15066EstimatorPtr ssm_;
+
+  /**
    * @brief euclidean_metrics_ used by the solver to compute the connecting path
    * If and only if you are not using an optimal planner, using the aware metrics during path search is useless (time consuming);
    * you can use the faster euclidean metrics to build the tree and then the aware metrics to evaluate the cost of the solution found
    */
   MetricsPtr euclidean_metrics_;
 
+  void setSSM();
   void init(const LengthPenaltyMetricsPtr& ha_metrics);
   void initFlaggedConnections() override;
   void clearFlaggedConnections() override;

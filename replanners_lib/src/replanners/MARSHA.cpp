@@ -30,6 +30,7 @@ void MARSHA::init(const LengthPenaltyMetricsPtr& ha_metrics)
   {
     metrics_    = nullptr;
     ha_metrics_ = nullptr;
+    ssm_ = nullptr;
   }
   else
     setMetricsHA(ha_metrics);
@@ -60,9 +61,9 @@ void MARSHA::init(const LengthPenaltyMetricsPtr& ha_metrics)
 
 bool MARSHA::setObstaclesPosition(const Eigen::Matrix<double,3,Eigen::Dynamic>& obstacles_positions)
 {
-  if(ha_metrics_ != nullptr)
+  if(ssm_ != nullptr)
   {
-    ha_metrics_->getSSM()->setObstaclesPositions(obstacles_positions);
+    ssm_->setObstaclesPositions(obstacles_positions);
     return true;
   }
   return false;
@@ -70,12 +71,20 @@ bool MARSHA::setObstaclesPosition(const Eigen::Matrix<double,3,Eigen::Dynamic>& 
 
 bool MARSHA::addObstaclePosition(const Eigen::Vector3d& obstacle_position)
 {
-  if(ha_metrics_ != nullptr)
+  if(ssm_ != nullptr)
   {
-    ha_metrics_->getSSM()->addObstaclePosition(obstacle_position);
+    ssm_->addObstaclePosition(obstacle_position);
     return true;
   }
   return false;
+}
+
+void MARSHA::setSSM()
+{
+  if(std::dynamic_pointer_cast<ssm15066_estimator::SSM15066Estimator>(ha_metrics_->getPenalizer()) == nullptr)
+    throw std::runtime_error("Cost penalizer should be of SSM15066Estimator type");
+  else
+    ssm_ = std::static_pointer_cast<ssm15066_estimator::SSM15066Estimator>(ha_metrics_->getPenalizer());
 }
 
 void MARSHA::setMetricsHA(const LengthPenaltyMetricsPtr& ha_metrics)
@@ -90,6 +99,8 @@ void MARSHA::setMetricsHA(const LengthPenaltyMetricsPtr& ha_metrics)
 
   for(const PathPtr& p:other_paths_)
     p->setMetrics(ha_metrics_);
+
+  setSSM();
 }
 
 void MARSHA::initFlaggedConnections()

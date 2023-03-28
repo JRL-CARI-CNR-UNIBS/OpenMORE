@@ -13,11 +13,12 @@ geometry_msgs
 subscription_notifier
 jsk_rviz_plugins
 length_penalty_metrics
+ssm15066_estimators
 )
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS graph_core roscpp object_loader_msgs moveit_planning_helper geometry_msgs subscription_notifier jsk_rviz_plugins length_penalty_metrics
+  CATKIN_DEPENDS graph_core roscpp object_loader_msgs moveit_planning_helper geometry_msgs subscription_notifier jsk_rviz_plugins length_penalty_metrics ssm15066_estimators
   DEPENDS
   )
 include_directories(

@@ -11,6 +11,7 @@ ReplannerManagerMARSHA::ReplannerManagerMARSHA(const PathPtr &current_path,
   ReplannerManagerMARS(current_path,solver,nh,other_paths)
 {
   ha_metrics_ = ha_metrics;
+  setSSM();
   MARSHAadditionalParams();
 }
 
@@ -23,8 +24,8 @@ void ReplannerManagerMARSHA::MARSHAadditionalParams()
   poi_names_.clear();
   if(nh_.getParam("MARSHA/poi_names",poi_names_))
   {
-    if(ha_metrics_)
-      ha_metrics_->getSSM()->setPoiNames(poi_names_);
+    if(ssm_)
+      ssm_->setPoiNames(poi_names_);
   }
   else
     ROS_ERROR("MARSHA/poi_names_ not set");
@@ -45,9 +46,17 @@ void ReplannerManagerMARSHA::attributeInitialization()
   }
 }
 
+void ReplannerManagerMARSHA::setSSM()
+{
+  if(std::dynamic_pointer_cast<ssm15066_estimator::SSM15066Estimator>(ha_metrics_->getPenalizer()) == nullptr)
+    throw std::runtime_error("Cost penalizer should be of SSM15066Estimator type");
+  else
+    ssm_ = std::static_pointer_cast<ssm15066_estimator::SSM15066Estimator>(ha_metrics_->getPenalizer());
+}
+
 void ReplannerManagerMARSHA::downloadPathCost()
 {
-  ha_metrics_->getSSM()->setObstaclesPositions(obstalces_positions_);
+  ssm_->setObstaclesPositions(obstalces_positions_);
   ReplannerManagerMARS::downloadPathCost();
 }
 
@@ -165,33 +174,37 @@ void ReplannerManagerMARSHA::collisionCheckThread()
   moveit_msgs::PlanningScene planning_scene_msg;
   Eigen::Matrix <double,3,Eigen::Dynamic> obstacles_positions;
 
-  ssm15066_estimator::SSM15066Estimator2DPtr ssm = std::make_shared<ssm15066_estimator::SSM15066Estimator2D>(ha_metrics_->getSSM()->getChain()->clone());
-  ssm->setPoiNames     (ha_metrics_->getSSM()->getPoiNames     ());
-  ssm->setMaxCartAcc   (ha_metrics_->getSSM()->getMaxCartAcc   ());
-  ssm->setMaxStepSize  (ha_metrics_->getSSM()->getMaxStepSize  ());
-  ssm->setMinDistance  (ha_metrics_->getSSM()->getMinDistance  ());
-  ssm->setReactionTime (ha_metrics_->getSSM()->getReactionTime ());
-  ssm->setHumanVelocity(ha_metrics_->getSSM()->getHumanVelocity());
+  ssm15066_estimator::SSM15066Estimator2DPtr current_path_ssm = std::make_shared<ssm15066_estimator::SSM15066Estimator2D>(ssm_->getChain()->clone());
+  current_path_ssm->setPoiNames     (ssm_->getPoiNames     ());
+  current_path_ssm->setMaxCartAcc   (ssm_->getMaxCartAcc   ());
+  current_path_ssm->setMaxStepSize  (ssm_->getMaxStepSize  ());
+  current_path_ssm->setMinDistance  (ssm_->getMinDistance  ());
+  current_path_ssm->setReactionTime (ssm_->getReactionTime ());
+  current_path_ssm->setHumanVelocity(ssm_->getHumanVelocity());
 
-  LengthPenaltyMetricsPtr metrics_current_path = std::make_shared<LengthPenaltyMetrics>(ssm);
+  LengthPenaltyMetricsPtr metrics_current_path = std::make_shared<LengthPenaltyMetrics>(current_path_ssm);
 
   PathPtr current_path_copy = current_path_shared_->clone();
   current_path_copy->setChecker(checker_cc_);
   current_path_copy->setMetrics(metrics_current_path);
 
   std::vector<PathPtr> other_paths_copy;
-  std::vector<CollisionCheckerPtr> checkers;
-  std::vector<LengthPenaltyMetricsPtr> metrics;
+  std::vector<CollisionCheckerPtr> other_checkers;
+  std::vector<LengthPenaltyMetricsPtr> other_metrics;
+  std::vector<ssm15066_estimator::SSM15066EstimatorPtr> other_ssm;
 
+  ssm15066_estimator::SSM15066EstimatorPtr tmp_ssm;
   for(const PathPtr& p:other_paths_shared_)
   {
     PathPtr path_copy = p->clone();
 
-    checkers.push_back(checker_cc_->clone());
-    path_copy->setChecker(checkers.back());
+    other_checkers.push_back(checker_cc_->clone());
 
-    metrics.push_back(std::make_shared<LengthPenaltyMetrics>(ssm->clone()));
-    path_copy->setMetrics(metrics.back());
+    tmp_ssm = std::static_pointer_cast<ssm15066_estimator::SSM15066Estimator>(current_path_ssm->clone());
+    other_ssm.push_back(tmp_ssm);    other_metrics.push_back(std::make_shared<LengthPenaltyMetrics>(other_ssm.back()));
+
+    path_copy->setChecker(other_checkers.back());
+    path_copy->setMetrics(other_metrics.back());
 
     other_paths_copy.push_back(path_copy);
   }
@@ -222,12 +235,12 @@ void ReplannerManagerMARSHA::collisionCheckThread()
     obstacles_positions = updateObstaclesPositions(planning_scene_msg.world);
 
     checker_cc_->setPlanningSceneMsg(planning_scene_msg);
-    metrics_current_path->getSSM()->setObstaclesPositions(obstacles_positions);
+    current_path_ssm->setObstaclesPositions(obstacles_positions);
 
-    for(unsigned int i=0;i<checkers.size();i++)
+    for(unsigned int i=0;i<other_checkers.size();i++)
     {
-      checkers.at(i)->setPlanningSceneMsg(planning_scene_msg);
-      metrics .at(i)->getSSM()->setObstaclesPositions(obstacles_positions);
+      other_checkers.at(i)->setPlanningSceneMsg(planning_scene_msg);
+      other_ssm.at(i)->setObstaclesPositions(obstacles_positions);
     }
     scene_mtx_.unlock();
 
@@ -252,11 +265,14 @@ void ReplannerManagerMARSHA::collisionCheckThread()
 
       PathPtr path_copy = other_paths_shared_.back()->clone();
 
-      checkers.push_back(checker_cc_->clone());
-      path_copy->setChecker(checkers.back());
+      other_checkers.push_back(checker_cc_->clone());
 
-      metrics.push_back(std::make_shared<LengthPenaltyMetrics>(ssm->clone()));
-      path_copy->setMetrics(metrics.back());
+      tmp_ssm = std::static_pointer_cast<ssm15066_estimator::SSM15066Estimator>(current_path_ssm->clone());
+      other_ssm.push_back(tmp_ssm);
+      other_metrics.push_back(std::make_shared<LengthPenaltyMetrics>(other_ssm.back()));
+
+      path_copy->setChecker(other_checkers.back());
+      path_copy->setMetrics(other_metrics.back());
 
       other_paths_copy.push_back(path_copy);
       other_path_size = other_paths_copy.size();
@@ -267,8 +283,8 @@ void ReplannerManagerMARSHA::collisionCheckThread()
       if(other_paths_sync_needed_.at(i))
       {
         other_paths_copy.at(i) = other_paths_shared_.at(i)->clone();
-        other_paths_copy.at(i)->setChecker(checkers.at(i));
-        other_paths_copy.at(i)->setMetrics(metrics.at(i));
+        other_paths_copy.at(i)->setChecker(other_checkers.at(i));
+        other_paths_copy.at(i)->setMetrics(other_metrics.at(i));
         other_paths_sync_needed_.at(i) = false;
       }
     }

@@ -20,6 +20,7 @@
   <depend>subscription_notifier</depend>
   <depend>jsk_rviz_plugins</depend>
   <depend>length_penalty_metrics</depend>
+  <depend>ssm15066_estimators</depend>
 
   <export>
 

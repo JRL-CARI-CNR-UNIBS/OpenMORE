@@ -18,6 +18,11 @@ protected:
   LengthPenaltyMetricsPtr ha_metrics_;
 
   /**
+   * @brief ssm_ is the SSM module used by ha_metrics_
+   */
+  ssm15066_estimator::SSM15066EstimatorPtr ssm_;
+
+  /**
    * @brief metrics_shared_ and other_metrics_shared_ are the euclidean metrics used in the shared paths (they don't need to use the expensive human aware one)
    */
   MetricsPtr metrics_shared_;
@@ -76,6 +81,11 @@ protected:
    */
   void attributeInitialization() override;
 
+  /**
+   * @brief setSSM sets ssm_ member, taking it from ha_metrics_
+   */
+  void setSSM();
+
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   ReplannerManagerMARSHA(const PathPtr &current_path,
@@ -87,9 +97,10 @@ public:
   void setMetricsHA(const LengthPenaltyMetricsPtr &ha_metrics)
   {
     ha_metrics_ = ha_metrics;
+    setSSM();
 
     if(not poi_names_.empty())
-      ha_metrics_->getSSM()->setPoiNames(poi_names_);
+      ssm_->setPoiNames(poi_names_);
 
     if(replanner_)
       std::static_pointer_cast<MARSHA>(replanner_)->setMetricsHA(ha_metrics_);
