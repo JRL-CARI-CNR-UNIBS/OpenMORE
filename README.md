@@ -1,7 +1,7 @@
 <div align="center">
   <h1 align="center">OpenMORE</h1>
   <h3 align="center">
-    an Open-source MOtion REplanning library
+    Open-source MOtion REplanning library
   </h3>
 </div>
 
