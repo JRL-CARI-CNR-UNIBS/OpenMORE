@@ -1,11 +1,11 @@
 <div align="center">
-  <h1 align="center">replanning_strategies</h1>
+  <h1 align="center">OpenMORE</h1>
   <h3 align="center">
-    A sampling-based path replanning strategies library
+    a Open-source MOtion REplanning library
   </h3>
 </div>
 
-The repository contains the implementation of a library of sampling-based path replanning algorithms. It also develops a framework to manage robot's trajectory execution with continuous path replanning and collision checking of the current path. It is based on ROS and *MoveIt!* to get information about the environment. Check [this paper](https://ieeexplore.ieee.org/document/10013661?source=authoralert) for more information.
+The repository contains the implementation of a library of sampling-based path replanning algorithms. It develops a framework to manage robot's trajectory execution with continuous path replanning and collision checking of the current path. It is based on ROS and *MoveIt!* to get information about the environment and collision check. Check [this paper](https://ieeexplore.ieee.org/document/10013661?source=authoralert) for more information.
 ## Build/Installation
 The software can be installed using rosinstall files.
 
