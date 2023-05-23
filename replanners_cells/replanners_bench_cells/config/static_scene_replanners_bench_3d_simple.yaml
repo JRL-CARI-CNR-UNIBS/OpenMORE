@@ -1,4 +1,6 @@
 scene_objects:
  - {type: "box",      frame: "world", position: [1.5,2.5,1],  quaternion: [0, 0, 0, 1]}
  - {type: "box",      frame: "world", position: [1.5,0.5,1],  quaternion: [0, 0, 0, 1]}
- - {type: "big_box",  frame: "world", position: [1.5,1.5,1.5],  quaternion: [0, 0, 0, 1]}
+ - {type: "big_box",  frame: "world", position: [1.5,1.5,1],  quaternion: [0, 0, 0, 1]}
+
+#  - {type: "big_box",  frame: "world", position: [1.5,1.5,1.5],  quaternion: [0, 0, 0, 1]}

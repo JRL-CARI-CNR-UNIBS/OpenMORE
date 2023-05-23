@@ -1540,7 +1540,8 @@ PathPtr MARS::getSubpath1(NodePtr& current_node)
 
   if((current_configuration_-current_path_nodes.back()->getConfiguration()).norm()<=TOLERANCE)
   {
-    ROS_GREEN_STREAM("The current node is the goal!");
+    if(informedOnlineReplanning_verbose_)
+      ROS_GREEN_STREAM("The current node is the goal!");
     current_node = current_path_nodes.back();
 
     return nullptr;
@@ -1645,7 +1646,8 @@ bool MARS::informedOnlineReplanning(const double &max_time)
   }
   else
   {
-    ROS_GREEN_STREAM("The current configuration matches with the goal OR does not match with any node of the current path!");
+    if(informedOnlineReplanning_verbose_)
+      ROS_GREEN_STREAM("The current configuration matches with the goal OR does not match with any node of the current path!");
 
     /* Clear flagged connections vector */
     clearFlaggedConnections();

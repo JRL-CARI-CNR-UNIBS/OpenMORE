@@ -45,6 +45,7 @@ protected:
   bool goal_reached_              ;
   bool spawn_objs_                ;
   bool read_safe_scaling_         ;
+  bool replanning_enabled_        ;
   bool download_scene_info_       ;
   bool replanner_verbosity_       ;
   bool display_replan_config_     ;
@@ -211,6 +212,11 @@ public:
     return replanner_;
   }
 
+  void enableReplanning(const bool enable)
+  {
+    replanning_enabled_ = enable;
+  }
+
   bool goalReached()
   {
     return goal_reached_;
@@ -220,7 +226,6 @@ public:
   virtual bool stop();
   virtual bool run();
   virtual bool start();
-  virtual bool startWithoutReplanning();
 
   virtual void startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration) = 0;
 };

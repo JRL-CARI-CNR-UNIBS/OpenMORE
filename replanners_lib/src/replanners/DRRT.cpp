@@ -1,4 +1,4 @@
-﻿#include "replanners_lib/replanners/DRRT.h"
+﻿#include "replanners_lib/replanners/LI_DRRT.h"
 
 namespace pathplan
 {
@@ -203,7 +203,7 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
   {
     ROS_ERROR("The goal can't be set as root!");
     ROS_INFO_STREAM("Goal node: "<<goal_node_<<"\n"<<*goal_node_);
-    ROS_INFO_STREAM("Current path end node: "<<current_path_->getConnections().back()->getChild()<<"\n"<<*current_path_->getConnections().back()->getChild());
+    ROS_INFO_STREAM("Current path end node: "<<current_path_->getGoalNode()<<"\n"<<*current_path_->getGoalNode());
 
     throw std::runtime_error("The goal can't be set as root!");
   }
@@ -227,14 +227,11 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
   double max_distance = trimmed_tree_->getMaximumDistance();
   assert(max_distance>0.0);
 
-  //InformedSampler sampler(lb_,ub_,lb_,ub_);
-
   double time = (ros::WallTime::now()-tic).toSec();
   while(time<max_time_ && not success_)
   {
     NodePtr new_node;
-    Eigen::VectorXd conf = sampler_->sample(); //CHIEDI A MANUEL PERCHE CAPITA CHE VENGA CAMPIONATA LA STESSA CONFIGURAZIONE PIU VOLTE
-    //if(trimmed_tree_->extendWithPathCheck(conf,new_node,checked_connections))
+    Eigen::VectorXd conf = sampler_->sample();
     if(trimmed_tree_->extend(conf,new_node))
     {
       assert(new_node->getParentConnectionsSize() == 1);
@@ -313,11 +310,10 @@ bool DynamicRRT::regrowRRT(NodePtr& node)
 
   return success_;
 }
-
 bool DynamicRRT::replan()
 {
   double cost_from_conf = current_path_->getCostFromConf(current_configuration_);
-  return DynamicRRT::replan(cost_from_conf);
+  return replan(cost_from_conf);
 }
 
 bool DynamicRRT::replan(const double& cost_from_conf)

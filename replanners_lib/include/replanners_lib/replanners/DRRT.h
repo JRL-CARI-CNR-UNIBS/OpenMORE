@@ -21,10 +21,10 @@ protected:
   InformedSamplerPtr sampler_;
   std::vector<ConnectionPtr> checked_connections_;
 
-  bool trimInvalidTree(NodePtr& node);
-  bool regrowRRT(NodePtr& node);
-  void fixTree(const NodePtr& node_replan, const NodePtr& root, std::vector<NodePtr> &old_nodes, std::vector<double> &old_connections_costs);
+  virtual bool trimInvalidTree(NodePtr& node);
+  virtual bool regrowRRT(NodePtr& node);
   bool replan(const double& cost_from_conf);
+  void fixTree(const NodePtr& node_replan, const NodePtr& root, std::vector<NodePtr> &old_nodes, std::vector<double> &old_connections_costs);
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -36,13 +36,6 @@ public:
   bool getTreeIsTrimmed()
   {
     return tree_is_trimmed_;
-  }
-
-  void setCurrentPath(const PathPtr& path) override
-  {
-    success_ = false;
-    current_path_ = path;
-    goal_node_  = current_path_->getConnections().back()->getChild();
   }
 
   virtual bool replan() override;

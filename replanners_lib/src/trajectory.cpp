@@ -159,7 +159,7 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
 
 
 robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_msgs::JointTrajectoryPointPtr &pnt)
-{
+{  
   if(not path_)
     throw std::invalid_argument("Path not assigned");
 

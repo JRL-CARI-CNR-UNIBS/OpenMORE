@@ -32,7 +32,7 @@ protected:
   PathPtr path_;
   ros::NodeHandle nh_;
   robot_model::RobotModelConstPtr kinematic_model_;
-  planning_scene::PlanningScenePtr planning_scene_;
+  planning_scene::PlanningScenePtr planning_scene_;  //REMOVE
   std::string group_name_;
   MoveitUtilsPtr moveit_utils_;
 

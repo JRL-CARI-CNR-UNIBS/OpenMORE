@@ -32,6 +32,7 @@ src/replanners/replanner_base.cpp
 src/replanners/MPRRT.cpp
 src/replanners/DRRTStar.cpp
 src/replanners/DRRT.cpp
+src/replanners/LI_DRRT.cpp
 src/replanners/anytimeDRRT.cpp
 src/replanners/MARS.cpp
 src/replanners/MARSHA.cpp

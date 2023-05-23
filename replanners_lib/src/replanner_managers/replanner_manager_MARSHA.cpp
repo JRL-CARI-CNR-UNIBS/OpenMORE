@@ -90,6 +90,7 @@ void ReplannerManagerMARSHA::initReplanner()
 
 Eigen::Matrix <double,3,Eigen::Dynamic> ReplannerManagerMARSHA::updateObstaclesPositions(const moveit_msgs::PlanningSceneWorld& world)
 {
+  double obs_x, obs_y, obs_z;
   Eigen::Vector3d obstacle_position;
   Eigen::Matrix <double,3,Eigen::Dynamic> obstacles_positions;
 
@@ -97,10 +98,17 @@ Eigen::Matrix <double,3,Eigen::Dynamic> ReplannerManagerMARSHA::updateObstaclesP
   {
     if(std::find(unaware_obstacles_.begin(),unaware_obstacles_.end(),obj.id)>=unaware_obstacles_.end())
     {
-      obstacle_position << obj.pose.position.x,obj.pose.position.y,obj.pose.position.z;
+      for(const geometry_msgs::Pose& primitive_pose: obj.primitive_poses)
+      {
+        obs_x = obj.pose.position.x + primitive_pose.position.x;
+        obs_y = obj.pose.position.y + primitive_pose.position.y;
+        obs_z = obj.pose.position.z + primitive_pose.position.z;
 
-      obstacles_positions.conservativeResize(Eigen::NoChange, obstacles_positions.cols()+1);
-      obstacles_positions.col(obstacles_positions.cols()-1) = obstacle_position;
+        obstacle_position << obs_x,obs_y,obs_z;
+
+        obstacles_positions.conservativeResize(Eigen::NoChange, obstacles_positions.cols()+1);
+        obstacles_positions.col(obstacles_positions.cols()-1) = obstacle_position;
+      }
     }
   }
 
@@ -175,12 +183,13 @@ void ReplannerManagerMARSHA::collisionCheckThread()
   Eigen::Matrix <double,3,Eigen::Dynamic> obstacles_positions;
 
   ssm15066_estimator::SSM15066Estimator2DPtr current_path_ssm = std::make_shared<ssm15066_estimator::SSM15066Estimator2D>(ssm_->getChain()->clone());
+  current_path_ssm->setMaxCartAcc   (ssm_->getMaxCartAcc   (),false);
+  current_path_ssm->setMinDistance  (ssm_->getMinDistance  (),false);
+  current_path_ssm->setReactionTime (ssm_->getReactionTime (),false);
+  current_path_ssm->setHumanVelocity(ssm_->getHumanVelocity(),false);
   current_path_ssm->setPoiNames     (ssm_->getPoiNames     ());
-  current_path_ssm->setMaxCartAcc   (ssm_->getMaxCartAcc   ());
   current_path_ssm->setMaxStepSize  (ssm_->getMaxStepSize  ());
-  current_path_ssm->setMinDistance  (ssm_->getMinDistance  ());
-  current_path_ssm->setReactionTime (ssm_->getReactionTime ());
-  current_path_ssm->setHumanVelocity(ssm_->getHumanVelocity());
+  current_path_ssm->updateMembers();
 
   LengthPenaltyMetricsPtr metrics_current_path = std::make_shared<LengthPenaltyMetrics>(current_path_ssm);
 
@@ -233,6 +242,7 @@ void ReplannerManagerMARSHA::collisionCheckThread()
     planning_scene_msg.is_diff = true;
 
     obstacles_positions = updateObstaclesPositions(planning_scene_msg.world);
+//    ROS_INFO_STREAM("obs rows "<<obstacles_positions.rows()<<" cols "<<obstacles_positions.cols());
 
     checker_cc_->setPlanningSceneMsg(planning_scene_msg);
     current_path_ssm->setObstaclesPositions(obstacles_positions);

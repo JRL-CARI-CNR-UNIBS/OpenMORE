@@ -10,6 +10,8 @@ ReplannerManagerBase::ReplannerManagerBase(const PathPtr &current_path,
   solver_       = solver;
   nh_           = nh    ;
 
+  replanning_enabled_ = true;
+
   fromParam();
   subscribeTopicsAndServices();
 }
@@ -641,12 +643,12 @@ bool ReplannerManagerBase::replan()
 
 bool ReplannerManagerBase::joinThreads()
 {
-  if(trj_exec_thread_                .joinable()) trj_exec_thread_  .join();
-  if(replanning_thread_              .joinable()) replanning_thread_.join();
-  if(col_check_thread_               .joinable()) col_check_thread_ .join();
-  if(display_thread_                 .joinable()) display_thread_   .join();
-  if(benchmark_  && benchmark_thread_.joinable()) benchmark_thread_ .join();
-  if(spawn_objs_ && spawn_obj_thread_.joinable()) spawn_obj_thread_ .join();
+  if(trj_exec_thread_                         .joinable()) trj_exec_thread_  .join();
+  if(replanning_enabled_ && replanning_thread_.joinable()) replanning_thread_.join();
+  if(col_check_thread_                        .joinable()) col_check_thread_ .join();
+  if(display_thread_                          .joinable()) display_thread_   .join();
+  if(benchmark_          && benchmark_thread_ .joinable()) benchmark_thread_ .join();
+  if(spawn_objs_         && spawn_obj_thread_ .joinable()) spawn_obj_thread_ .join();
 
   return true;
 }
@@ -669,13 +671,16 @@ bool ReplannerManagerBase::run()
 
   ROS_BOLDWHITE_STREAM("Launching threads..");
 
-  display_thread_                   = std::thread(&ReplannerManagerBase::displayThread            ,this);  //it must be the first one launched, otherwise the first paths will be not displayed in time
-  if(spawn_objs_) spawn_obj_thread_ = std::thread(&ReplannerManagerBase::spawnObjectsThread       ,this);
-  if(benchmark_)  benchmark_thread_ = std::thread(&ReplannerManagerBase::benchmarkThread          ,this);
-  replanning_thread_                = std::thread(&ReplannerManagerBase::replanningThread         ,this);
-  col_check_thread_                 = std::thread(&ReplannerManagerBase::collisionCheckThread     ,this);
-  ros::Duration(0.1).sleep()                                                                            ;
-  trj_exec_thread_                  = std::thread(&ReplannerManagerBase::trajectoryExecutionThread,this);
+  display_thread_         = std::thread(&ReplannerManagerBase::displayThread            ,this);  //it must be the first one launched, otherwise the first paths will be not displayed in time
+  if(spawn_objs_)
+    spawn_obj_thread_     = std::thread(&ReplannerManagerBase::spawnObjectsThread       ,this);
+  if(benchmark_)
+    benchmark_thread_     = std::thread(&ReplannerManagerBase::benchmarkThread          ,this);
+  if(replanning_enabled_)
+    replanning_thread_    = std::thread(&ReplannerManagerBase::replanningThread         ,this);
+  col_check_thread_       = std::thread(&ReplannerManagerBase::collisionCheckThread     ,this);
+  ros::Duration(0.1).sleep();
+  trj_exec_thread_        = std::thread(&ReplannerManagerBase::trajectoryExecutionThread,this);
 
   return true;
 }
@@ -684,27 +689,6 @@ bool ReplannerManagerBase::start()
 {
   run();
   joinThreads();
-
-  return true;
-}
-
-bool ReplannerManagerBase::startWithoutReplanning()
-{
-  ros::AsyncSpinner spinner(4);
-  spinner.start();
-
-  attributeInitialization();
-
-  target_pub_         .publish(new_joint_state_         );
-  unscaled_target_pub_.publish(new_joint_state_unscaled_);
-
-  ROS_BOLDWHITE_STREAM("Launching threads..");
-
-  display_thread_  = std::thread(&ReplannerManagerBase::displayThread             ,this);
-  trj_exec_thread_ = std::thread(&ReplannerManagerBase::trajectoryExecutionThread ,this);
-
-  if(display_thread_ .joinable()) display_thread_ .join();
-  if(trj_exec_thread_.joinable()) trj_exec_thread_.join();
 
   return true;
 }
