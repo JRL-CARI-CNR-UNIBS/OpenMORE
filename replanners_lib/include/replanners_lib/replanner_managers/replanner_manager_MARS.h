@@ -39,7 +39,7 @@ protected:
   virtual bool replan() override;
   virtual void initReplanner() override;
   virtual void collisionCheckThread() override;
-  virtual void updateTrajectory() override;
+  virtual bool updateTrajectory() override;
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

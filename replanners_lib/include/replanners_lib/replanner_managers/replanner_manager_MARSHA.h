@@ -52,6 +52,7 @@ protected:
 
   bool replan() override;
   void initReplanner() override;
+  bool updateTrajectory() override;
   void collisionCheckThread() override;
 
   /**

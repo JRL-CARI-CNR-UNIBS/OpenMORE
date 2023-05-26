@@ -138,7 +138,7 @@ protected:
   virtual void fromParam();
   virtual void downloadPathCost();
   virtual void updateSharedPath();
-  virtual void updateTrajectory();
+  virtual bool updateTrajectory();
   virtual bool uploadPathCost(const PathPtr& current_path_updated_copy);
   virtual void attributeInitialization();
   virtual void replanningThread();

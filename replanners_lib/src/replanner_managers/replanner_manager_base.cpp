@@ -359,7 +359,7 @@ bool ReplannerManagerBase::uploadPathCost(const PathPtr& current_path_updated_co
   return updated;
 }
 
-void ReplannerManagerBase::updateTrajectory()
+bool ReplannerManagerBase::updateTrajectory()
 {
   PathPtr trj_path = current_path_->clone();
   double max_distance = solver_->getMaxDistance();
@@ -392,6 +392,8 @@ void ReplannerManagerBase::updateTrajectory()
 
   interpolator_.setTrajectory(tmp_trj_msg)   ;
   interpolator_.setSplineOrder(spline_order_);
+
+  return true;
 }
 
 void ReplannerManagerBase::replanningThread()
@@ -407,6 +409,7 @@ void ReplannerManagerBase::replanningThread()
 
   int n_size_before;
   bool success = false;
+  bool trj_updated = false;
   bool path_changed = false;
   bool path_obstructed = true;
   double replanning_duration = 0.0;
@@ -443,14 +446,6 @@ void ReplannerManagerBase::replanningThread()
 
       projection = path2project_on->projectOnPath(point2project,past_projection,false);
       past_projection = projection;
-
-      //      assert([&]() ->bool{
-      //               if(not path2project_on->findConnection(projection))
-      //               return true;
-
-      //               ROS_BOLDRED_STREAM("projection is wrong");
-      //               return false;
-      //             }());
 
       abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(projection);
       abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration);
@@ -517,21 +512,31 @@ void ReplannerManagerBase::replanningThread()
         replanner_mtx_.lock();
         trj_mtx_.lock();
 
-        startReplannedPathFromNewCurrentConf(current_configuration_);
+        if(success)
+        {
+          startReplannedPathFromNewCurrentConf(current_configuration_);
+          current_path_ = replanner_->getReplannedPath(); //keep it before updateTrajectory()
 
-        current_path_ = replanner_->getReplannedPath();
-        replanner_->setCurrentPath(current_path_);
+          //          trj_updated = updateTrajectory();
+          updateTrajectory(); //it uses current_path_
 
-        updateTrajectory();
+          replanner_->setCurrentPath(current_path_); //set replanner_ success to false, keep it after updateTrajectory()
+
+          t_ = 0;
+          t_replan_ = t_+time_shift_*scaling_;
+
+          //          if(trj_updated)
+          //          {
+          //            t_ = 0;
+          //            t_replan_ = t_+time_shift_*scaling_;
+          //          }
+        }
 
         paths_mtx_.lock();
         updateSharedPath();
         paths_mtx_.unlock();
 
         past_projection = current_configuration_;
-
-        t_ = 0;
-        t_replan_ = t_+time_shift_*scaling_;
 
         trj_mtx_.unlock();
         replanner_mtx_.unlock();

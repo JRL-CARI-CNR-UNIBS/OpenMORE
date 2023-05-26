@@ -60,9 +60,219 @@ void ReplannerManagerMARSHA::downloadPathCost()
   ReplannerManagerMARS::downloadPathCost();
 }
 
+bool ReplannerManagerMARSHA::updateTrajectory()
+{
+  if(not replanner_->getSuccess())
+    return false;
+
+  PathPtr trj_path = current_path_->clone();
+  double max_distance = solver_->getMaxDistance();
+
+  trj_path->removeNodes(max_distance/4.0);
+  trj_path->simplify(max_distance/4.0);
+//  trj_path->resample(max_distance);
+
+  trajectory_->setPath(trj_path);
+  robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
+  moveit_msgs::RobotTrajectory tmp_trj_msg;
+  trj->getRobotTrajectoryMsg(tmp_trj_msg);
+
+  interpolator_.setTrajectory(tmp_trj_msg)   ;
+  interpolator_.setSplineOrder(spline_order_);
+
+  return true;
+}
+
 void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
 {
-  ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(configuration);
+  if(not replanner_->getSuccess())
+  {
+//    ROS_INFO("NO SUCCESS");
+
+    return;
+  }
+  else
+  {
+    return ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(configuration);
+  }
+
+  MARSPtr replanner = std::static_pointer_cast<MARSHA>(replanner_);
+
+  PathPtr current_path   = replanner->getCurrentPath();
+  PathPtr replanned_path = replanner->getReplannedPath();
+  NodePtr node_replan    = replanned_path->getStartNode();
+
+  TreePtr tree = current_path->getTree();
+
+  if(old_current_node_ && old_current_node_ != node_replan && ((old_current_node_->getConfiguration()-configuration).norm()>TOLERANCE))
+  {
+    if((old_current_node_->getParentConnectionsSize()+old_current_node_->getNetParentConnectionsSize()) == 1)
+    {
+      if((old_current_node_->getChildConnectionsSize()+old_current_node_->getNetChildConnectionsSize()) == 1)
+      {
+        if(tree->isInTree(old_current_node_))
+        {
+          /* Remove the old node detaching it from the tree, restore the old connection and set it as initial
+             * connection of current path to be able to insert the new current node */
+
+          ConnectionPtr parent_conn;
+          (old_current_node_->getParentConnectionsSize()>0)? (parent_conn = old_current_node_->parentConnection(0)):
+                                                             (parent_conn = old_current_node_->netParentConnection(0));
+
+          std::vector<ConnectionPtr> new_conns = current_path->getConnections();
+          new_conns.insert(new_conns.begin(),parent_conn);
+          current_path->setConnections(new_conns);
+
+          ConnectionPtr restored_conn;
+          if(current_path->removeNode(old_current_node_,{},restored_conn))
+          {
+            ROS_INFO("NODO RIMOSSO");
+            std::vector<PathPtr> paths = other_paths_;
+            paths.push_back(replanned_path);
+            for(PathPtr& p:paths)
+              p->restoreConnection(restored_conn,old_current_node_);
+          }
+        }
+      }
+    }
+  }
+
+  int conn_idx;
+  bool is_a_new_node;
+  ConnectionPtr conn = current_path->findConnection(configuration,conn_idx);
+  NodePtr current_node = current_path->addNodeAtCurrentConfig(configuration,conn,true,is_a_new_node);
+
+  if(is_a_new_node)
+  {
+    old_current_node_ = current_node;
+    for(PathPtr &p:other_paths_)
+    {
+      if(p->splitConnection(current_path->getConnectionsConst().at(conn_idx),
+                            current_path->getConnectionsConst().at(conn_idx+1),conn));
+    }
+  }
+  else
+    old_current_node_ = nullptr;
+
+  if(not replanner_->getSuccess())
+  {
+    replanned_path->setConnections(current_path->getSubpathFromNode(current_node)->getConnections());
+  }
+  else
+  {
+    std::vector<NodePtr> nodes = current_path->getNodes();
+
+    std::vector<NodePtr>::iterator it_current_node = std::find(nodes.begin(),nodes.end(),current_node);
+    std::vector<NodePtr>::iterator it_node_replan  = std::find(nodes.begin(),nodes.end(),node_replan );
+
+    int distance = std::distance(nodes.begin(),it_node_replan)-std::distance(nodes.begin(),it_current_node);
+
+    if(distance==0)
+    {
+      if(node_replan != current_node)
+        throw std::runtime_error("nodes are different");
+    }
+    else if(distance<0) //current node ahead of replan node
+    {
+//      ROS_INFO("DISTANCE < 0");
+
+      int idx;
+      ConnectionPtr current_conn = replanned_path->findConnection(configuration,idx,true);
+      if(current_conn != nullptr) //current node is still on replanned path -> simply extract subpath
+      {
+//        ROS_INFO("ON REPLANNED PATH");
+
+
+        if(current_conn->getParent() == current_node || current_conn->getChild() == current_node)
+        {
+//          ROS_INFO("1");
+
+          replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
+        }
+        else
+        {
+//          ROS_INFO("2");
+
+          if(not replanned_path->splitConnection(current_path->getConnectionsConst().at(conn_idx),
+                                                 current_path->getConnectionsConst().at(conn_idx+1),current_conn))
+
+            replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
+        }
+      }
+      else //current node is not on the replanned path
+      {
+        ROS_INFO("NOT ON THE REPLANNED PATH");
+
+
+        //current node should be very close to replan node, minimal difference between the connections
+        //Connect to closest node
+        std::vector<ConnectionPtr> replanned_path_conns = replanned_path->getConnections();
+
+        NodePtr child;
+        ConnectionPtr conn_prj;
+        replanned_path->projectOnPath(configuration,replanned_path->getStartNode()->getConfiguration(),conn_prj,false);
+        if(conn_prj == nullptr)
+        {
+//          ROS_INFO("CONN_PRJ NULLPTR");
+
+          conn_prj = replanned_path_conns.front();
+          child = conn_prj->getParent();
+        }
+        else
+        {
+//          ROS_INFO("CONN_PRJ NOT NULLPTR");
+
+          child = conn_prj->getChild();
+        }
+
+        ConnectionPtr new_conn = std::make_shared<Connection>(current_node,child,true);
+        (conn_prj->getCost()<std::numeric_limits<double>::infinity())?
+              new_conn->setCost(replanned_path->getMetrics()->cost(current_node->getConfiguration(),child->getConfiguration())):
+              new_conn->setCost(std::numeric_limits<double>::infinity());
+
+        //        conn_prj->remove();
+        new_conn->add();
+
+        uint idx =0;
+        for(unsigned int i=0;i<replanned_path_conns.size();i++)
+        {
+          if(replanned_path_conns[i] == conn_prj)
+          {
+            idx = i;
+            break;
+          }
+        }
+        replanned_path_conns[idx] = new_conn;
+        replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
+      }
+    }
+    else //distance>0 (current node is before replan node)
+    {
+//      ROS_INFO("DISTANCE > 0");
+
+      PathPtr tmp_subpath;
+      tmp_subpath = current_path->getSubpathFromNode(current_node);
+      tmp_subpath = tmp_subpath->getSubpathToNode(node_replan);
+
+      std::vector<ConnectionPtr> new_conns = tmp_subpath->getConnections();
+
+      new_conns.insert(new_conns.end(),replanned_path->getConnectionsConst().begin(),replanned_path->getConnectionsConst().end());
+      replanned_path->setConnections(new_conns);
+    }
+
+    if(replanner->replanNodeIsANewNode() && ((node_replan->getConfiguration()-configuration).norm()>TOLERANCE) && node_replan != old_current_node_)
+    {
+      ConnectionPtr restored_conn;
+      if(replanned_path->removeNode(node_replan,{},restored_conn))
+      {
+        std::vector<PathPtr> paths = other_paths_;
+        paths.push_back(current_path);
+
+        for(PathPtr& p:paths)
+          p->restoreConnection(restored_conn,node_replan);
+      }
+    }
+  }
 }
 
 void ReplannerManagerMARSHA::initReplanner()
@@ -242,7 +452,7 @@ void ReplannerManagerMARSHA::collisionCheckThread()
     planning_scene_msg.is_diff = true;
 
     obstacles_positions = updateObstaclesPositions(planning_scene_msg.world);
-//    ROS_INFO_STREAM("obs rows "<<obstacles_positions.rows()<<" cols "<<obstacles_positions.cols());
+    //    ROS_INFO_STREAM("obs rows "<<obstacles_positions.rows()<<" cols "<<obstacles_positions.cols());
 
     checker_cc_->setPlanningSceneMsg(planning_scene_msg);
     current_path_ssm->setObstaclesPositions(obstacles_positions);

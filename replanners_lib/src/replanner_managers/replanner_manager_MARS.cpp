@@ -288,17 +288,17 @@ void ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(const Eigen::Vec
         }
         else
         {
-//          assert([&]() ->bool{
-//                   if(conn == current_conn)
-//                   return true;
-//                   else
-//                   {
-//                     ROS_INFO_STREAM("current conf "<<configuration);
-//                     ROS_INFO_STREAM("conn "<<*conn<<"\n"<<conn);
-//                     ROS_INFO_STREAM("current_conn "<<*current_conn<<"\n"<<current_conn);
-//                     return false;
-//                   }
-//                 }());
+          //          assert([&]() ->bool{
+          //                   if(conn == current_conn)
+          //                   return true;
+          //                   else
+          //                   {
+          //                     ROS_INFO_STREAM("current conf "<<configuration);
+          //                     ROS_INFO_STREAM("conn "<<*conn<<"\n"<<conn);
+          //                     ROS_INFO_STREAM("current_conn "<<*current_conn<<"\n"<<current_conn);
+          //                     return false;
+          //                   }
+          //                 }());
           if(conn != current_conn)
           {
             ROS_INFO_STREAM("conf "<<configuration.transpose());
@@ -787,12 +787,13 @@ void ReplannerManagerMARS::displayOtherPaths()
   ROS_BOLDCYAN_STREAM("Display other paths thread is over");
 }
 
-void ReplannerManagerMARS::updateTrajectory()
+bool ReplannerManagerMARS::updateTrajectory()
 {
   PathPtr trj_path = current_path_->clone();
   double max_distance = solver_->getMaxDistance();
 
   trj_path->removeNodes(0.05);
+  trj_path->simplify(0.05);
   trj_path->resample(max_distance);
 
   trajectory_->setPath(trj_path);
@@ -802,6 +803,8 @@ void ReplannerManagerMARS::updateTrajectory()
 
   interpolator_.setTrajectory(tmp_trj_msg)   ;
   interpolator_.setSplineOrder(spline_order_);
+
+  return true;
 }
 
 void ReplannerManagerMARS::displayThread()
