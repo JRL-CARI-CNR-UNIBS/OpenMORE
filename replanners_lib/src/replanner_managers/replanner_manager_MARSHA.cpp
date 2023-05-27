@@ -87,8 +87,6 @@ void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::V
 {
   if(not replanner_->getSuccess())
   {
-//    ROS_INFO("NO SUCCESS");
-
     return;
   }
   else
@@ -126,7 +124,7 @@ void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::V
           ConnectionPtr restored_conn;
           if(current_path->removeNode(old_current_node_,{},restored_conn))
           {
-            ROS_INFO("NODO RIMOSSO");
+//            ROS_INFO("NODO RIMOSSO");
             std::vector<PathPtr> paths = other_paths_;
             paths.push_back(replanned_path);
             for(PathPtr& p:paths)
@@ -201,7 +199,7 @@ void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::V
       }
       else //current node is not on the replanned path
       {
-        ROS_INFO("NOT ON THE REPLANNED PATH");
+//        ROS_INFO("NOT ON THE REPLANNED PATH");
 
 
         //current node should be very close to replan node, minimal difference between the connections

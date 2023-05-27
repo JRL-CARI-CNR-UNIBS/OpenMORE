@@ -187,13 +187,17 @@ void ReplannerManagerBase::attributeInitialization()
   interpolator_.setTrajectory(tmp_trj_msg)   ;
   interpolator_.setSplineOrder(spline_order_);
 
-  double scaling = 1.0;
-  read_safe_scaling_? (scaling = readScalingTopics()):
-                      (scaling = scaling_from_param_);
+  //  double scaling = 1.0;
+  //  read_safe_scaling_? (scaling = readScalingTopics()):
+  //                      (scaling = scaling_from_param_);
+
+  double scaling = scaling_from_param_;
+  if(read_safe_scaling_)
+    scaling = scaling*readScalingTopics();
 
   interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_  ,scaling);
   interpolator_.interpolate(ros::Duration(t_       ),pnt_         ,scaling);
-  interpolator_.interpolate(ros::Duration(t_       ),pnt_unscaled_,    1.0);
+  interpolator_.interpolate(ros::Duration(t_       ),pnt_unscaled_,scaling_from_param_);
 
   Eigen::VectorXd point2project(joint_names.size());
   for(unsigned int i=0; i<pnt_replan_.positions.size();i++)
@@ -509,37 +513,71 @@ void ReplannerManagerBase::replanningThread()
 
       if(path_changed && (not stop_))
       {
-        replanner_mtx_.lock();
-        trj_mtx_.lock();
+        //        replanner_mtx_.lock();
+        //        trj_mtx_.lock();
+
+        //        if(success)
+        //        {
+        //          startReplannedPathFromNewCurrentConf(current_configuration_);
+        //          current_path_ = replanner_->getReplannedPath(); //keep it before updateTrajectory()
+
+        //          updateTrajectory(); //it uses current_path_
+
+        //          replanner_->setCurrentPath(current_path_); //set replanner_ success to false, keep it after updateTrajectory()
+
+        //          t_ = 0;
+        //          t_replan_ = t_+time_shift_*scaling_;
+        //        }
+
+        //        paths_mtx_.lock();
+        //        updateSharedPath();
+        //        paths_mtx_.unlock();
+
+        //        past_projection = current_configuration_;
+
+        //        trj_mtx_.unlock();
+        //        replanner_mtx_.unlock();
 
         if(success)
         {
-          startReplannedPathFromNewCurrentConf(current_configuration_);
-          current_path_ = replanner_->getReplannedPath(); //keep it before updateTrajectory()
+          trj_mtx_.lock();
+          Eigen::VectorXd current_conf = current_configuration_;
+          startReplannedPathFromNewCurrentConf(current_conf);
+          trj_mtx_.unlock();
 
-          //          trj_updated = updateTrajectory();
-          updateTrajectory(); //it uses current_path_
+          PathPtr trj_path = replanner_->getReplannedPath()->clone();
+          double max_distance = solver_->getMaxDistance();
+          trj_path->removeNodes(max_distance/10.0);
+          trj_path->simplify(max_distance/10.0);
+          trj_path->resample(max_distance);
 
-          replanner_->setCurrentPath(current_path_); //set replanner_ success to false, keep it after updateTrajectory()
+          replanner_mtx_.lock();
+          trj_mtx_.lock();
+
+          trajectory_->setPath(trj_path);
+          robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
+          moveit_msgs::RobotTrajectory tmp_trj_msg;
+          trj->getRobotTrajectoryMsg(tmp_trj_msg);
+
+          interpolator_.setTrajectory(tmp_trj_msg)   ;
+          interpolator_.setSplineOrder(spline_order_);
+
+          current_path_ = replanner_->getReplannedPath();
+          replanner_->setCurrentPath(current_path_);
 
           t_ = 0;
           t_replan_ = t_+time_shift_*scaling_;
 
-          //          if(trj_updated)
-          //          {
-          //            t_ = 0;
-          //            t_replan_ = t_+time_shift_*scaling_;
-          //          }
+          past_projection = current_configuration_;
+
+          trj_mtx_.unlock();
+          replanner_mtx_.unlock();
         }
 
         paths_mtx_.lock();
         updateSharedPath();
         paths_mtx_.unlock();
 
-        past_projection = current_configuration_;
-
-        trj_mtx_.unlock();
-        replanner_mtx_.unlock();
       }
 
       toc=ros::WallTime::now();
@@ -723,16 +761,21 @@ void ReplannerManagerBase::trajectoryExecutionThread()
 
     trj_mtx_.lock();
 
-    scaling_ = 1.0;
-    read_safe_scaling_? (scaling_ = readScalingTopics()):
-                        (scaling_ = scaling_from_param_);
+    //    scaling_ = 1.0;
+    //    read_safe_scaling_? (scaling_ = readScalingTopics()):
+    //                        (scaling_ = scaling_from_param_);
+
+    scaling_ = scaling_from_param_;
+
+    if(read_safe_scaling_)
+      scaling_ = scaling_*readScalingTopics();
 
     real_time_ += dt_;
     t_+= scaling_*dt_;
     t_replan_ = t_+time_shift_*scaling_;
 
-    interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling_);
-    interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,     1.0);
+    interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling_           );
+    interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,scaling_from_param_);
 
     for(unsigned int i=0; i<pnt_.positions.size();i++)
       point2project[i] = pnt_.positions[i];

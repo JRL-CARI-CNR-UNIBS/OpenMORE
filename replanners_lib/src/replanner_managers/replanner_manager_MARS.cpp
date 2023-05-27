@@ -789,20 +789,20 @@ void ReplannerManagerMARS::displayOtherPaths()
 
 bool ReplannerManagerMARS::updateTrajectory()
 {
-  PathPtr trj_path = current_path_->clone();
-  double max_distance = solver_->getMaxDistance();
+//  PathPtr trj_path = current_path_->clone();
+//  double max_distance = solver_->getMaxDistance();
 
-  trj_path->removeNodes(0.05);
-  trj_path->simplify(0.05);
-  trj_path->resample(max_distance);
+//  trj_path->removeNodes(0.05);
+//  trj_path->simplify(0.05);
+//  trj_path->resample(max_distance);
 
-  trajectory_->setPath(trj_path);
-  robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
-  moveit_msgs::RobotTrajectory tmp_trj_msg;
-  trj->getRobotTrajectoryMsg(tmp_trj_msg);
+//  trajectory_->setPath(trj_path);
+//  robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
+//  moveit_msgs::RobotTrajectory tmp_trj_msg;
+//  trj->getRobotTrajectoryMsg(tmp_trj_msg);
 
-  interpolator_.setTrajectory(tmp_trj_msg)   ;
-  interpolator_.setSplineOrder(spline_order_);
+//  interpolator_.setTrajectory(tmp_trj_msg)   ;
+//  interpolator_.setSplineOrder(spline_order_);
 
   return true;
 }
