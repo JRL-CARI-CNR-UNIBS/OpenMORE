@@ -53,6 +53,7 @@ MARS:
   full_net_search: false
   dt_replan_relaxed: 0.20
   verbosity_level: 1
+  display_other_paths: true
 
 MARSHA:
   base_frame: "world"

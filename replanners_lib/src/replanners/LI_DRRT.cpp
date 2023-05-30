@@ -102,7 +102,7 @@ bool LazyInformedDRRT::regrowRRT(NodePtr& node)
                    if(not (node->getParentConnectionsSize() == 0) && not (node->getChildConnectionsSize() == 0))
                    {
                      ROS_INFO_STREAM("node:\n"<<*node);
-                     return false
+                     return false;
                    }
                    return true;
                  }());

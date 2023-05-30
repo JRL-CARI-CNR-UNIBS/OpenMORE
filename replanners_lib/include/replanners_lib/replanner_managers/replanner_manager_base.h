@@ -76,6 +76,8 @@ protected:
   double obj_vel_                    ;
   double dt_move_                    ;
 
+  ros::WallTime tic_trj_;
+
   ReplannerBasePtr                          replanner_                   ;
   Eigen::VectorXd                           current_configuration_       ;
   Eigen::VectorXd                           configuration_replan_        ;
@@ -164,7 +166,7 @@ protected:
     return path_obstructed;
   }
 
-  void displayTrj();
+  void displayTrj(const DisplayPtr& disp);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

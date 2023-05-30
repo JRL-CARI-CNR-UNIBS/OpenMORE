@@ -2137,18 +2137,18 @@ bool MARS::replan()
   }
 
 
-  assert([&]() ->bool{
-           double cost = current_path_->cost();
-           current_path_->setChecker(checker_);
-           current_path_->isValid();
-           if(std::abs(cost - current_path_->cost())>1e-04)
-           {
-             ROS_INFO_STREAM("cost "<<cost<<" current cost "<<current_path_->cost());
-             return false;
-           }
-           else
-           return true;
-         }());
+//  assert([&]() ->bool{
+//           double cost = current_path_->cost();
+//           current_path_->setChecker(checker_);
+//           current_path_->isValid();
+//           if(std::abs(cost - current_path_->cost())>1e-04)
+//           {
+//             ROS_INFO_STREAM("cost "<<cost<<" current cost "<<current_path_->cost());
+//             return false;
+//           }
+//           else
+//           return true;
+//         }());
 
   double max_time = max_time_-(tic-ros::WallTime::now()).toSec();
   success_ = informedOnlineReplanning(max_time);

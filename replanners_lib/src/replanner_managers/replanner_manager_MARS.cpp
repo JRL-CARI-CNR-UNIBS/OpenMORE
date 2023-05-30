@@ -47,6 +47,13 @@ void ReplannerManagerMARS::MARSadditionalParams()
     ROS_ERROR("MARS/verbosity_level not set, set 0");
     verbosity_level_ = 0;
   }
+
+  if(!nh_.getParam("MARS/display_other_paths",display_other_paths_))
+  {
+    ROS_ERROR("MARS/display_other_paths_ not set, set true");
+    display_other_paths_ = true;
+  }
+
 }
 
 void ReplannerManagerMARS::attributeInitialization()
@@ -789,20 +796,25 @@ void ReplannerManagerMARS::displayOtherPaths()
 
 bool ReplannerManagerMARS::updateTrajectory()
 {
-//  PathPtr trj_path = current_path_->clone();
-//  double max_distance = solver_->getMaxDistance();
+  PathPtr trj_path = replanner_->getReplannedPath()->clone();
+  double max_distance = solver_->getMaxDistance();
 
-//  trj_path->removeNodes(0.05);
-//  trj_path->simplify(0.05);
-//  trj_path->resample(max_distance);
+//  trj_path->simplify(0.0005);
+  trj_path->removeNodes(1e-03); //toll 1e-03
+  trj_path->resample(max_distance/5.0);
 
-//  trajectory_->setPath(trj_path);
-//  robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
-//  moveit_msgs::RobotTrajectory tmp_trj_msg;
-//  trj->getRobotTrajectoryMsg(tmp_trj_msg);
+  // Get robot status at t_+time starting at the beginning of trajectory update
+  // to have a smoother transition from current trajectory to the new one
+  trajectory_msgs::JointTrajectoryPoint pnt;
+  interpolator_.interpolate(ros::Duration(t_+(ros::WallTime::now()-tic_trj_).toSec()),pnt,scaling_);
 
-//  interpolator_.setTrajectory(tmp_trj_msg)   ;
-//  interpolator_.setSplineOrder(spline_order_);
+  trajectory_->setPath(trj_path);
+  robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt);
+  moveit_msgs::RobotTrajectory tmp_trj_msg;
+  trj->getRobotTrajectoryMsg(tmp_trj_msg);
+
+  interpolator_.setTrajectory(tmp_trj_msg)   ;
+  interpolator_.setSplineOrder(spline_order_);
 
   return true;
 }
@@ -810,12 +822,16 @@ bool ReplannerManagerMARS::updateTrajectory()
 void ReplannerManagerMARS::displayThread()
 {
   std::thread current_path_display_thread = std::thread(&ReplannerManagerMARS::displayCurrentPath,this);
-  std::thread other_paths_display_thread  = std::thread(&ReplannerManagerMARS::displayOtherPaths ,this);
+
+  if(display_other_paths_)
+  {
+    std::thread other_paths_display_thread  = std::thread(&ReplannerManagerMARS::displayOtherPaths ,this);
+
+    if(other_paths_display_thread.joinable())
+      other_paths_display_thread.join();
+  }
 
   if(current_path_display_thread.joinable())
     current_path_display_thread.join();
-
-  if(other_paths_display_thread.joinable())
-    other_paths_display_thread.join();
 }
 }

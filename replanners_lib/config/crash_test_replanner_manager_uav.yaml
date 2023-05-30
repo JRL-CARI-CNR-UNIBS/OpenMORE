@@ -48,6 +48,7 @@ MARS:
   full_net_search: false
   dt_replan_relaxed: 0.20
   verbosity_level: 2
+  display_other_paths: true
 
 #VERBOSITY:
 replanner_verbosity: false

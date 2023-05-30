@@ -16,6 +16,7 @@ protected:
   bool full_net_search_;
   bool first_replanning_;
   bool reverse_start_nodes_;
+  bool display_other_paths_;
   int verbosity_level_;
   double dt_replan_relaxed_;
   NodePtr old_current_node_;

@@ -62,18 +62,20 @@ void ReplannerManagerMARSHA::downloadPathCost()
 
 bool ReplannerManagerMARSHA::updateTrajectory()
 {
-  if(not replanner_->getSuccess())
-    return false;
-
-  PathPtr trj_path = current_path_->clone();
+  PathPtr trj_path = replanner_->getReplannedPath()->clone();
   double max_distance = solver_->getMaxDistance();
 
-  trj_path->removeNodes(max_distance/4.0);
-  trj_path->simplify(max_distance/4.0);
-//  trj_path->resample(max_distance);
+//  trj_path->simplify(0.0005);
+  trj_path->removeNodes(1e-03); //toll 1e-03
+  trj_path->resample(max_distance/5.0);
+
+  // Get robot status at t_+time starting at the beginning of trajectory update
+  // to have a smoother transition from current trajectory to the new one
+  trajectory_msgs::JointTrajectoryPoint pnt;
+  interpolator_.interpolate(ros::Duration(t_+(ros::WallTime::now()-tic_trj_).toSec()),pnt,scaling_);
 
   trajectory_->setPath(trj_path);
-  robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
+  robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt);
   moveit_msgs::RobotTrajectory tmp_trj_msg;
   trj->getRobotTrajectoryMsg(tmp_trj_msg);
 
@@ -85,14 +87,7 @@ bool ReplannerManagerMARSHA::updateTrajectory()
 
 void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
 {
-  if(not replanner_->getSuccess())
-  {
-    return;
-  }
-  else
-  {
-    return ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(configuration);
-  }
+  //  return ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(configuration);
 
   MARSPtr replanner = std::static_pointer_cast<MARSHA>(replanner_);
 
@@ -124,7 +119,6 @@ void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::V
           ConnectionPtr restored_conn;
           if(current_path->removeNode(old_current_node_,{},restored_conn))
           {
-//            ROS_INFO("NODO RIMOSSO");
             std::vector<PathPtr> paths = other_paths_;
             paths.push_back(replanned_path);
             for(PathPtr& p:paths)
@@ -172,35 +166,40 @@ void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::V
     }
     else if(distance<0) //current node ahead of replan node
     {
-//      ROS_INFO("DISTANCE < 0");
+      ROS_INFO("DISTANCE < 0");
 
       int idx;
       ConnectionPtr current_conn = replanned_path->findConnection(configuration,idx,true);
       if(current_conn != nullptr) //current node is still on replanned path -> simply extract subpath
       {
-//        ROS_INFO("ON REPLANNED PATH");
-
+        ROS_INFO("ON REPLANNED PATH");
 
         if(current_conn->getParent() == current_node || current_conn->getChild() == current_node)
         {
-//          ROS_INFO("1");
+          ROS_INFO("1");
 
           replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
         }
         else
         {
-//          ROS_INFO("2");
+          ROS_INFO("2");
+          ROS_INFO_STREAM("conn1 "<<*current_path->getConnectionsConst().at(conn_idx  ));
+          ROS_INFO_STREAM("conn2 "<<*current_path->getConnectionsConst().at(conn_idx+1));
+          ROS_INFO_STREAM("whole conn "<<*current_conn);
+
+          ROS_INFO_STREAM("current path "<<*current_path);
+          ROS_INFO_STREAM("replanned path "<<*replanned_path);
 
           if(not replanned_path->splitConnection(current_path->getConnectionsConst().at(conn_idx),
                                                  current_path->getConnectionsConst().at(conn_idx+1),current_conn))
+            ROS_BOLDRED_STREAM("CONNECTION NOT SPLITTED");
 
-            replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
+          replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
         }
       }
       else //current node is not on the replanned path
       {
-//        ROS_INFO("NOT ON THE REPLANNED PATH");
-
+        ROS_INFO("NOT ON THE REPLANNED PATH");
 
         //current node should be very close to replan node, minimal difference between the connections
         //Connect to closest node
@@ -211,14 +210,14 @@ void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::V
         replanned_path->projectOnPath(configuration,replanned_path->getStartNode()->getConfiguration(),conn_prj,false);
         if(conn_prj == nullptr)
         {
-//          ROS_INFO("CONN_PRJ NULLPTR");
+          ROS_INFO("CONN_PRJ NULLPTR");
 
           conn_prj = replanned_path_conns.front();
           child = conn_prj->getParent();
         }
         else
         {
-//          ROS_INFO("CONN_PRJ NOT NULLPTR");
+          ROS_INFO("CONN_PRJ NOT NULLPTR");
 
           child = conn_prj->getChild();
         }
@@ -241,12 +240,13 @@ void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::V
           }
         }
         replanned_path_conns[idx] = new_conn;
-        replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
+        std::vector<ConnectionPtr> new_conns(replanned_path_conns.begin()+idx,replanned_path_conns.end());
+        replanned_path->setConnections(new_conns);
       }
     }
     else //distance>0 (current node is before replan node)
     {
-//      ROS_INFO("DISTANCE > 0");
+      ROS_INFO("DISTANCE > 0");
 
       PathPtr tmp_subpath;
       tmp_subpath = current_path->getSubpathFromNode(current_node);
