@@ -358,6 +358,7 @@ std::vector<ps_goal_ptr> MARS::sortNodes(const NodePtr& start_node)
    *  - then, consider nodes with invalid subpath (later the net will be used to search for a better subpath, if full_neat_search_ is true)
    */
 
+  PathPtr tmp_path;
   std::vector<NodePtr> nodes;
   ps_goal_ptr pathswitch_goal;
   std::vector<ps_goal_ptr> goals;
@@ -365,6 +366,7 @@ std::vector<ps_goal_ptr> MARS::sortNodes(const NodePtr& start_node)
   std::multimap<double,ps_goal_ptr> ps_goals_map, ps_invalid_goals_map;
 
   double utopia;
+  bool start_node_belongs_to_p;
   bool goal_node_added = false;
   for(const PathPtr& p:admissible_other_paths_)
   {
@@ -375,6 +377,11 @@ std::vector<ps_goal_ptr> MARS::sortNodes(const NodePtr& start_node)
       nodes.pop_back();
     }
 
+    if(std::find(nodes.begin(),nodes.end(),start_node)<nodes.end())
+      start_node_belongs_to_p = true;
+    else
+      start_node_belongs_to_p = false;
+
     for(const NodePtr& n:nodes)
     {
       if(std::find(considered_nodes.begin(),considered_nodes.end(),n)<considered_nodes.end())
@@ -384,6 +391,18 @@ std::vector<ps_goal_ptr> MARS::sortNodes(const NodePtr& start_node)
 
       if(utopia<TOLERANCE)
         continue;
+
+      if(start_node_belongs_to_p)
+      {
+        // Do not connect nodes which are on the same path and already connected by a straight connection (only if there is no obstacles in between)
+        tmp_path = p->getSubpathFromNode(start_node);
+        tmp_path = tmp_path->getSubpathToNode(n);
+        if(tmp_path->cost()<std::numeric_limits<double>::infinity())
+        {
+          if(std::abs(tmp_path->computeEuclideanNorm()-utopia)<TOLERANCE)
+            continue;
+        }
+      }
 
       pathswitch_goal = std::make_shared<ps_goal>();
       pathswitch_goal->node = n;
@@ -1287,7 +1306,7 @@ bool MARS::pathSwitch(const PathPtr &current_path,
     remaining_goals--;
 
     if(pathSwitch_disp_ || pathSwitch_verbose_)
-      ROS_BOLDBLUE_STREAM("path1_node: "<<path1_node->getConfiguration().transpose()<<" -> path2_node: "<<path2_node->getConfiguration().transpose());
+      ROS_BOLDBLUE_STREAM("path1_node ("<<path1_node<<"): "<<path1_node->getConfiguration().transpose()<<" -> path2_node ("<<path2_node<<"): "<<path2_node->getConfiguration().transpose());
 
     std::vector<ConnectionPtr> path2_subpath_conn;
     /* Search for a better path2_subpath from path2_node */
@@ -1524,7 +1543,7 @@ bool MARS::pathSwitch(const PathPtr &current_path,
     }
 
     if(success)
-      ROS_BLUE_STREAM("PathSwitch has found a solution with cost: " << new_path->cost()<<". Path1_node conf: "<<path1_node_of_sol->getConfiguration().transpose()<<" path2_node conf: "<<path2_node_of_sol->getConfiguration().transpose());
+      ROS_BLUE_STREAM("PathSwitch has found a solution with cost: " << new_path->cost()<<". path1_node ("<<path1_node_of_sol<<"): "<<path1_node_of_sol->getConfiguration().transpose()<<" -> path2_node ("<<path2_node_of_sol<<"): "<<path2_node_of_sol->getConfiguration().transpose());
     else
       ROS_BLUE_STREAM("PathSwitch has NOT found a solution");
   }
@@ -2130,10 +2149,12 @@ bool MARS::replan()
     }
   }
 
+  double current_cost = current_path_->getCostFromConf(current_configuration_);
+
   if(verbose_)
   {
     ROS_GREEN_STREAM("Starting node for replanning: \n"<< *current_node<<current_node<<"\nis a new node: "<<is_a_new_node_);
-    ROS_GREEN_STREAM("Cost from here: "<<current_path_->getCostFromConf(current_configuration_));
+    ROS_GREEN_STREAM("Cost from here: "<<current_cost);
   }
 
 
@@ -2169,7 +2190,12 @@ bool MARS::replan()
 
   bool path_changed = false;
   if(success_)
+  {
     path_changed = true;
+
+//    if(std::abs(current_cost-replanned_path_->cost())<0.1)
+//      success_ = false;
+  }
   else
   {
     if(is_a_new_node_)

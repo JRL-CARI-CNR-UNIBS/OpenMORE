@@ -423,12 +423,6 @@ void ReplannerManagerBase::replanningThread()
   Eigen::VectorXd past_projection = configuration_replan_;
   Eigen::VectorXd goal_conf = replanner_->getGoal()->getConfiguration();
 
-
-//  // ELIMINA
-//  planning_scene::PlanningScenePtr planning_scene = planning_scene::PlanningScene::clone(planning_scn_cc_);
-//  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_);
-//  //
-
   while((not stop_) && ros::ok())
   {
     tic = ros::WallTime::now();
@@ -519,55 +513,17 @@ void ReplannerManagerBase::replanningThread()
 
       if(path_changed && (not stop_))
       {
-        replanner_mtx_.lock();
-        trj_mtx_.lock();
-
-        tic_trj_ = ros::WallTime::now();
-
-        startReplannedPathFromNewCurrentConf(current_configuration_);
-
-        updateTrajectory();
-
-//        disp->clearMarkers();
-//        displayTrj(disp);
-
-        current_path_ = replanner_->getReplannedPath();
-        replanner_->setCurrentPath(current_path_);
-
-        paths_mtx_.lock();
-        updateSharedPath();
-        paths_mtx_.unlock();
-
-        past_projection = current_configuration_;
-
-        t_ = 0;
-        t_replan_ = t_+time_shift_*scaling_;
-
-        trj_mtx_.unlock();
-        replanner_mtx_.unlock();
-
-
-        //        trj_mtx_.lock();
-        //        Eigen::VectorXd current_conf = current_configuration_;
-        //        startReplannedPathFromNewCurrentConf(current_conf);
-        //        trj_mtx_.unlock();
-
-        //        PathPtr trj_path = replanner_->getReplannedPath()->clone();
-        //        double max_distance = solver_->getMaxDistance();
-        //        trj_path->simplify(0.01);
-        //        trj_path->removeNodes(1e-03); //toll 1e-03
-        //        trj_path->resample(max_distance/2.0);
-
         //        replanner_mtx_.lock();
         //        trj_mtx_.lock();
 
-        //        trajectory_->setPath(trj_path);
-        //        robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
-        //        moveit_msgs::RobotTrajectory tmp_trj_msg;
-        //        trj->getRobotTrajectoryMsg(tmp_trj_msg);
+        //        tic_trj_ = ros::WallTime::now();
 
-        //        interpolator_.setTrajectory(tmp_trj_msg)   ;
-        //        interpolator_.setSplineOrder(spline_order_);
+        //        startReplannedPathFromNewCurrentConf(current_configuration_);
+
+        //        updateTrajectory();
+
+        //        //        disp->clearMarkers();
+        //        //        displayTrj(disp);
 
         //        current_path_ = replanner_->getReplannedPath();
         //        replanner_->setCurrentPath(current_path_);
@@ -576,17 +532,74 @@ void ReplannerManagerBase::replanningThread()
         //        updateSharedPath();
         //        paths_mtx_.unlock();
 
+        //        past_projection = current_configuration_;
+
         //        t_ = 0;
         //        t_replan_ = t_+time_shift_*scaling_;
-
-        //        past_projection = current_conf;
-
-        //        ROS_BOLDWHITE_STREAM("Trj updated");
-
 
         //        trj_mtx_.unlock();
         //        replanner_mtx_.unlock();
 
+        if(success)
+        {
+          ROS_INFO_STREAM("current cost "<<current_path_->getCostFromConf(current_configuration_));
+          ROS_INFO_STREAM("current path "<<*current_path_);
+
+          trj_mtx_.lock();
+          Eigen::VectorXd current_conf = current_configuration_;
+          startReplannedPathFromNewCurrentConf(current_conf);
+          trj_mtx_.unlock();
+
+          ROS_INFO_STREAM("new cost "<<replanner_->getReplannedPath()->getCostFromConf(current_configuration_));
+          ROS_INFO_STREAM("new path "<<*replanner_->getReplannedPath());
+
+
+          PathPtr trj_path = trjPath(replanner_->getReplannedPath());
+
+          replanner_mtx_.lock();
+          trj_mtx_.lock();
+
+          trajectory_->setPath(trj_path);
+          robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
+          moveit_msgs::RobotTrajectory tmp_trj_msg;
+          trj->getRobotTrajectoryMsg(tmp_trj_msg);
+
+          ROS_INFO_STREAM("pnt "<<pnt_);
+          ROS_INFO_STREAM("trj msg "<<tmp_trj_msg);
+
+          interpolator_.setTrajectory(tmp_trj_msg)   ;
+          interpolator_.setSplineOrder(spline_order_);
+
+          current_path_ = replanner_->getReplannedPath();
+          replanner_->setCurrentPath(current_path_);
+
+          paths_mtx_.lock();
+          updateSharedPath();
+          paths_mtx_.unlock();
+
+          t_ = scaling_*dt_; //0.0
+          t_replan_ = t_+time_shift_*scaling_;
+
+          past_projection = current_conf;
+
+          trj_mtx_.unlock();
+          replanner_mtx_.unlock();
+        }
+        else
+        {
+          replanner_mtx_.lock();
+          trj_mtx_.lock();
+
+          current_path_ = replanner_->getReplannedPath();
+          replanner_->setCurrentPath(current_path_);
+
+          paths_mtx_.lock();
+          updateSharedPath();
+          paths_mtx_.unlock();
+
+          trj_mtx_.unlock();
+          replanner_mtx_.unlock();
+        }
       }
 
       toc=ros::WallTime::now();
@@ -793,12 +806,12 @@ void ReplannerManagerBase::trajectoryExecutionThread()
     path2project_on = current_path_shared_->clone();
     paths_mtx_.unlock();
 
-    current_configuration_ = path2project_on->projectOnPath(point2project,current_configuration_,false);
+    //    current_configuration_ = path2project_on->projectOnPath(point2project,current_configuration_,false);
 
-    //    if(path2project_on->findConnection(current_configuration_) != nullptr)
-    //      current_configuration_ = path2project_on->projectOnPath(point2project,current_configuration_);
-    //    else
-    //      current_configuration_ = path2project_on->projectOnPath(point2project);
+    if(path2project_on->findConnection(current_configuration_) != nullptr)
+      current_configuration_ = path2project_on->projectOnPath(point2project,current_configuration_);
+    else
+      current_configuration_ = path2project_on->projectOnPath(point2project);
 
     trj_mtx_.unlock();
 
@@ -843,7 +856,9 @@ void ReplannerManagerBase::displayThread()
   PathPtr initial_path = current_path_shared_->clone();
   planning_scene::PlanningScenePtr planning_scene = planning_scene::PlanningScene::clone(planning_scn_cc_);
 
-  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_);
+  //  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_);
+  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_,"flange");
+
 
   pathplan::PathPtr current_path;
   trajectory_msgs::JointTrajectoryPoint pnt, pnt_replan;
@@ -1409,6 +1424,46 @@ Eigen::Vector3d ReplannerManagerBase::forwardIk(const Eigen::VectorXd& conf, con
 
   return position;
 }
+
+PathPtr ReplannerManagerBase::trjPath(const PathPtr& path)
+{
+  PathPtr trj_path = path->clone();
+  double max_distance = solver_->getMaxDistance();
+
+  ROS_WARN_STREAM("trj path before "<<*trj_path);
+
+  bool conns_changed = false;
+  std::vector<ConnectionPtr> conns = trj_path->getConnections();
+  while(conns[0]->norm()<0.05)
+  {
+    if(conns.size()>1)
+    {
+      conns[0]->remove();
+      conns[1]->remove();
+
+      ConnectionPtr new_conn = std::make_shared<Connection>(conns[0]->getParent(),conns[1]->getChild());
+      new_conn->setCost(solver_->getMetrics()->cost(conns[0]->getParent()->getConfiguration(),conns[1]->getChild()->getConfiguration()));
+      new_conn->add();
+
+      conns[1] = new_conn;
+
+      conns.erase(conns.begin());
+      conns_changed = true;
+    }
+  }
+
+  if(conns_changed)
+    trj_path->setConnections(conns);
+
+  trj_path->removeNodes(1e-03);
+  trj_path->resample(max_distance/2.0);
+  trj_path->simplify(0.05);
+
+  ROS_WARN_STREAM("trj path after "<<*trj_path);
+
+  return trj_path;
+}
+
 
 void ReplannerManagerBase::displayTrj(const DisplayPtr& disp)
 {

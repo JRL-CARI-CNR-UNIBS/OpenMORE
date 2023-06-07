@@ -183,9 +183,10 @@ std::vector<NodePtr> MARSHA::startNodes(const std::vector<ConnectionPtr>& subpat
 std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
 {
   /* Sort nodes based on the metrics utopia.
-   * Prioritize nodes with low cost subpath to goal:
+   * Prioritize nodes with low cost subpath to goal
    */
 
+  PathPtr tmp_path;
   std::vector<NodePtr> nodes;
   ps_goal_ptr pathswitch_goal;
   std::vector<ps_goal_ptr> goals;
@@ -193,6 +194,7 @@ std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
   std::multimap<double,ps_goal_ptr> ps_goals_map;
 
   double utopia;
+  bool start_node_belongs_to_p;
   bool goal_node_added = false;
   for(const PathPtr& p:admissible_other_paths_)
   {
@@ -203,6 +205,11 @@ std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
       nodes.pop_back();
     }
 
+    if(std::find(nodes.begin(),nodes.end(),start_node)<nodes.end())
+      start_node_belongs_to_p = true;
+    else
+      start_node_belongs_to_p = false;
+
     for(const NodePtr& n:nodes)
     {
       if(std::find(considered_nodes.begin(),considered_nodes.end(),n)<considered_nodes.end())
@@ -212,6 +219,21 @@ std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
 
       if(utopia<TOLERANCE)
         continue;
+
+      if(start_node_belongs_to_p)
+      {
+        // Do not connect nodes which are on the same path and already connected by a straight connection (only if there is no obstacles in between)
+        tmp_path = p->getSubpathFromNode(start_node);
+        tmp_path = tmp_path->getSubpathToNode(n);
+        if(tmp_path->cost()<std::numeric_limits<double>::infinity())
+        {
+          if(std::abs(tmp_path->computeEuclideanNorm()-utopia)<TOLERANCE)
+          {
+            ROS_ERROR_STREAM("node excluded "<<n);
+            continue;
+          }
+        }
+      }
 
       pathswitch_goal = std::make_shared<ps_goal>();
       pathswitch_goal->node = n;
