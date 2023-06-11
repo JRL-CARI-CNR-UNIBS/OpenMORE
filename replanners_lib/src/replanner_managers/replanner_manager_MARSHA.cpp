@@ -65,7 +65,7 @@ bool ReplannerManagerMARSHA::updateTrajectory()
   PathPtr trj_path = replanner_->getReplannedPath()->clone();
   double max_distance = solver_->getMaxDistance();
 
-//  trj_path->simplify(0.0005);
+  //  trj_path->simplify(0.0005);
   trj_path->removeNodes(1e-03); //toll 1e-03
   trj_path->resample(max_distance/5.0);
 
@@ -87,8 +87,6 @@ bool ReplannerManagerMARSHA::updateTrajectory()
 
 void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
 {
-  //  return ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(configuration);
-
   MARSPtr replanner = std::static_pointer_cast<MARSHA>(replanner_);
 
   PathPtr current_path   = replanner->getCurrentPath();
@@ -97,14 +95,23 @@ void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::V
 
   TreePtr tree = current_path->getTree();
 
+  ROS_INFO("QUA");
   if(old_current_node_ && old_current_node_ != node_replan && ((old_current_node_->getConfiguration()-configuration).norm()>TOLERANCE))
   {
+    ROS_INFO("QUA1");
+
     if((old_current_node_->getParentConnectionsSize()+old_current_node_->getNetParentConnectionsSize()) == 1)
     {
+      ROS_INFO("QUA2");
+
       if((old_current_node_->getChildConnectionsSize()+old_current_node_->getNetChildConnectionsSize()) == 1)
       {
+        ROS_INFO("QUA3");
+
         if(tree->isInTree(old_current_node_))
         {
+          ROS_INFO("QUA4");
+
           /* Remove the old node detaching it from the tree, restore the old connection and set it as initial
              * connection of current path to be able to insert the new current node */
 
@@ -122,7 +129,9 @@ void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::V
             std::vector<PathPtr> paths = other_paths_;
             paths.push_back(replanned_path);
             for(PathPtr& p:paths)
+            {
               p->restoreConnection(restored_conn,old_current_node_);
+            }
           }
         }
       }

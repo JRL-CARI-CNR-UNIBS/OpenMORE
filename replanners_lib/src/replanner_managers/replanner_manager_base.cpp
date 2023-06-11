@@ -540,25 +540,28 @@ void ReplannerManagerBase::replanningThread()
         //        trj_mtx_.unlock();
         //        replanner_mtx_.unlock();
 
+        //        if(success)
+        //        {
+        ROS_INFO_STREAM("current cost "<<current_path_->getCostFromConf(current_configuration_));
+        ROS_INFO_STREAM("current path "<<*current_path_);
+
+        trj_mtx_.lock();
+        Eigen::VectorXd current_conf = current_configuration_;
+        startReplannedPathFromNewCurrentConf(current_conf);
+        trj_mtx_.unlock();
+
+        ROS_INFO_STREAM("new cost "<<replanner_->getReplannedPath()->getCostFromConf(current_configuration_));
+        ROS_INFO_STREAM("new path "<<*replanner_->getReplannedPath());
+
+        PathPtr trj_path = trjPath(replanner_->getReplannedPath());
+
+        replanner_mtx_.lock();
+        trj_mtx_.lock();
+
+        tic_trj_ = ros::WallTime::now();
+
         if(success)
         {
-          ROS_INFO_STREAM("current cost "<<current_path_->getCostFromConf(current_configuration_));
-          ROS_INFO_STREAM("current path "<<*current_path_);
-
-          trj_mtx_.lock();
-          Eigen::VectorXd current_conf = current_configuration_;
-          startReplannedPathFromNewCurrentConf(current_conf);
-          trj_mtx_.unlock();
-
-          ROS_INFO_STREAM("new cost "<<replanner_->getReplannedPath()->getCostFromConf(current_configuration_));
-          ROS_INFO_STREAM("new path "<<*replanner_->getReplannedPath());
-
-
-          PathPtr trj_path = trjPath(replanner_->getReplannedPath());
-
-          replanner_mtx_.lock();
-          trj_mtx_.lock();
-
           trajectory_->setPath(trj_path);
           robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
           moveit_msgs::RobotTrajectory tmp_trj_msg;
@@ -570,36 +573,37 @@ void ReplannerManagerBase::replanningThread()
           interpolator_.setTrajectory(tmp_trj_msg)   ;
           interpolator_.setSplineOrder(spline_order_);
 
-          current_path_ = replanner_->getReplannedPath();
-          replanner_->setCurrentPath(current_path_);
-
-          paths_mtx_.lock();
-          updateSharedPath();
-          paths_mtx_.unlock();
-
-          t_ = scaling_*dt_; //0.0
+          t_ = scaling_*(ros::WallTime::now()-tic_trj_).toSec(); //0.0
           t_replan_ = t_+time_shift_*scaling_;
-
-          past_projection = current_conf;
-
-          trj_mtx_.unlock();
-          replanner_mtx_.unlock();
         }
-        else
-        {
-          replanner_mtx_.lock();
-          trj_mtx_.lock();
 
-          current_path_ = replanner_->getReplannedPath();
-          replanner_->setCurrentPath(current_path_);
+        current_path_ = replanner_->getReplannedPath();
+        replanner_->setCurrentPath(current_path_);
 
-          paths_mtx_.lock();
-          updateSharedPath();
-          paths_mtx_.unlock();
+        paths_mtx_.lock();
+        updateSharedPath();
+        paths_mtx_.unlock();
 
-          trj_mtx_.unlock();
-          replanner_mtx_.unlock();
-        }
+        past_projection = current_conf;
+
+        trj_mtx_.unlock();
+        replanner_mtx_.unlock();
+        //        }
+        //        else
+        //        {
+        //          replanner_mtx_.lock();
+        //          trj_mtx_.lock();
+
+        //          current_path_ = replanner_->getReplannedPath();
+        //          replanner_->setCurrentPath(current_path_);
+
+        //          paths_mtx_.lock();
+        //          updateSharedPath();
+        //          paths_mtx_.unlock();
+
+        //          trj_mtx_.unlock();
+        //          replanner_mtx_.unlock();
+        //        }
       }
 
       toc=ros::WallTime::now();

@@ -195,11 +195,12 @@ std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
 
   double utopia;
   bool start_node_belongs_to_p;
-  bool goal_node_added = false;
+  bool goal_node_considered = false;
+
   for(const PathPtr& p:admissible_other_paths_)
   {
     nodes = p->getNodes();
-    if(goal_node_added)
+    if(goal_node_considered)
     {
       assert(nodes.back() == goal_node_);
       nodes.pop_back();
@@ -222,14 +223,18 @@ std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
 
       if(start_node_belongs_to_p)
       {
-        // Do not connect nodes which are on the same path and already connected by a straight connection (only if there is no obstacles in between)
+        // Do not connect nodes which are on the same path and already connected by a straight connection (only if there are no obstacles in between)
         tmp_path = p->getSubpathFromNode(start_node);
         tmp_path = tmp_path->getSubpathToNode(n);
         if(tmp_path->cost()<std::numeric_limits<double>::infinity())
         {
           if(std::abs(tmp_path->computeEuclideanNorm()-utopia)<TOLERANCE)
           {
-            ROS_ERROR_STREAM("node excluded "<<n);
+            if(n == goal_node_)
+              goal_node_considered = true;
+
+            if(pathSwitch_verbose_)
+              ROS_RED_STREAM("node removed from Q2 list: "<<n);
             continue;
           }
         }
@@ -246,7 +251,7 @@ std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
       }
       else
       {
-        goal_node_added = true;
+        goal_node_considered = true;
         pathswitch_goal->subpath = nullptr;
         pathswitch_goal->subpath_cost = 0.0;
       }
@@ -317,7 +322,7 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
 
   /* Search for an already existing solution between path1_node and path2_node */
   if(pathSwitch_verbose_)
-    ROS_BLUE_STREAM("Searching for an already existing solution in the subtree..");
+    ROS_YELLOW_STREAM("Searching for an already existing solution in the subtree..");
 
   ros::WallTime tic_search = ros::WallTime::now();
 
@@ -331,7 +336,7 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
   double time_search = (ros::WallTime::now()-tic_search).toSec();
 
   if(pathSwitch_verbose_)
-    ROS_BLUE_STREAM("In the subtree exist "<< already_existing_solutions_map.size() <<" paths to path2_node (time to search "<<time_search<<" seconds)");
+    ROS_YELLOW_STREAM("In the subtree exist "<< already_existing_solutions_map.size() <<" paths to path2_node (time to search "<<time_search<<" seconds)");
 
   tic_search = ros::WallTime::now();
   unsigned int number_of_candidates = 0;
@@ -358,7 +363,7 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
     assert(already_existing_solution_cost == connecting_path->cost());
 
     if(pathSwitch_verbose_)
-      ROS_BLUE_STREAM("A solution with cost "<< already_existing_solution_cost<<" has been found in the subtree in "<<(ros::WallTime::now()-tic_search).toSec()<<" seconds! Making it a solution of the subtree..");
+      ROS_BOLDYELLOW_STREAM("A solution with cost "<< already_existing_solution_cost<<" has been found in the subtree in "<<(ros::WallTime::now()-tic_search).toSec()<<" seconds! Making it a solution of the subtree..");
 
     convertToSubtreeSolution(connecting_path,black_list);
 
@@ -378,9 +383,9 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
     if(pathSwitch_verbose_)
     {
       if(number_of_candidates>0)
-        ROS_BLUE_STREAM(number_of_candidates<< " candidate solutions found in the subtree but no one was free (check time "<<(ros::WallTime::now()-tic_search).toSec()<<" seconds)");
+        ROS_YELLOW_STREAM(number_of_candidates<< " candidate solutions found in the subtree but no one was free (check time "<<(ros::WallTime::now()-tic_search).toSec()<<" seconds)");
       else
-        ROS_BLUE_STREAM("No candidate solutions found in the subtree (search time "<<(ros::WallTime::now()-tic_search).toSec()<<" seconds)");
+        ROS_YELLOW_STREAM("No candidate solutions found in the subtree (search time "<<(ros::WallTime::now()-tic_search).toSec()<<" seconds)");
     }
 
     //Remove the invalid branches from the subtree
@@ -427,7 +432,7 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
 
     available_search_time = solver_time-(ros::WallTime::now()-tic_before_search).toSec();
     if(pathSwitch_verbose_)
-      ROS_BLUE_STREAM("Searching for a connecting path...max time: "<<available_search_time);
+      ROS_YELLOW_STREAM("Searching for a connecting path...max time: "<<available_search_time);
 
     ros::WallTime tic_solver = ros::WallTime::now();
     solver_->addGoal(path2_node_fake,available_search_time*0.85);
@@ -446,8 +451,8 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
 
       if(pathSwitch_verbose_)
       {
-        ROS_BLUE_STREAM("Direct connection NOT found (time "<<(toc_solver-tic_solver).toSec()<<" s)");
-        ROS_BLUE_STREAM("Solving...max time: "<<available_search_time);
+        ROS_YELLOW_STREAM("Direct connection NOT found (time "<<(toc_solver-tic_solver).toSec()<<" s)");
+        ROS_YELLOW_STREAM("Solving...max time: "<<available_search_time);
       }
 
       tic_solver = ros::WallTime::now();
@@ -458,7 +463,7 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
     if(solver_has_solved)
     {
       if(pathSwitch_verbose_)
-        ROS_BLUE_STREAM("Solved in "<<(toc_solver-tic_solver).toSec()<<" s (direct connection to goal: "<<quickly_solved<<")");
+        ROS_YELLOW_STREAM("Solved in "<<(toc_solver-tic_solver).toSec()<<" s (direct connection to goal: "<<quickly_solved<<")");
 
       bool subtree_valid = true;
       ConnectionPtr obstructed_connection = nullptr;
@@ -545,13 +550,13 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
           subtree->hideFromSubtree(obstructed_connection->getChild());
 
         if(pathSwitch_verbose_)
-          ROS_BLUE_STREAM("Lazy check detected that subtree was not valid, compute again..");
+          ROS_YELLOW_STREAM("Lazy check detected that subtree was not valid, compute again..");
       }
     }
     else
     {
       if(pathSwitch_verbose_)
-        ROS_BLUE_STREAM("Not solved, time: "<<(toc_solver-tic_solver).toSec());
+        ROS_YELLOW_STREAM("Not solved, time: "<<(toc_solver-tic_solver).toSec());
 
       break;
     }
@@ -582,7 +587,7 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
                                                                                                            black_list,net_time,search_in_subtree);
 
     if(pathSwitch_verbose_)
-      ROS_BLUE_STREAM("Net search in the subtree found "<<connecting_paths_map.size()<<" solutions in "<<(ros::WallTime::now()-tic_net).toSec()<<" s");
+      ROS_YELLOW_STREAM("Net search in the subtree found "<<connecting_paths_map.size()<<" solutions in "<<(ros::WallTime::now()-tic_net).toSec()<<" s");
 
     /*To be sure map contains the connecting path computed*/
     double cost = 0.0;
@@ -685,13 +690,13 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
       else
       {
         if(pathSwitch_verbose_)
-          ROS_BLUE_STREAM("No free solutions found in the subtree");
+          ROS_YELLOW_STREAM("No free solutions found in the subtree");
       }
     }
     else
     {
       if(pathSwitch_verbose_)
-        ROS_BLUE_STREAM("No solutions with cost less than diff_subpath_cost found in the subtree");
+        ROS_YELLOW_STREAM("No solutions with cost less than diff_subpath_cost found in the subtree");
     }
   }
 
