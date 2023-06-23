@@ -59,8 +59,7 @@ roslaunch replanners_lib quick_example_6d.launch
 ```
 Note: when launching the examples you may get errors due to the lack of some libraries (e.g. trac-ik). They aren't needed for these examples, but you can install them with the following commands
 ```
-sudo apt install ros-$ROS_DISTRO-trac-ik-kinematics-plugin ros-$ROS_DISTRO-chomp-motion-planner ros-$ROS_DISTRO-moveit-planners-chomp
- ros-$ROS_DISTRO-pilz-industrial-motion-planner
+sudo apt install ros-$ROS_DISTRO-trac-ik-kinematics-plugin ros-$ROS_DISTRO-chomp-motion-planner ros-$ROS_DISTRO-moveit-planners-chomp \ros-$ROS_DISTRO-pilz-industrial-motion-planner
 ```
 
 ## Packages
