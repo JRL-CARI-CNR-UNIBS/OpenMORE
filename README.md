@@ -10,9 +10,10 @@ The repository contains a library of sampling-based path replanning algorithms. 
 The software can be installed using rosinstall files.
 
 1. Install ROS: follow the steps described in http://wiki.ros.org/ROS/Installation
-2. Install wstool: follow the steps described in http://wiki.ros.org/wstool
-3. Install rosdep: follow the steps described in http://wiki.ros.org/rosdep
-4. Install catkin_tools: follow the steps described in https://catkin-tools.readthedocs.io/en/latest/installing.html
+2. Install Git: follow the steps described in https://git-scm.com/book/en/v2/Getting-Started-Installing-Git
+3. Install wstool: follow the steps described in http://wiki.ros.org/wstool
+4. Install rosdep: follow the steps described in http://wiki.ros.org/rosdep
+5. Install catkin_tools: follow the steps described in https://catkin-tools.readthedocs.io/en/latest/installing.html
 
 Create your workspace:
 ```
@@ -55,6 +56,11 @@ roslaunch replanners_lib quick_example_3d.launch
 To use a 6 dof anthropomorphic robot, launch:
 ```
 roslaunch replanners_lib quick_example_6d.launch
+```
+Note: when launching the examples you may get errors due to the lack of some libraries (e.g. trac-ik). They aren't needed for these examples, but you can install them with the following commands
+```
+sudo apt install ros-$ROS_DISTRO-trac-ik-kinematics-plugin ros-$ROS_DISTRO-chomp-motion-planner ros-$ROS_DISTRO-moveit-planners-chomp
+ ros-$ROS_DISTRO-pilz-industrial-motion-planner
 ```
 
 ## Packages
