@@ -45,7 +45,21 @@ And source the workspace:
 echo "source /home/$USER/replanning_ws/devel/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ```
+### Docker
+A docker file is also available. Open a terminal, move into the folder where you have saved the docker file and run the following command:
+```
+sudo docker build -f dockerfile_open_more -t open_more .
 
+```
+Once completed, run the container:
+```
+sudo docker run -it --net=host --gpus all \
+    --env="NVIDIA_DRIVER_CAPABILITIES=all" \
+    --env="DISPLAY" \
+    --env="QT_X11_NO_MITSHM=1" \
+    --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+    open_more
+```
 ## Quick examples
 If you want to take a look at how the library works, you can run these two quick examples in which the robot follows a trajectory and replans it when a random object obstructs its path. The simulation is repeated with different replanning algorithms, with different performance in the two following scenarios.
 
