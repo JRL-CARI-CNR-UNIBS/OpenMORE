@@ -110,7 +110,7 @@ BibTex:
   
 @misc{open_more,
   author = {Tonola, Cesare and Beschi, Manuel},
-  title = {{\textit{open_more}: an open-source library for robot path replanning}},
+  title = {{\textit{OpenMORE}: an Open-source MOtion REplanning library}},
   url = {https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE}}
 ```
 
