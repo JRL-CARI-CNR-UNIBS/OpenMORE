@@ -46,10 +46,9 @@ echo "source /home/$USER/replanning_ws/devel/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ```
 ### Docker
-A docker file is also available. Open a terminal, move into the folder where you have saved the docker file and run the following command:
+A [docker file](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/dockerfile_open_more) is also available. Open a terminal, move into the folder where you have saved the docker file and run the following command:
 ```
 sudo docker build -f dockerfile_open_more -t open_more .
-
 ```
 Once completed, run the container:
 ```
