@@ -11,6 +11,7 @@
 #include <graph_core/local_informed_sampler.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <moveit/robot_trajectory/robot_trajectory.h>
+#include <unordered_map>
 #include <moveit/trajectory_processing/iterative_time_parameterization.h>
 #include <moveit/trajectory_processing/time_optimal_trajectory_generation.h>
 #include <moveit/trajectory_processing/iterative_spline_parameterization.h>
