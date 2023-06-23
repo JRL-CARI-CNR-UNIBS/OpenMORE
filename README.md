@@ -58,6 +58,8 @@ sudo docker run -it --net=host --gpus all \
     --env="QT_X11_NO_MITSHM=1" \
     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
     open_more
+
+source devel/setup.bash
 ```
 ## Quick examples
 If you want to take a look at how the library works, you can run these two quick examples in which the robot follows a trajectory and replans it when a random object obstructs its path. The simulation is repeated with different replanning algorithms, with different performance in the two following scenarios.
