@@ -1,0 +1,45 @@
+FROM osrf/ros:noetic-desktop-full
+
+# Change the default shell to Bash
+SHELL [ "/bin/bash" , "-c" ]
+ 
+# Minimal setup
+RUN apt-get update && apt-get install -y 
+
+RUN sudo apt install git-all -y
+
+RUN sudo apt-get install python3-wstool -y
+
+RUN sudo apt-get install python3-rosdep -y
+
+RUN sudo apt-get install wget -y
+
+# Catkin tools
+RUN sudo sh \
+    -c 'echo "deb http://packages.ros.org/ros/ubuntu `lsb_release -sc` main" \
+        > /etc/apt/sources.list.d/ros-latest.list'
+RUN wget http://packages.ros.org/ros.key -O - | sudo apt-key add -
+RUN sudo apt-get update && sudo apt-get install python3-catkin-tools -y
+
+# OpenMORE
+RUN mkdir -p ~/replanning_ws/src && catkin init && wstool init src
+RUN wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/replanning_strategies/master/replanning_strategies.rosinstall 
+RUN wstool merge -t src ./replanning_strategies.rosinstall
+RUN wstool update -t src 
+RUN rosdep install --from-paths src --ignore-src -r -y
+
+RUN sudo apt install ros-$ROS_DISTRO-trac-ik-kinematics-plugin -y
+RUN sudo apt install ros-$ROS_DISTRO-chomp-motion-planner -y
+RUN sudo apt install ros-$ROS_DISTRO-moveit-planners-chomp -y
+RUN sudo apt install ros-$ROS_DISTRO-pilz-industrial-motion-planner -y
+
+RUN source /opt/ros/${ROS_DISTRO}/setup.bash && \
+ catkin build -cs
+RUN source devel/setup.bash
+
+# sudo docker run -it --net=host --gpus all \
+#     --env="NVIDIA_DRIVER_CAPABILITIES=all" \
+#     --env="DISPLAY" \
+#     --env="QT_X11_NO_MITSHM=1" \
+#     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+#     open_more

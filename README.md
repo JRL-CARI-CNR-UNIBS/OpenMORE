@@ -1,18 +1,19 @@
 <div align="center">
-  <h1 align="center">replanning_strategies</h1>
+  <h1 align="center">OpenMORE</h1>
   <h3 align="center">
-    A sampling-based path replanning strategies library
+    Open-source MOtion REplanning library
   </h3>
 </div>
 
-The repository contains the implementation of a library of sampling-based path replanning algorithms. It also develops a framework to manage robot's trajectory execution with continuous path replanning and collision checking of the current path. It is based on ROS and *MoveIt!* to get information about the environment. Check [this paper](https://ieeexplore.ieee.org/document/10013661?source=authoralert) for more information.
+The repository contains a library of sampling-based path replanning algorithms. It develops a framework to manage robot's trajectory execution with continuous path replanning and collision checking of the current path. It is based on ROS and *MoveIt!* to get information about the environment and collision check. Check [this paper](https://ieeexplore.ieee.org/document/10013661?source=authoralert) for more information.
 ## Build/Installation
 The software can be installed using rosinstall files.
 
 1. Install ROS: follow the steps described in http://wiki.ros.org/ROS/Installation
-2. Install wstool: follow the steps described in http://wiki.ros.org/wstool
-3. Install rosdep: follow the steps described in http://wiki.ros.org/rosdep
-4. Install catkin_tools: follow the steps described in https://catkin-tools.readthedocs.io/en/latest/installing.html
+2. Install Git: follow the steps described in https://git-scm.com/book/en/v2/Getting-Started-Installing-Git
+3. Install wstool: follow the steps described in http://wiki.ros.org/wstool
+4. Install rosdep: follow the steps described in http://wiki.ros.org/rosdep
+5. Install catkin_tools: follow the steps described in https://catkin-tools.readthedocs.io/en/latest/installing.html
 
 Create your workspace:
 ```
@@ -44,9 +45,22 @@ And source the workspace:
 echo "source /home/$USER/replanning_ws/devel/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ```
-
+### Docker
+A [docker file](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/dockerfile_open_more) is also available. Open a terminal, move into the folder where you have saved the docker file and run the following command:
+```
+sudo docker build -f dockerfile_open_more -t open_more .
+```
+Once completed, run the container:
+```
+sudo docker run -it --net=host --gpus all \
+    --env="NVIDIA_DRIVER_CAPABILITIES=all" \
+    --env="DISPLAY" \
+    --env="QT_X11_NO_MITSHM=1" \
+    --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
+    open_more
+```
 ## Quick examples
-If you want to take a look at how the library works, you can run these two quick examples in which the robot follows a trajectory and replans it when a random object obstructs its path. The simulation is repeated with different replanning algorithms.
+If you want to take a look at how the library works, you can run these two quick examples in which the robot follows a trajectory and replans it when a random object obstructs its path. The simulation is repeated with different replanning algorithms, with different performance in the two following scenarios.
 
 To use a Cartesian point robot, launch:
 ```
@@ -55,6 +69,10 @@ roslaunch replanners_lib quick_example_3d.launch
 To use a 6 dof anthropomorphic robot, launch:
 ```
 roslaunch replanners_lib quick_example_6d.launch
+```
+Note: when launching the examples you may get errors due to the lack of some libraries (e.g. trac-ik). They aren't needed for these examples, but you can install them with the following commands
+```
+sudo apt install ros-$ROS_DISTRO-trac-ik-kinematics-plugin ros-$ROS_DISTRO-chomp-motion-planner ros-$ROS_DISTRO-moveit-planners-chomp \ros-$ROS_DISTRO-pilz-industrial-motion-planner
 ```
 
 ## Packages
