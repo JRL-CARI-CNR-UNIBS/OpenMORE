@@ -109,7 +109,7 @@ BibTex:
 @misc{open_more,
   author = {Tonola, Cesare and Beschi, Manuel},
   title = {{\textit{open_more}: an open-source library for robot path replanning}},
-  url = {https://github.com/JRL-CARI-CNR-UNIBS/replanning\_strategies}}
+  url = {https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE}}
 ```
 
 ## Developer Contact
