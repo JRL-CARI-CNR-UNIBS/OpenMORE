@@ -101,6 +101,8 @@ void MARSHA::setMetricsHA(const LengthPenaltyMetricsPtr& ha_metrics)
     p->setMetrics(ha_metrics_);
 
   setSSM();
+
+  qp_max_ = ssm_->getChain()->getDQMax();
 }
 
 void MARSHA::initFlaggedConnections()
@@ -182,7 +184,7 @@ std::vector<NodePtr> MARSHA::startNodes(const std::vector<ConnectionPtr>& subpat
 
 std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
 {
-  /* Sort nodes based on the metrics utopia.
+  /* Sort nodes based on Euclidean distance.
    * Prioritize nodes with low cost subpath to goal
    */
 
@@ -193,7 +195,7 @@ std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
   std::vector<NodePtr> considered_nodes;
   std::multimap<double,ps_goal_ptr> ps_goals_map;
 
-  double utopia;
+  double utopia, euclidean_distance;
   bool start_node_belongs_to_p;
   bool goal_node_considered = false;
 
@@ -216,9 +218,10 @@ std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
       if(std::find(considered_nodes.begin(),considered_nodes.end(),n)<considered_nodes.end())
         continue;
 
+      euclidean_distance = (start_node->getConfiguration(),n->getConfiguration()).norm();
       utopia = metrics_->utopia(start_node->getConfiguration(),n->getConfiguration());
 
-      if(utopia<TOLERANCE)
+      if(euclidean_distance<TOLERANCE || utopia<TOLERANCE)
         continue;
 
       if(start_node_belongs_to_p)
@@ -228,7 +231,7 @@ std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
         tmp_path = tmp_path->getSubpathToNode(n);
         if(tmp_path->cost()<std::numeric_limits<double>::infinity())
         {
-          if(std::abs(tmp_path->computeEuclideanNorm()-utopia)<TOLERANCE)
+          if(std::abs(tmp_path->computeEuclideanNorm()-euclidean_distance)<TOLERANCE)
           {
             if(n == goal_node_)
               goal_node_considered = true;
@@ -259,7 +262,7 @@ std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
       considered_nodes.push_back(n);
 
       if(pathswitch_goal->subpath_cost < expensive_cost_)
-        ps_goals_map.insert(std::pair<double,ps_goal_ptr>(utopia,pathswitch_goal));
+        ps_goals_map.insert(std::pair<double,ps_goal_ptr>(euclidean_distance,pathswitch_goal));
     }
   }
 
@@ -405,7 +408,7 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
 
   SamplerPtr sampler = std::make_shared<InformedSampler>(path1_node->getConfiguration(),
                                                          path2_node->getConfiguration(),
-                                                         lb_, ub_,diff_subpath_cost);
+                                                         lb_,ub_,qp_max_,diff_subpath_cost);
 
   std::vector<NodePtr> subtree_nodes;
   NodePtr path2_node_fake = std::make_shared<Node>(path2_node->getConfiguration());

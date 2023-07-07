@@ -365,7 +365,7 @@ std::vector<ps_goal_ptr> MARS::sortNodes(const NodePtr& start_node)
   std::vector<NodePtr> considered_nodes;
   std::multimap<double,ps_goal_ptr> ps_goals_map, ps_invalid_goals_map;
 
-  double utopia;
+  double euclidean_distance, utopia;
   bool start_node_belongs_to_p;
   bool goal_node_considered = false;
   for(const PathPtr& p:admissible_other_paths_)
@@ -387,6 +387,7 @@ std::vector<ps_goal_ptr> MARS::sortNodes(const NodePtr& start_node)
       if(std::find(considered_nodes.begin(),considered_nodes.end(),n)<considered_nodes.end())
         continue;
 
+      euclidean_distance = (start_node->getConfiguration(),n->getConfiguration()).norm();
       utopia = metrics_->utopia(start_node->getConfiguration(),n->getConfiguration());
 
       if(utopia<TOLERANCE)
@@ -399,7 +400,7 @@ std::vector<ps_goal_ptr> MARS::sortNodes(const NodePtr& start_node)
         tmp_path = tmp_path->getSubpathToNode(n);
         if(tmp_path->cost()<std::numeric_limits<double>::infinity())
         {
-          if(std::abs(tmp_path->computeEuclideanNorm()-utopia)<TOLERANCE)
+          if(std::abs(tmp_path->computeEuclideanNorm()-euclidean_distance)<TOLERANCE)
           {
             if(n == goal_node_)
               goal_node_considered = true;

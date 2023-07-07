@@ -46,6 +46,11 @@ protected:
    */
   MetricsPtr euclidean_metrics_;
 
+  /**
+   * @brief qp_max_ is the maximum joints speed
+   */
+  Eigen::VectorXd qp_max_;
+
   void setSSM();
   void init(const LengthPenaltyMetricsPtr& ha_metrics);
   void initFlaggedConnections() override;
