@@ -102,7 +102,9 @@ void MARSHA::setMetricsHA(const LengthPenaltyMetricsPtr& ha_metrics)
 
   setSSM();
 
-  qp_max_ = ssm_->getChain()->getDQMax();
+  scale_ = ha_metrics_->getScale();
+  if(scale_.rows() == 0)
+    throw std::invalid_argument("scale cannot be empty");
 }
 
 void MARSHA::initFlaggedConnections()
@@ -199,6 +201,8 @@ std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
   bool start_node_belongs_to_p;
   bool goal_node_considered = false;
 
+  assert(metrics_ == ha_metrics_);
+
   for(const PathPtr& p:admissible_other_paths_)
   {
     nodes = p->getNodes();
@@ -219,7 +223,7 @@ std::vector<ps_goal_ptr> MARSHA::sortNodes(const NodePtr& start_node)
         continue;
 
       euclidean_distance = (start_node->getConfiguration(),n->getConfiguration()).norm();
-      utopia = metrics_->utopia(start_node->getConfiguration(),n->getConfiguration());
+      utopia = ha_metrics_->utopia(start_node->getConfiguration(),n->getConfiguration());
 
       if(euclidean_distance<TOLERANCE || utopia<TOLERANCE)
         continue;
@@ -291,11 +295,15 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
   }
   assert(not black_list.empty());
 
+  MetricsPtr tree_metrics = tree_->getMetrics();
+  tree_->setMetrics(ha_metrics_); //set ha metrics to use ha metrics utopia (otherwise subtree nodes will be outside of the ellipsoid)
   SubtreePtr subtree = pathplan::Subtree::createSubtree(tree_,path1_node,
                                                         path1_node->getConfiguration(),
                                                         path2_node->getConfiguration(),
                                                         diff_subpath_cost,
                                                         black_list,true); //collision check before adding a node
+  tree_->setMetrics(tree_metrics); //set the previous metrics
+
   subtree->hideInvalidBranches(subtree->getRoot());
 
   assert([&]() ->bool{
@@ -408,7 +416,7 @@ bool MARSHA::computeConnectingPath(const NodePtr& path1_node, const NodePtr& pat
 
   SamplerPtr sampler = std::make_shared<InformedSampler>(path1_node->getConfiguration(),
                                                          path2_node->getConfiguration(),
-                                                         lb_,ub_,qp_max_,diff_subpath_cost);
+                                                         lb_,ub_,scale_,diff_subpath_cost);
 
   std::vector<NodePtr> subtree_nodes;
   NodePtr path2_node_fake = std::make_shared<Node>(path2_node->getConfiguration());

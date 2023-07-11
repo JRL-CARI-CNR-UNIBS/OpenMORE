@@ -47,9 +47,9 @@ protected:
   MetricsPtr euclidean_metrics_;
 
   /**
-   * @brief qp_max_ is the maximum joints speed
+   * @brief scale_ is the vector of joints weights
    */
-  Eigen::VectorXd qp_max_;
+  Eigen::VectorXd scale_;
 
   void setSSM();
   void init(const LengthPenaltyMetricsPtr& ha_metrics);
