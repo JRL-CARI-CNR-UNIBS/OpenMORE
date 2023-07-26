@@ -87,6 +87,8 @@ bool ReplannerManagerMARSHA::updateTrajectory()
 
 void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::VectorXd& configuration)
 {
+  return ReplannerManagerMARS::startReplannedPathFromNewCurrentConf(configuration);
+
   MARSPtr replanner = std::static_pointer_cast<MARSHA>(replanner_);
 
   PathPtr current_path   = replanner->getCurrentPath();
@@ -95,22 +97,22 @@ void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::V
 
   TreePtr tree = current_path->getTree();
 
-  ROS_INFO("QUA");
+//  ROS_INFO("QUA");
   if(old_current_node_ && old_current_node_ != node_replan && ((old_current_node_->getConfiguration()-configuration).norm()>TOLERANCE))
   {
-    ROS_INFO("QUA1");
+//    ROS_INFO("QUA1");
 
     if((old_current_node_->getParentConnectionsSize()+old_current_node_->getNetParentConnectionsSize()) == 1)
     {
-      ROS_INFO("QUA2");
+//      ROS_INFO("QUA2");
 
       if((old_current_node_->getChildConnectionsSize()+old_current_node_->getNetChildConnectionsSize()) == 1)
       {
-        ROS_INFO("QUA3");
+//        ROS_INFO("QUA3");
 
         if(tree->isInTree(old_current_node_))
         {
-          ROS_INFO("QUA4");
+//          ROS_INFO("QUA4");
 
           /* Remove the old node detaching it from the tree, restore the old connection and set it as initial
              * connection of current path to be able to insert the new current node */
@@ -175,40 +177,40 @@ void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::V
     }
     else if(distance<0) //current node ahead of replan node
     {
-      ROS_INFO("DISTANCE < 0");
+//      ROS_INFO("DISTANCE < 0");
 
       int idx;
       ConnectionPtr current_conn = replanned_path->findConnection(configuration,idx,true);
       if(current_conn != nullptr) //current node is still on replanned path -> simply extract subpath
       {
-        ROS_INFO("ON REPLANNED PATH");
+//        ROS_INFO("ON REPLANNED PATH");
 
         if(current_conn->getParent() == current_node || current_conn->getChild() == current_node)
         {
-          ROS_INFO("1");
+//          ROS_INFO("1");
 
           replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
         }
         else
         {
-          ROS_INFO("2");
-          ROS_INFO_STREAM("conn1 "<<*current_path->getConnectionsConst().at(conn_idx  ));
-          ROS_INFO_STREAM("conn2 "<<*current_path->getConnectionsConst().at(conn_idx+1));
-          ROS_INFO_STREAM("whole conn "<<*current_conn);
+//          ROS_INFO("2");
+//          ROS_INFO_STREAM("conn1 "<<*current_path->getConnectionsConst().at(conn_idx  ));
+//          ROS_INFO_STREAM("conn2 "<<*current_path->getConnectionsConst().at(conn_idx+1));
+//          ROS_INFO_STREAM("whole conn "<<*current_conn);
 
-          ROS_INFO_STREAM("current path "<<*current_path);
-          ROS_INFO_STREAM("replanned path "<<*replanned_path);
+//          ROS_INFO_STREAM("current path "<<*current_path);
+//          ROS_INFO_STREAM("replanned path "<<*replanned_path);
 
           if(not replanned_path->splitConnection(current_path->getConnectionsConst().at(conn_idx),
                                                  current_path->getConnectionsConst().at(conn_idx+1),current_conn))
-            ROS_BOLDRED_STREAM("CONNECTION NOT SPLITTED");
+//            ROS_BOLDRED_STREAM("CONNECTION NOT SPLITTED");
 
           replanned_path->setConnections(replanned_path->getSubpathFromNode(current_node)->getConnections());
         }
       }
       else //current node is not on the replanned path
       {
-        ROS_INFO("NOT ON THE REPLANNED PATH");
+//        ROS_INFO("NOT ON THE REPLANNED PATH");
 
         //current node should be very close to replan node, minimal difference between the connections
         //Connect to closest node
@@ -219,14 +221,14 @@ void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::V
         replanned_path->projectOnPath(configuration,replanned_path->getStartNode()->getConfiguration(),conn_prj,false);
         if(conn_prj == nullptr)
         {
-          ROS_INFO("CONN_PRJ NULLPTR");
+//          ROS_INFO("CONN_PRJ NULLPTR");
 
           conn_prj = replanned_path_conns.front();
           child = conn_prj->getParent();
         }
         else
         {
-          ROS_INFO("CONN_PRJ NOT NULLPTR");
+//          ROS_INFO("CONN_PRJ NOT NULLPTR");
 
           child = conn_prj->getChild();
         }
@@ -255,7 +257,7 @@ void ReplannerManagerMARSHA::startReplannedPathFromNewCurrentConf(const Eigen::V
     }
     else //distance>0 (current node is before replan node)
     {
-      ROS_INFO("DISTANCE > 0");
+//      ROS_INFO("DISTANCE > 0");
 
       PathPtr tmp_subpath;
       tmp_subpath = current_path->getSubpathFromNode(current_node);
@@ -408,7 +410,7 @@ void ReplannerManagerMARSHA::collisionCheckThread()
   current_path_ssm->setMaxStepSize  (ssm_->getMaxStepSize  ());
   current_path_ssm->updateMembers();
 
-  LengthPenaltyMetricsPtr metrics_current_path = std::make_shared<LengthPenaltyMetrics>(current_path_ssm);
+  LengthPenaltyMetricsPtr metrics_current_path = std::make_shared<LengthPenaltyMetrics>(current_path_ssm, ha_metrics_->getScale());
 
   PathPtr current_path_copy = current_path_shared_->clone();
   current_path_copy->setChecker(checker_cc_);
@@ -427,7 +429,7 @@ void ReplannerManagerMARSHA::collisionCheckThread()
     other_checkers.push_back(checker_cc_->clone());
 
     tmp_ssm = std::static_pointer_cast<ssm15066_estimator::SSM15066Estimator>(current_path_ssm->clone());
-    other_ssm.push_back(tmp_ssm);    other_metrics.push_back(std::make_shared<LengthPenaltyMetrics>(other_ssm.back()));
+    other_ssm.push_back(tmp_ssm);    other_metrics.push_back(std::make_shared<LengthPenaltyMetrics>(other_ssm.back(),ha_metrics_->getScale()));
 
     path_copy->setChecker(other_checkers.back());
     path_copy->setMetrics(other_metrics.back());
@@ -496,7 +498,7 @@ void ReplannerManagerMARSHA::collisionCheckThread()
 
       tmp_ssm = std::static_pointer_cast<ssm15066_estimator::SSM15066Estimator>(current_path_ssm->clone());
       other_ssm.push_back(tmp_ssm);
-      other_metrics.push_back(std::make_shared<LengthPenaltyMetrics>(other_ssm.back()));
+      other_metrics.push_back(std::make_shared<LengthPenaltyMetrics>(other_ssm.back(), ha_metrics_->getScale()));
 
       path_copy->setChecker(other_checkers.back());
       path_copy->setMetrics(other_metrics.back());

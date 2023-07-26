@@ -229,7 +229,8 @@ int main(int argc, char **argv)
           ssm->setPoiNames(poi_names);
           ssm->updateMembers();
 
-          pathplan::LengthPenaltyMetricsPtr ha_metrics = std::make_shared<pathplan::LengthPenaltyMetrics>(ssm);
+          Eigen::VectorXd scale; scale.setOnes(lb.rows(),1);
+          pathplan::LengthPenaltyMetricsPtr ha_metrics = std::make_shared<pathplan::LengthPenaltyMetrics>(ssm,scale);
 
           solver = std::make_shared<pathplan::BiRRT>(metrics,checker,sampler);
           solver->config(nh);

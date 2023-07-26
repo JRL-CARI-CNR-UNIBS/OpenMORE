@@ -37,7 +37,6 @@ PathPtr Trajectory::computePath(const Eigen::VectorXd& start_conf, const Eigen::
   return computePath(start_node,goal_node,solver,optimizePath,max_time);
 }
 
-
 PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_node, const TreeSolverPtr& solver, const bool& optimize, const double &max_time)
 {
   ros::WallTime tic = ros::WallTime::now();
@@ -57,7 +56,7 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
     return nullptr;
   }
 
-  double utopia = (start_node->getConfiguration()-goal_node->getConfiguration()).norm();
+  double utopia = metrics->utopia(start_node->getConfiguration(),goal_node->getConfiguration());
 
   if(optimize && success && (solution->cost()>1.05*utopia))
   {

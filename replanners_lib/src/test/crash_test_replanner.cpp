@@ -166,7 +166,8 @@ int main(int argc, char **argv)
       ssm->setPoiNames(poi_names);
       ssm->updateMembers();
 
-      metrics = std::make_shared<pathplan::LengthPenaltyMetrics>(ssm);
+      Eigen::VectorXd scale; scale.setOnes(lb.rows(),1);
+      metrics = std::make_shared<pathplan::LengthPenaltyMetrics>(ssm,scale);
     }
     else
       metrics = std::make_shared<pathplan::Metrics>();
