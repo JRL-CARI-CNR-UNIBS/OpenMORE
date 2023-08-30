@@ -1,4 +1,4 @@
-![](Documentation/logo.png)
+![](Documentation/logo.png?raw=true)
 
 The repository contains a library of sampling-based path replanning algorithms. It develops a framework to manage robot's trajectory execution with continuous path replanning and collision checking of the current path. It is based on ROS and *MoveIt!* to get information about the environment and collision check. Check [this paper](https://ieeexplore.ieee.org/document/10013661?source=authoralert) for more information.
 ## Build/Installation
