@@ -94,11 +94,10 @@ If you find errors or if you have some suggestions, [please let us know](https:/
 
 We are actively seeking support for further development. If you're interested, please reach out via email at <mailto::c.tonola001@unibs.it>.
 Future works:
-
-    1. ROS-free version and integration to ROS2
-    2. Generalization of the scene-monitoring software (currently, Moveit)
-    3. More documentation and tutorials
-
+1. ROS-free version and integration to ROS2
+2. Generalization of the scene-monitoring software (currently, Moveit)
+3. More documentation and tutorials
+   
 ## How to cite
 BibTex:
 ```
