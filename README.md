@@ -93,6 +93,7 @@ This repository is a work in progress and is continuously evolving. As such, it 
 If you find errors or if you have some suggestions, [please let us know](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/issues).
 
 We are actively seeking support for further development. If you're interested, please reach out via email at <mailto::c.tonola001@unibs.it>.
+
 Future works:
 1. ROS-free version and integration to ROS2
 2. Generalization of the scene-monitoring software (currently, Moveit)
@@ -119,7 +120,7 @@ BibTex:
 ```
 
 ## Disclaimer
-Copyright (c) 2023, Cesare Tonola CNR-STIIMA cesare.tonola@stiima.cnr.it
+Copyright (c) 2023, Cesare Tonola CNR-STIIMA cesare.tonola@stiima.cnr.it.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
