@@ -102,21 +102,15 @@ Future works:
 ## How to cite
 BibTex:
 ```
-@ARTICLE{Tonola2023,
-  author={Tonola, Cesare and Faroni, Marco and Beschi, Manuel and Pedrocchi, Nicola},
-  journal={IEEE Access}, 
-  title={Anytime Informed Multi-Path Replanning Strategy for Complex Environments}, 
+@INPROCEEDINGS{10275365,
+  author={Tonola, Cesare and Beschi, Manuel and Faroni, Marco and Pedrocchi, Nicola},
+  booktitle={2023 IEEE 28th International Conference on Emerging Technologies and Factory Automation (ETFA)}, 
+  title={OpenMORE: an open-source tool for sampling-based path replanning in ROS}, 
   year={2023},
-  volume={11},
+  volume={},
   number={},
-  pages={4105-4116},
-  doi={10.1109/ACCESS.2023.3235652}}
-  
-  
-@misc{open_more,
-  author = {Tonola, Cesare and Beschi, Manuel},
-  title = {{\textit{OpenMORE}: an Open-source MOtion REplanning library}},
-  url = {https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE}}
+  pages={1-4},
+  doi={10.1109/ETFA54631.2023.10275365}} 
 ```
 
 ## Disclaimer
