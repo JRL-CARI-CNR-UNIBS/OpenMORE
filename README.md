@@ -102,7 +102,7 @@ Future works:
 ## How to cite
 BibTex:
 ```
-@INPROCEEDINGS{10275365,
+@INPROCEEDINGS{openmore,
   author={Tonola, Cesare and Beschi, Manuel and Faroni, Marco and Pedrocchi, Nicola},
   booktitle={2023 IEEE 28th International Conference on Emerging Technologies and Factory Automation (ETFA)}, 
   title={OpenMORE: an open-source tool for sampling-based path replanning in ROS}, 
