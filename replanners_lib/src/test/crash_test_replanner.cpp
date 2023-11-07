@@ -8,10 +8,7 @@
 #include <replanners_lib/replanners/DRRT.h>
 #include <replanners_lib/replanners/anytimeDRRT.h>
 #include <replanners_lib/replanners/MARS.h>
-#include <replanners_lib/replanners/MARSHA.h>
 #include <graph_core/parallel_moveit_collision_checker.h>
-#include <ssm15066_estimators/parallel_ssm15066_estimator2D.h>
-#include <length_penalty_metrics.h>
 #include <graph_core/solvers/birrt.h>
 
 int main(int argc, char **argv)
@@ -27,12 +24,11 @@ int main(int argc, char **argv)
   ros::ServiceClient remove_obj=nh.serviceClient<object_loader_msgs::RemoveObjects>("remove_object_from_scene");
 
   //  ////////////////////////////////////////// GET ROS PARAM ///////////////////////////////////////////////
-  std::vector<std::string> poi_names;
-  int n_iter, n_other_paths, ssm_threads;
+  int n_iter, n_other_paths;
   std::vector<double> start_configuration, stop_configuration;
-  std::string group_name, replanner_type, base_frame, tool_frame;
-  bool full_search, reverse, opt, display, verbosity, ssm_parallel;
-  double max_time, max_distance, ssm_max_step_size, max_cart_acc, tr, min_distance, v_h;
+  std::string group_name, replanner_type;
+  bool full_search, reverse, opt, display, verbosity;
+  double max_time, max_distance;
 
   nh.getParam("n_iter",n_iter);
   nh.getParam("replanner_type",replanner_type);
@@ -44,26 +40,12 @@ int main(int argc, char **argv)
   nh.getParam("display",display);
   nh.getParam("verbosity",verbosity);
 
-  if(replanner_type == "MARS" || replanner_type == "MARSHA" )
+  if(replanner_type == "MARS")
   {
     nh.getParam("/MARS/n_other_paths",n_other_paths);
     nh.getParam("/MARS/reverse_start_nodes",reverse);
     nh.getParam("/MARS/full_net_search",full_search);
     nh.getParam("/MARS/opt_paths",opt);
-
-    if(replanner_type == "MARSHA")
-    {
-      nh.getParam("MARSHA/base_frame",base_frame);
-      nh.getParam("MARSHA/tool_frame",tool_frame);
-      nh.getParam("MARSHA/ssm_threads",ssm_threads);
-      nh.getParam("MARSHA/ssm_parallel",ssm_parallel);
-      nh.getParam("MARSHA/ssm_max_step_size",ssm_max_step_size);
-      nh.getParam("MARSHA/max_cart_acc",max_cart_acc);
-      nh.getParam("MARSHA/Tr",tr);
-      nh.getParam("MARSHA/min_distance",min_distance);
-      nh.getParam("MARSHA/v_h",v_h);
-      nh.getParam("MARSHA/poi_names",poi_names);
-    }
   }
 
   //  ///////////////////////////////////UPLOAD THE ROBOT ARM/////////////////////////////////////////////////////////////
@@ -146,31 +128,7 @@ int main(int argc, char **argv)
       return 1;
     }
 
-    pathplan::MetricsPtr metrics;
-    ssm15066_estimator::SSM15066EstimatorPtr ssm;
-
-    if(replanner_type == "MARSHA")
-    {
-      Eigen::Vector3d grav; grav << 0, 0, -9.806;
-      rosdyn::ChainPtr chain;
-      chain = rosdyn::createChain(*robot_model_loader.getURDF(),base_frame,tool_frame,grav);
-      if(ssm_parallel)
-        ssm = std::make_shared<ssm15066_estimator::ParallelSSM15066Estimator2D>(chain,ssm_max_step_size,ssm_threads);
-      else
-        ssm = std::make_shared<ssm15066_estimator::SSM15066Estimator2D>(chain,ssm_max_step_size);
-
-      ssm->setHumanVelocity(v_h,false);
-      ssm->setMaxCartAcc(max_cart_acc,false);
-      ssm->setReactionTime(tr,false);
-      ssm->setMinDistance(min_distance,false);
-      ssm->setPoiNames(poi_names);
-      ssm->updateMembers();
-
-      Eigen::VectorXd scale; scale.setOnes(lb.rows(),1);
-      metrics = std::make_shared<pathplan::LengthPenaltyMetrics>(ssm,scale);
-    }
-    else
-      metrics = std::make_shared<pathplan::Metrics>();
+    pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
 
     pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
     pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf,goal_conf,lb,ub);
@@ -216,7 +174,7 @@ int main(int argc, char **argv)
     {
       replanner =  std::make_shared<pathplan::AnytimeDynamicRRT>(current_configuration,current_path,max_time,solver);
     }
-    else if(replanner_type == "MARS" || replanner_type == "MARSHA")
+    else if(replanner_type == "MARS")
     {
       pathplan::PathPtr new_path;
       for(unsigned int i=0;i<n_other_paths;i++)
@@ -232,22 +190,12 @@ int main(int argc, char **argv)
           all_paths.push_back(new_path);
       }
 
-      if(replanner_type == "MARSHA")
-      {
-        pathplan::LengthPenaltyMetricsPtr ha_metrics = std::dynamic_pointer_cast<pathplan::LengthPenaltyMetrics>(metrics);
-
-        pathplan::MARSHAPtr MARSHA_replanner = std::make_shared<pathplan::MARSHA>(current_configuration,current_path,max_time,solver,all_paths,ha_metrics);
-        replanner = MARSHA_replanner;
-      }
-      else
-      {
         pathplan::MARSPtr MARS_replanner = std::make_shared<pathplan::MARS>(current_configuration,current_path,max_time,solver);
         MARS_replanner->setOtherPaths(all_paths);
         MARS_replanner->reverseStartNodes(reverse);
         MARS_replanner->setFullNetSearch(full_search);
 
         replanner = MARS_replanner;
-      }
     }
     else
     {
@@ -259,7 +207,7 @@ int main(int argc, char **argv)
     replanner->setDisp(disp);
     replanner->setVerbosity(verbosity);
 
-    if(replanner_type == "MARS" || replanner_type == "MARSHA")
+    if(replanner_type == "MARS" )
     {
       if(verbosity)
       {
@@ -340,12 +288,6 @@ int main(int argc, char **argv)
         }
         else
         {
-          if(ssm)
-          {
-            Eigen::Vector3d obs_location; obs_location<<obj.pose.pose.position.x,obj.pose.pose.position.y,obj.pose.pose.position.z;
-            ssm->addObstaclePosition(obs_location);
-          }
-
           remove_srv.request.obj_ids.clear();
           for (const std::string& str: add_srv.response.ids)
           {
@@ -429,18 +371,6 @@ int main(int argc, char **argv)
         ROS_INFO_STREAM("- - - - Cycle n: "<<std::to_string(j)<<" success: "<<success<<" duration: "<<(toc-tic).toSec()<<" - - - - ");
       }
 
-      if(ssm)
-      {
-        ssm->setVerbose(1);
-        for(const pathplan::ConnectionPtr& c:current_path->getConnections())
-        {
-          ROS_INFO("--------");
-          c->setCost(metrics->cost(c->getParent(),c->getChild()));
-          ROS_INFO_STREAM(*c);
-        }
-        ssm->setVerbose(0);
-      }
-
       ROS_INFO_STREAM("Path cost "<< current_path->cost());
 
       if(success && not current_path->isValid())
@@ -457,10 +387,6 @@ int main(int argc, char **argv)
           ROS_ERROR("call to srv not ok");
           return 1;
         }
-
-        if(ssm)
-          ssm->clearObstaclesPositions();
-
         ros::Duration(1).sleep();
       }
     }

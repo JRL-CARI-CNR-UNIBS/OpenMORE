@@ -4,7 +4,6 @@
 #include <replanners_lib/replanner_managers/replanner_manager_DRRTStar.h>
 #include <replanners_lib/replanner_managers/replanner_manager_MPRRT.h>
 #include <replanners_lib/replanner_managers/replanner_manager_MARS.h>
-#include <replanners_lib/replanner_managers/replanner_manager_MARSHA.h>
 #include <graph_core/solvers/birrt.h>
 
 int main(int argc, char **argv)
@@ -173,7 +172,7 @@ int main(int argc, char **argv)
       {
         replanner_manager.reset(new pathplan::ReplannerManagerAnytimeDRRT(current_path,solver,nh));
       }
-      else if(replanner_type == "MARS" || replanner_type == "MARSHA")
+      else if(replanner_type == "MARS")
       {
         int n_other_paths = 1;
         nh.getParam("/MARS/n_other_paths",n_other_paths);
@@ -194,54 +193,9 @@ int main(int argc, char **argv)
           }
         }
 
-        if(replanner_type == "MARSHA")
-        {
-          int ssm_threads;
-          bool ssm_parallel;
-          std::string base_frame, tool_frame;
-          std::vector<std::string> poi_names;
-          double ssm_max_step_size, max_cart_acc, tr, min_distance, v_h;
-
-          nh.getParam("MARSHA/base_frame",base_frame);
-          nh.getParam("MARSHA/tool_frame",tool_frame);
-          nh.getParam("MARSHA/ssm_max_step_size",ssm_max_step_size);
-          nh.getParam("MARSHA/ssm_threads",ssm_threads);
-          nh.getParam("MARSHA/max_cart_acc",max_cart_acc);
-          nh.getParam("MARSHA/Tr",tr);
-          nh.getParam("MARSHA/min_distance",min_distance);
-          nh.getParam("MARSHA/v_h",v_h);
-          nh.getParam("MARSHA/ssm_parallel",ssm_parallel);
-          nh.getParam("MARSHA/poi_names",poi_names);
-
-          Eigen::Vector3d grav; grav << 0, 0, -9.806;
-          rosdyn::ChainPtr chain = rosdyn::createChain(*robot_model_loader.getURDF(),base_frame,tool_frame,grav);
-
-          ssm15066_estimator::SSM15066EstimatorPtr ssm;
-          if(ssm_parallel)
-            ssm = std::make_shared<ssm15066_estimator::ParallelSSM15066Estimator2D>(chain,ssm_max_step_size,ssm_threads);
-          else
-            ssm = std::make_shared<ssm15066_estimator::SSM15066Estimator2D>(chain,ssm_max_step_size);
-
-          ssm->setHumanVelocity(v_h,false);
-          ssm->setMaxCartAcc(max_cart_acc,false);
-          ssm->setReactionTime(tr,false);
-          ssm->setMinDistance(min_distance,false);
-          ssm->setPoiNames(poi_names);
-          ssm->updateMembers();
-
-          Eigen::VectorXd scale; scale.setOnes(lb.rows(),1);
-          pathplan::LengthPenaltyMetricsPtr ha_metrics = std::make_shared<pathplan::LengthPenaltyMetrics>(ssm,scale);
-
-          solver = std::make_shared<pathplan::BiRRT>(metrics,checker,sampler);
-          solver->config(nh);
-          replanner_manager = std::make_shared<pathplan::ReplannerManagerMARSHA>(current_path,solver,nh,ha_metrics,other_paths);
-        }
-        else
-        {
-          solver = std::make_shared<pathplan::BiRRT>(metrics,checker,sampler);
-          solver->config(nh);
-          replanner_manager = std::make_shared<pathplan::ReplannerManagerMARS>(current_path,solver,nh,other_paths);
-        }
+        solver = std::make_shared<pathplan::BiRRT>(metrics,checker,sampler);
+        solver->config(nh);
+        replanner_manager = std::make_shared<pathplan::ReplannerManagerMARS>(current_path,solver,nh,other_paths);
       }
       else
       {

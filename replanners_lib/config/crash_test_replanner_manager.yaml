@@ -22,9 +22,8 @@ parallel_checker_n_threads: 4
 # - DRRT
 # - anytimeDRRT
 # - MARS
-# - MARSHA
 
-replanner_type: "MARSHA"
+replanner_type: "MARS"
 dt_replan: 0.20
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
@@ -54,19 +53,6 @@ MARS:
   dt_replan_relaxed: 0.20
   verbosity_level: 1
   display_other_paths: true
-
-MARSHA:
-  base_frame: "world"
-  tool_frame: "end_effector"
-  ssm_max_step_size: 0.025
-  ssm_parallel: true
-  ssm_threads: 4
-  unaware_obstacles: ["manipulation/big_box/n_0","manipulation/box/n_0","manipulation/box/n_1"]
-  poi_names: ["end_effector"]
-  max_cart_acc: 2.5
-  Tr: 0.15
-  min_distance: 0.2
-  v_h: 1.6
 
 #VERBOSITY:
 display: false

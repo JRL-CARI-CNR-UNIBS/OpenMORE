@@ -18,7 +18,7 @@ ssm15066_estimators
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS graph_core roscpp object_loader_msgs moveit_planning_helper geometry_msgs subscription_notifier jsk_rviz_plugins length_penalty_metrics ssm15066_estimators
+  CATKIN_DEPENDS graph_core roscpp object_loader_msgs moveit_planning_helper geometry_msgs subscription_notifier jsk_rviz_plugins
   DEPENDS
   )
 include_directories(
@@ -35,12 +35,10 @@ src/replanners/DRRT.cpp
 src/replanners/LI_DRRT.cpp
 src/replanners/anytimeDRRT.cpp
 src/replanners/MARS.cpp
-src/replanners/MARSHA.cpp
 src/replanner_managers/replanner_manager_base.cpp
 src/replanner_managers/replanner_manager_DRRTStar.cpp
 src/replanner_managers/replanner_manager_DRRT.cpp
 src/replanner_managers/replanner_manager_MARS.cpp
-src/replanner_managers/replanner_manager_MARSHA.cpp
 src/replanner_managers/replanner_manager_anytimeDRRT.cpp
 src/replanner_managers/replanner_manager_MPRRT.cpp
 )

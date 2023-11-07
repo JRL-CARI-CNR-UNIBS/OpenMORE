@@ -19,9 +19,8 @@ parallel_checker_n_threads: 4
 # - DRRT
 # - anytimeDRRT
 # - MARS
-# - MARSHA
 
-replanner_type: "MARSHA"
+replanner_type: "MARS"
 max_time: 0.2
 
 MPRRT:
@@ -34,18 +33,6 @@ MARS:
   full_net_search: false
   dt_replan_relaxed: 0.20
   verbosity_level: 2
-
-MARSHA:
-  base_frame: "world"
-  tool_frame: "end_effector"
-  ssm_max_step_size: 0.05 #0.005
-  ssm_parallel: true
-  ssm_threads: 4
-  poi_names: ["end_effector"]
-  max_cart_acc: 2.5
-  Tr: 0.15
-  min_distance: 0.2
-  v_h: 1.6
 
 # VERBOSITY:
 display: true
