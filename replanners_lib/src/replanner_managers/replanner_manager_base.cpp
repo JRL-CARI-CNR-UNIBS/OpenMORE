@@ -101,6 +101,8 @@ void ReplannerManagerBase::fromParam()
     display_current_trj_point_ = true;
   if(!nh_.getParam("display_current_config",display_current_config_))
     display_current_config_ = true;
+  if(!nh_.getParam("which_link_display_path",which_link_display_path_))
+    which_link_display_path_ = "";
   if(!nh_.getParam("benchmark",benchmark_))
     benchmark_ = false;
   if(!nh_.getParam("virtual_obj/spawn_objs",spawn_objs_))
@@ -187,10 +189,6 @@ void ReplannerManagerBase::attributeInitialization()
   trj->getRobotTrajectoryMsg(tmp_trj_msg)    ;
   interpolator_.setTrajectory(tmp_trj_msg)   ;
   interpolator_.setSplineOrder(spline_order_);
-
-  //  double scaling = 1.0;
-  //  read_safe_scaling_? (scaling = readScalingTopics()):
-  //                      (scaling = scaling_from_param_);
 
   double scaling = scaling_from_param_;
   if(read_safe_scaling_)
@@ -855,8 +853,7 @@ void ReplannerManagerBase::displayThread()
   PathPtr initial_path = current_path_shared_->clone();
   planning_scene::PlanningScenePtr planning_scene = planning_scene::PlanningScene::clone(planning_scn_cc_);
 
-  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_);
-  //  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_,"flange"); //ELIMINA
+  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_,which_link_display_path_);
 
   pathplan::PathPtr current_path;
   trajectory_msgs::JointTrajectoryPoint pnt, pnt_replan;

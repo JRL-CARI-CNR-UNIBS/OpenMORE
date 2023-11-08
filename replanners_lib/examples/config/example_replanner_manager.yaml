@@ -26,3 +26,4 @@ display_replan_trj_point: false #show starting point for replanning on trajector
 display_replan_config: false #show projection of starting point of replanning on current path
 display_current_trj_point: true #show robot end effector position on trajectory
 display_current_config: false #show projection of robot position on current path
+which_link_display_path: "" #the robot link of which the path is displayed. If empty, the last link is considered

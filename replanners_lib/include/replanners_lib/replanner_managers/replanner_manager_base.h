@@ -128,6 +128,7 @@ protected:
   std::string obs_pose_topic_             ;
   std::string joint_target_topic_         ;
   std::string unscaled_joint_target_topic_;
+  std::string which_link_display_path_    ;
 
   ros::ServiceClient add_obj_               ;
   ros::ServiceClient move_obj_              ;
