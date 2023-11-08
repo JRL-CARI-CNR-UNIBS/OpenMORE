@@ -543,16 +543,16 @@ void ReplannerManagerBase::replanningThread()
         //        if(success)
         //        {
 
-//        ROS_INFO_STREAM("current cost "<<current_path_->getCostFromConf(current_configuration_));
-//        ROS_INFO_STREAM("current path "<<*current_path_);
+        //        ROS_INFO_STREAM("current cost "<<current_path_->getCostFromConf(current_configuration_));
+        //        ROS_INFO_STREAM("current path "<<*current_path_);
 
         trj_mtx_.lock();
         Eigen::VectorXd current_conf = current_configuration_;
         startReplannedPathFromNewCurrentConf(current_conf);
         trj_mtx_.unlock();
 
-//        ROS_INFO_STREAM("new cost "<<replanner_->getReplannedPath()->getCostFromConf(current_configuration_));
-//        ROS_INFO_STREAM("new path "<<*replanner_->getReplannedPath());
+        //        ROS_INFO_STREAM("new cost "<<replanner_->getReplannedPath()->getCostFromConf(current_configuration_));
+        //        ROS_INFO_STREAM("new path "<<*replanner_->getReplannedPath());
 
         PathPtr trj_path = trjPath(replanner_->getReplannedPath());
 
@@ -568,8 +568,8 @@ void ReplannerManagerBase::replanningThread()
           moveit_msgs::RobotTrajectory tmp_trj_msg;
           trj->getRobotTrajectoryMsg(tmp_trj_msg);
 
-//          ROS_INFO_STREAM("pnt "<<pnt_);
-//          ROS_INFO_STREAM("trj msg "<<tmp_trj_msg);
+          //          ROS_INFO_STREAM("pnt "<<pnt_);
+          //          ROS_INFO_STREAM("trj msg "<<tmp_trj_msg);
 
           interpolator_.setTrajectory(tmp_trj_msg)   ;
           interpolator_.setSplineOrder(spline_order_);
@@ -855,8 +855,8 @@ void ReplannerManagerBase::displayThread()
   PathPtr initial_path = current_path_shared_->clone();
   planning_scene::PlanningScenePtr planning_scene = planning_scene::PlanningScene::clone(planning_scn_cc_);
 
-  //  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_);
-  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_,"flange"); //ELIMINA
+  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_);
+  //  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name_,"flange"); //ELIMINA
 
   pathplan::PathPtr current_path;
   trajectory_msgs::JointTrajectoryPoint pnt, pnt_replan;
@@ -1428,7 +1428,7 @@ PathPtr ReplannerManagerBase::trjPath(const PathPtr& path)
   PathPtr trj_path = path->clone();
   double max_distance = solver_->getMaxDistance();
 
-//  ROS_WARN_STREAM("trj path before "<<*trj_path);
+  //  ROS_WARN_STREAM("trj path before "<<*trj_path);
 
   bool conns_changed = false;
   std::vector<ConnectionPtr> conns = trj_path->getConnections();
@@ -1457,7 +1457,7 @@ PathPtr ReplannerManagerBase::trjPath(const PathPtr& path)
   trj_path->resample(max_distance/2.0);
   trj_path->simplify(0.05);
 
-//  ROS_WARN_STREAM("trj path after "<<*trj_path);
+  //  ROS_WARN_STREAM("trj path after "<<*trj_path);
 
   return trj_path;
 }

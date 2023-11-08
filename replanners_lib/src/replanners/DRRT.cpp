@@ -1,4 +1,4 @@
-﻿#include "replanners_lib/replanners/LI_DRRT.h"
+﻿#include "replanners_lib/replanners/DRRT.h"
 
 namespace pathplan
 {
