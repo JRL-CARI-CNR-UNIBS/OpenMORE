@@ -26,8 +26,8 @@ wstool init src
 Then, download and merge the rosinstall file:
 ```
 cd ~/replanning_ws
-wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/replanning_strategies/master/replanning_strategies.rosinstall
-wstool merge -t src ./replanning_strategies.rosinstall
+wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/OpenMORE/master/OpenMORE.rosinstall
+wstool merge -t src ./OpenMORE.rosinstall
 ```
 Download and install the packages specified in the rosinstall file and the other system dipendencies:
 ```
@@ -46,9 +46,9 @@ echo "source /home/$USER/replanning_ws/devel/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ```
 ### Docker
-A [docker file](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/dockerfile_open_more) is also available. Open a terminal, move into the folder where you have saved the docker file and run the following command:
+A [docker file](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/dockerfile_OpenMORE) is also available. Open a terminal, move into the folder where you have saved the docker file and run the following command:
 ```
-sudo docker build -f dockerfile_open_more -t open_more .
+sudo docker build -f dockerfile_OpenMORE -t OpenMORE .
 ```
 Once completed, run the container:
 ```
@@ -59,7 +59,7 @@ sudo docker run -it --net=host --gpus all \
     --env="DISPLAY" \
     --env="QT_X11_NO_MITSHM=1" \
     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
-    open_more
+    OpenMORE
 ```
 Then, inside the container you can try the library (see Quick examples below).
 
@@ -80,21 +80,21 @@ sudo apt install ros-$ROS_DISTRO-trac-ik-kinematics-plugin ros-$ROS_DISTRO-chomp
 ```
 
 ## Packages
-### **replanners_lib [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib)**
+### **replanners_lib [see README](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/replanners_lib)**
 It contains two main repository:
  1. **replanners**: contains the implementation of some sample-based replanning algorithms.
  2. **replanner_managers**: contains the implementation of a framework to manage the trajectory execution with continuous replanning for each of the available replanners.
 
  You can implement your replanning algorithm and integrate it into the framework.
 
-### **replanners_benchmark [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_benchmark)**
+### **replanners_benchmark [see README](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/replanners_benchmark)**
 It contains a node to benchmark the available replanners and useful *launch* files. You can configure your benchmark or add new tests.
 
-### **replanners_cells [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_cells)**
+### **replanners_cells [see README](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/replanners_cells)**
 It contains the urdf and *moveit_config* packages of the environments used for benchmarking. You can add your scenario.
 
 ## Work in progress
-This repository is continuously evolving. If you find errors or if you have some suggestions, [please let us know](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/issues).
+This repository is continuously evolving. If you find errors or if you have some suggestions, [please let us know](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/issues).
 
 ## How to cite
 BibTex:
@@ -110,7 +110,7 @@ BibTex:
   doi={10.1109/ACCESS.2023.3235652}}
   
   
-@misc{open_more,
+@misc{OpenMORE,
   author = {Tonola, Cesare and Beschi, Manuel},
   title = {{\textit{OpenMORE}: an Open-source MOtion REplanning library}},
   url = {https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE}}
@@ -122,7 +122,7 @@ BibTex:
 - Manuel Beschi (<mailto::manuel.beschi@unibs.it>)
 
 ## Acknowledgements
-**replanning_strategies** is developed by [CNR-STIIMA](http://www.stiima.cnr.it/) and [University of Brescia](https://www.unibs.it/en).
+**OpenMORE** is developed by [CNR-STIIMA](http://www.stiima.cnr.it/) and [University of Brescia](https://www.unibs.it/en).
 
 ***
 
