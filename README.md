@@ -1,11 +1,6 @@
-<div align="center">
-  <h1 align="center">OpenMORE</h1>
-  <h3 align="center">
-    Open-source MOtion REplanning library
-  </h3>
-</div>
+![](Documentation/logo_blue.png?raw=true)
 
-The repository contains a library of sampling-based path replanning algorithms. It develops a framework to manage robot's trajectory execution with continuous path replanning and collision checking of the current path. It is based on ROS and *MoveIt!* to get information about the environment and collision check. Check [this paper](https://ieeexplore.ieee.org/document/10013661?source=authoralert) for more information.
+The repository contains a library of sampling-based path replanning algorithms. It develops a framework to manage robot's trajectory execution with continuous path replanning and collision checking of the current path. It is based on ROS and *MoveIt!* to get information about the environment and collision check. Check [this paper](https://ieeexplore.ieee.org/abstract/document/10275365) for more information.
 ## Build/Installation
 The software can be installed using rosinstall files.
 
@@ -94,18 +89,28 @@ It contains a node to benchmark the available replanners and useful *launch* fil
 It contains the urdf and *moveit_config* packages of the environments used for benchmarking. You can add your scenario.
 
 ## Work in progress
-This repository is continuously evolving. If you find errors or if you have some suggestions, [please let us know](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/issues).
+This repository is a work in progress and is continuously evolving. As such, it is not free of bugs. Please be careful if you use it on real hardware and take all necessary precautions.
+If you find errors or if you have some suggestions, [please let us know](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/issues).
+>>>>>>> master
 
+We are actively seeking support for further development. If you're interested, please reach out via email at <mailto::c.tonola001@unibs.it>.
+
+Future works:
+1. ROS-free version and integration to ROS2
+2. Generalization of the scene-monitoring software (currently, Moveit)
+3. More documentation and tutorials
+   
 ## How to cite
 BibTex:
 ```
-@ARTICLE{Tonola2023,
-  author={Tonola, Cesare and Faroni, Marco and Beschi, Manuel and Pedrocchi, Nicola},
-  journal={IEEE Access}, 
-  title={Anytime Informed Multi-Path Replanning Strategy for Complex Environments}, 
+@INPROCEEDINGS{openmore,
+  author={Tonola, Cesare and Beschi, Manuel and Faroni, Marco and Pedrocchi, Nicola},
+  booktitle={2023 IEEE 28th International Conference on Emerging Technologies and Factory Automation (ETFA)}, 
+  title={OpenMORE: an open-source tool for sampling-based path replanning in ROS}, 
   year={2023},
-  volume={11},
+  volume={},
   number={},
+<<<<<<< HEAD
   pages={4105-4116},
   doi={10.1109/ACCESS.2023.3235652}}
   
@@ -114,7 +119,22 @@ BibTex:
   author = {Tonola, Cesare and Beschi, Manuel},
   title = {{\textit{OpenMORE}: an Open-source MOtion REplanning library}},
   url = {https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE}}
+=======
+  pages={1-4},
+  doi={10.1109/ETFA54631.2023.10275365}} 
+>>>>>>> master
 ```
+
+## Disclaimer
+Copyright (c) 2023, Cesare Tonola CNR-STIIMA cesare.tonola@stiima.cnr.it.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+3. Neither the name of the <organization> nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## Developer Contact
 ### **Authors**
