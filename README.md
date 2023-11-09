@@ -91,7 +91,6 @@ It contains the urdf and *moveit_config* packages of the environments used for b
 ## Work in progress
 This repository is a work in progress and is continuously evolving. As such, it is not free of bugs. Please be careful if you use it on real hardware and take all necessary precautions.
 If you find errors or if you have some suggestions, [please let us know](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/issues).
->>>>>>> master
 
 We are actively seeking support for further development. If you're interested, please reach out via email at <mailto::c.tonola001@unibs.it>.
 
