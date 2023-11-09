@@ -81,7 +81,7 @@ replanner->replan();
 if(replanner->getSuccess())
   pathplan::PathPtr replanned_path = replanner->getReplannedPath();
 ```
-You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/src/example_replanner.cpp). To launch the example:
+You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/replanners_lib/examples/src/example_replanner.cpp). To launch the example:
 ```
 roslaunch replanners_lib example_replanner.launch
 ```
@@ -97,7 +97,7 @@ The replanning framework optionally can listen to three speed overrides topics, 
 It subscribes a service (`moveit_msgs::GetPlanningScene`) to update the information about the planning scene.
 It continuously interpolates the trajectory computed starting from the replanned path and sends the new robot state, publishing a `sensor_msgs::JointState` message on topic `/joint_target`, and the unscaled state on topic `/unscaled_joint_target`.
 
-[Here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/config/complete_list_of_parameters_for_replanner_manager.yaml) you can find a complete description of parameters required.
+[Here](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/replanners_lib/examples/config/complete_list_of_parameters_for_replanner_manager.yaml) you can find a complete description of parameters required.
 
 If you have implemented a new replanner, you must implement also its manager. There are three pure virtual function to define:
 ```cpp
@@ -157,7 +157,7 @@ Finally, create the replanner manager and start the execution:
 pathplan::ReplannerManagerDRRTPtr replanner_manager = std::make_shared<pathplan::ReplannerManagerDRRT>(current_path, solver, nh);
 replanner_manager->start();
 ```
-You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib/examples/src/example_replanner_manager.cpp). To launch the example:
+You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/replanners_lib/examples/src/example_replanner_manager.cpp). To launch the example:
 ```
 roslaunch replanners_lib example_replanner_manager.launch
 ```

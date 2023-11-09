@@ -24,8 +24,8 @@ RUN sudo apt-get update && sudo apt-get install python3-catkin-tools -y
 # OpenMORE
 RUN mkdir -p ./replanning_ws/src
 RUN cd ./replanning_ws && catkin init && wstool init src
-RUN cd ./replanning_ws && wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/replanning_strategies/master/replanning_strategies.rosinstall 
-RUN cd ./replanning_ws && wstool merge -t src ./replanning_strategies.rosinstall
+RUN cd ./replanning_ws && wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/OpenMORE/master/OpenMORE.rosinstall 
+RUN cd ./replanning_ws && wstool merge -t src ./OpenMORE.rosinstall
 RUN cd ./replanning_ws && wstool update -t src 
 RUN cd ./replanning_ws && rosdep install --from-paths src --ignore-src -r -y
 

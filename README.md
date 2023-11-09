@@ -106,23 +106,12 @@ BibTex:
 @INPROCEEDINGS{openmore,
   author={Tonola, Cesare and Beschi, Manuel and Faroni, Marco and Pedrocchi, Nicola},
   booktitle={2023 IEEE 28th International Conference on Emerging Technologies and Factory Automation (ETFA)}, 
-  title={OpenMORE: an open-source tool for sampling-based path replanning in ROS}, 
+  title={{OpenMORE: an open-source tool for sampling-based path replanning in ROS}}, 
   year={2023},
   volume={},
   number={},
-<<<<<<< HEAD
-  pages={4105-4116},
-  doi={10.1109/ACCESS.2023.3235652}}
-  
-  
-@misc{OpenMORE,
-  author = {Tonola, Cesare and Beschi, Manuel},
-  title = {{\textit{OpenMORE}: an Open-source MOtion REplanning library}},
-  url = {https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE}}
-=======
   pages={1-4},
   doi={10.1109/ETFA54631.2023.10275365}} 
->>>>>>> master
 ```
 
 ## Disclaimer
