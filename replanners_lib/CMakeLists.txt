@@ -12,8 +12,6 @@ moveit_planning_helper
 geometry_msgs
 subscription_notifier
 jsk_rviz_plugins
-length_penalty_metrics
-ssm15066_estimators
 )
 catkin_package(
   INCLUDE_DIRS include
