@@ -1,6 +1,16 @@
 ![](Documentation/logo_blue.png?raw=true)
 
 The repository contains a library of sampling-based path replanning algorithms. It develops a framework to manage robot's trajectory execution with continuous path replanning and collision checking of the current path. It is based on ROS and *MoveIt!* to get information about the environment and collision check. Check [this paper](https://ieeexplore.ieee.org/abstract/document/10275365) for more information.
+
+<h1 align="center">🚧 Update in Progress! 🚧</h1>
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Updating-blue?style=for-the-badge&logo=github">
+</p>
+<p align="center">
+  We're currently working on updating the libraries and the documentation. Expect new changes in the next few weeks. Stay tuned!
+</p>
+
+
 ## Build/Installation
 The software can be installed using rosinstall files.
 
