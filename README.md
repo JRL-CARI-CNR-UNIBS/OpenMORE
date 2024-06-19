@@ -7,7 +7,7 @@ The repository contains a library of sampling-based path replanning algorithms. 
   <img src="https://img.shields.io/badge/Status-Updating-blue?style=for-the-badge&logo=github">
 </p>
 <p align="center">
-  We're currently working on updating the libraries and the documentation. Expect new changes in the next few weeks. Stay tuned!
+    We are currently significantly changing the organisation of the library and updating the documentation. Expect new changes in the coming weeks. Stay tuned!
 </p>
 
 
