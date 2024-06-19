@@ -43,7 +43,7 @@ source ~/.bashrc
 ### Docker
 A [docker file](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/dockerfile_OpenMORE) is also available. Open a terminal, move into the folder where you have saved the docker file and run the following command:
 ```
-sudo docker build -f dockerfile_OpenMORE -t OpenMORE .
+sudo docker build -f dockerfile_OpenMORE -t openmore .
 ```
 Once completed, run the container:
 ```
@@ -54,7 +54,7 @@ sudo docker run -it --net=host --gpus all \
     --env="DISPLAY" \
     --env="QT_X11_NO_MITSHM=1" \
     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
-    OpenMORE
+    openmore
 ```
 Then, inside the container you can try the library (see Quick examples below).
 
