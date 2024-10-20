@@ -139,7 +139,7 @@ void ReplannerManagerBase::attributeInitialization()
   goal_reached_                    = false;
   download_scene_info_             = true ;
   current_path_sync_needed_        = false;
-  spline_order_                    = 1    ;
+  spline_order_                    = 3    ;
   replanning_time_                 = 0.0  ;
   scaling_                         = 1.0  ;
   real_time_                       = 0.0  ;
@@ -449,11 +449,11 @@ void ReplannerManagerBase::replanningThread()
       projection = path2project_on->projectOnPath(point2project,past_projection,false);
       past_projection = projection;
 
-      abscissa_replan_configuration  = path2project_on->curvilinearAbscissaOfPoint(projection);
+      abscissa_replan_configuration = path2project_on->curvilinearAbscissaOfPoint(projection);
       abscissa_current_configuration = path2project_on->curvilinearAbscissaOfPoint(current_configuration);
 
-      if(abscissa_replan_configuration<=abscissa_current_configuration)
-        projection = path2project_on->pointOnCurvilinearAbscissa(abscissa_current_configuration+0.05);  //5% step forward
+      if(abscissa_replan_configuration <= abscissa_current_configuration+0.01)
+        projection = path2project_on->pointOnCurvilinearAbscissa(abscissa_current_configuration+0.01);  //1% step forward
 
       replanner_mtx_.lock();
       configuration_replan_ = projection;
@@ -516,7 +516,11 @@ void ReplannerManagerBase::replanningThread()
         startReplannedPathFromNewCurrentConf(current_conf);
         trj_mtx_.unlock();
 
+        ROS_INFO("QUAAAAAAAAAAAAAAAA");
+
         PathPtr trj_path = trjPath(replanner_->getReplannedPath());
+
+        ROS_INFO_STREAM(*trj_path);
 
         replanner_mtx_.lock();
         trj_mtx_.lock();
@@ -525,16 +529,49 @@ void ReplannerManagerBase::replanningThread()
 
         if(success)
         {
+          ROS_WARN_STREAM("curr path\n "<<*replanner_->getCurrentPath());
+          ROS_ERROR_STREAM("replanned path\n "<<*replanner_->getReplannedPath());
+
           trajectory_->setPath(trj_path);
+
+          //          ROS_INFO_STREAM("pnt: "<<pnt_);
+
           robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
+
           moveit_msgs::RobotTrajectory tmp_trj_msg;
           trj->getRobotTrajectoryMsg(tmp_trj_msg);
 
           interpolator_.setTrajectory(tmp_trj_msg)   ;
           interpolator_.setSplineOrder(spline_order_);
 
-          t_ = scaling_*(ros::WallTime::now()-tic_trj_).toSec(); //0.0
-          t_replan_ = t_+time_shift_*scaling_;
+          //          ROS_INFO_STREAM("trj next 1 sec:\n");
+          //          double tmp_t = 0;
+
+          //          while(tmp_t<0.3)
+          //          {
+          //            trajectory_msgs::JointTrajectoryPoint tmp_pnt;
+          //            interpolator_.interpolate(ros::Duration(tmp_t),tmp_pnt,scaling_);
+          //            tmp_t += 0.01;
+
+          //            std::string txt;
+          //            for(const double d: tmp_pnt.positions)
+          //              txt = txt+std::to_string(d)+" ";
+
+          //            txt = txt+"| ";
+
+          //            for(const double d: tmp_pnt.velocities)
+          //              txt = txt+std::to_string(d)+" ";
+
+          //            txt = txt+"| ";
+
+          //            for(const double d: tmp_pnt.accelerations)
+          //              txt = txt+std::to_string(d)+" ";
+
+          //            ROS_INFO_STREAM(txt);
+          //          }
+
+          t_ = scaling_*((ros::WallTime::now()-tic_trj_).toSec()+dt_); //0.0
+          t_replan_ = t_+time_shift_;
         }
 
         current_path_ = replanner_->getReplannedPath();

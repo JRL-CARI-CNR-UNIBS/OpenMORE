@@ -25,7 +25,7 @@ typedef std::shared_ptr<ReplannerManagerBase> ReplannerManagerBasePtr;
 class ReplannerManagerBase: public std::enable_shared_from_this<ReplannerManagerBase>
 {
 
-#define K_OFFSET 1.1
+#define K_OFFSET 1.5
 
 protected:
 

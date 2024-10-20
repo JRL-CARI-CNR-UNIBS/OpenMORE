@@ -174,15 +174,47 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
       wp_state_vector.at(j).setJointGroupVelocities   (group_name_,pnt->velocities   );
       wp_state_vector.at(j).setJointGroupAccelerations(group_name_,pnt->accelerations);
     }
-    trj_->addSuffixWayPoint(wp_state_vector.at(j),0.001);
+    trj_->addSuffixWayPoint(wp_state_vector.at(j),0.0);
   }
 
   //Time parametrization
   //trajectory_processing::IterativeSplineParameterization iptp;
-  //trajectory_processing::TimeOptimalTrajectoryGeneration iptp;
+  //  trajectory_processing::TimeOptimalTrajectoryGeneration iptp;
   trajectory_processing::IterativeParabolicTimeParameterization iptp;
 
   iptp.computeTimeStamps(*trj_);
+
+  if(pnt != nullptr)
+  {
+    robot_trajectory::RobotTrajectoryPtr trj = std::make_shared<robot_trajectory::RobotTrajectory>(kinematic_model_,group_name_);
+    trj->addSuffixWayPoint(wp_state_vector.at(0),0.0);
+
+    for(unsigned int i=1; i<trj_->getWayPointCount();i++)
+    {
+      trj->addSuffixWayPoint(trj_->getWayPoint(i),trj_->getWayPointDurationFromPrevious(i));
+    }
+
+    for(unsigned int i=0;i<pnt->positions.size();i++)
+    {
+      auto tmp1 = trj->getWayPoint(0).getVariablePosition(i);
+
+      if(tmp1 != pnt->positions[i])
+        throw std::runtime_error("Position error");
+
+      tmp1 = trj->getWayPoint(0).getVariableVelocity(i);
+
+      if(tmp1 != pnt->velocities[i])
+        throw std::runtime_error("Velocity error");
+
+      tmp1 = trj->getWayPoint(0).getVariableAcceleration(i);
+
+      if(tmp1 != pnt->accelerations[i])
+        throw std::runtime_error("Acceleration error");
+    }
+
+    trj_ = trj;
+  }
+
   return trj_;
 }
 
