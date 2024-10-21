@@ -485,7 +485,7 @@ void ReplannerManagerBase::replanningThread()
       path_changed = false;
       replanning_duration = 0.0;
 
-      if(haveToReplan(path_obstructed))
+      if(haveToReplan(path_obstructed) && (ros::WallTime::now().toSec()-time_last_replanning_)>0.4)
       {
         n_size_before = current_path_->getConnectionsSize();
 
@@ -516,8 +516,6 @@ void ReplannerManagerBase::replanningThread()
         startReplannedPathFromNewCurrentConf(current_conf);
         trj_mtx_.unlock();
 
-        ROS_INFO("QUAAAAAAAAAAAAAAAA");
-
         PathPtr trj_path = trjPath(replanner_->getReplannedPath());
 
         ROS_INFO_STREAM(*trj_path);
@@ -526,6 +524,40 @@ void ReplannerManagerBase::replanningThread()
         trj_mtx_.lock();
 
         tic_trj_ = ros::WallTime::now();
+
+        if(success)
+        {
+          auto repl_nodes = replanner_->getReplannedPath()->getNodes();
+          auto curr_nodes = replanner_->getCurrentPath()->getNodes();
+
+          auto repl_it = repl_nodes.end();
+          auto curr_it = curr_nodes.end();
+
+          if (repl_it != repl_nodes.begin()) --repl_it;
+          if (curr_it != curr_nodes.begin()) --curr_it;
+
+          while(repl_it != repl_nodes.begin() && curr_it != curr_nodes.begin())
+          {
+            if((*repl_it) != (*curr_it)) //different node pointers..
+            {
+              ROS_WARN_STREAM((*repl_it)<<" != "<<(*curr_it));
+              break;
+            }
+
+            ROS_WARN_STREAM((*repl_it)<<" == "<<(*curr_it));
+
+            repl_it--;
+            curr_it--;
+
+            if(repl_it==repl_nodes.begin() || curr_it==curr_nodes.begin())
+            {
+              success = false;
+
+              if(display_replanning_success_)
+                ROS_BOLDWHITE_STREAM("Success updated to FALSE");
+            }
+          }
+        }
 
         if(success)
         {
@@ -572,6 +604,8 @@ void ReplannerManagerBase::replanningThread()
 
           t_ = scaling_*((ros::WallTime::now()-tic_trj_).toSec()+dt_); //0.0
           t_replan_ = t_+time_shift_;
+
+          time_last_replanning_ = ros::WallTime::now().toSec();
         }
 
         current_path_ = replanner_->getReplannedPath();

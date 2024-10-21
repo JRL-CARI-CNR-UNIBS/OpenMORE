@@ -76,6 +76,8 @@ protected:
   double obj_vel_                    ;
   double dt_move_                    ;
 
+  double time_last_replanning_ = 0;
+
   ros::WallTime tic_trj_;
 
   ReplannerBasePtr                          replanner_                   ;
