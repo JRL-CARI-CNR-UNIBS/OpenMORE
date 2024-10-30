@@ -516,11 +516,7 @@ void ReplannerManagerBase::replanningThread()
         startReplannedPathFromNewCurrentConf(current_conf);
         trj_mtx_.unlock();
 
-        ROS_INFO("QUAAAAAAAAAAAAAAAA");
-
         PathPtr trj_path = trjPath(replanner_->getReplannedPath());
-
-        ROS_INFO_STREAM(*trj_path);
 
         replanner_mtx_.lock();
         trj_mtx_.lock();
@@ -529,12 +525,7 @@ void ReplannerManagerBase::replanningThread()
 
         if(success)
         {
-          ROS_WARN_STREAM("curr path\n "<<*replanner_->getCurrentPath());
-          ROS_ERROR_STREAM("replanned path\n "<<*replanner_->getReplannedPath());
-
           trajectory_->setPath(trj_path);
-
-          //          ROS_INFO_STREAM("pnt: "<<pnt_);
 
           robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
 
@@ -543,32 +534,6 @@ void ReplannerManagerBase::replanningThread()
 
           interpolator_.setTrajectory(tmp_trj_msg)   ;
           interpolator_.setSplineOrder(spline_order_);
-
-          //          ROS_INFO_STREAM("trj next 1 sec:\n");
-          //          double tmp_t = 0;
-
-          //          while(tmp_t<0.3)
-          //          {
-          //            trajectory_msgs::JointTrajectoryPoint tmp_pnt;
-          //            interpolator_.interpolate(ros::Duration(tmp_t),tmp_pnt,scaling_);
-          //            tmp_t += 0.01;
-
-          //            std::string txt;
-          //            for(const double d: tmp_pnt.positions)
-          //              txt = txt+std::to_string(d)+" ";
-
-          //            txt = txt+"| ";
-
-          //            for(const double d: tmp_pnt.velocities)
-          //              txt = txt+std::to_string(d)+" ";
-
-          //            txt = txt+"| ";
-
-          //            for(const double d: tmp_pnt.accelerations)
-          //              txt = txt+std::to_string(d)+" ";
-
-          //            ROS_INFO_STREAM(txt);
-          //          }
 
           t_ = scaling_*((ros::WallTime::now()-tic_trj_).toSec()+dt_); //0.0
           t_replan_ = t_+time_shift_;
