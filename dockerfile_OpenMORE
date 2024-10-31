@@ -1,0 +1,40 @@
+FROM osrf/ros:noetic-desktop-full
+
+# Change the default shell to Bash
+SHELL [ "/bin/bash" , "-c" ]
+ 
+# Minimal setup
+RUN apt-get update && apt-get install -y 
+
+RUN sudo apt install git-all -y
+
+RUN sudo apt-get install python3-wstool -y
+
+RUN sudo apt-get install python3-rosdep -y
+
+RUN sudo apt-get install wget -y
+
+# Catkin tools
+RUN sudo sh \
+    -c 'echo "deb http://packages.ros.org/ros/ubuntu `lsb_release -sc` main" \
+        > /etc/apt/sources.list.d/ros-latest.list'
+RUN wget http://packages.ros.org/ros.key -O - | sudo apt-key add -
+RUN sudo apt-get update && sudo apt-get install python3-catkin-tools -y
+
+# OpenMORE
+RUN mkdir -p ./replanning_ws/src
+RUN cd ./replanning_ws && catkin init && wstool init src
+RUN cd ./replanning_ws && wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/OpenMORE/master/OpenMORE.rosinstall 
+RUN cd ./replanning_ws && wstool merge -t src ./OpenMORE.rosinstall
+RUN cd ./replanning_ws && wstool update -t src 
+RUN cd ./replanning_ws && rosdep install --from-paths src --ignore-src -r -y
+
+RUN sudo apt install ros-$ROS_DISTRO-trac-ik-kinematics-plugin -y
+RUN sudo apt install ros-$ROS_DISTRO-chomp-motion-planner -y
+RUN sudo apt install ros-$ROS_DISTRO-moveit-planners-chomp -y
+RUN sudo apt install ros-$ROS_DISTRO-pilz-industrial-motion-planner -y
+
+RUN source /opt/ros/${ROS_DISTRO}/setup.bash && cd ./replanning_ws && catkin build -cs
+RUN cd ./replanning_ws && source devel/setup.bash
+
+CMD source /opt/ros/${ROS_DISTRO}/setup.bash && source ./replanning_ws/devel/setup.bash && /bin/bash
