@@ -182,7 +182,11 @@ void ReplannerManagerBase::attributeInitialization()
   current_path_       ->setChecker(checker_replanning_);
   solver_             ->setChecker(checker_replanning_);
 
-  trajectory_ = std::make_shared<pathplan::Trajectory>(current_path_shared_,nh_,planning_scn_replanning_,group_name_);
+  PathPtr tmp_path = current_path_shared_->clone();
+  tmp_path->resample(0.01);
+  trajectory_ = std::make_shared<pathplan::Trajectory>(tmp_path,nh_,planning_scn_replanning_,group_name_);
+
+
   robot_trajectory::RobotTrajectoryPtr trj = trajectory_->fromPath2Trj();
 
   moveit_msgs::RobotTrajectory tmp_trj_msg   ;
@@ -261,7 +265,14 @@ void ReplannerManagerBase::subscribeTopicsAndServices()
   if(benchmark_)
     text_overlay_pub_ = nh_.advertise<jsk_rviz_plugins::OverlayText>("/rviz_text_overlay_replanner_bench",1);
 
-  plannning_scene_client_ = nh_.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
+  /*
+   * '/get_planning_scene' is continuously called by the collisionCheckThread.
+   *  Use a persistent connection to the server to improve performance
+   */
+  if(not ros::service::waitForService("/get_planning_scene",10))
+    throw std::runtime_error("server /get_planning_scene not available");
+
+  plannning_scene_client_ = nh_.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene",true); //persistent connection becuase it is called repeatedly
 
   if(not plannning_scene_client_.waitForExistence(ros::Duration(10)))
     throw std::runtime_error("unable to connect to /get_planning_scene");
@@ -1465,8 +1476,8 @@ PathPtr ReplannerManagerBase::trjPath(const PathPtr& path)
     trj_path->setConnections(conns);
 
   trj_path->removeNodes(1e-03);
-  trj_path->resample(max_distance/2.0);
   trj_path->simplify(0.05);
+  trj_path->resample(max_distance/10.0);
 
   return trj_path;
 }
