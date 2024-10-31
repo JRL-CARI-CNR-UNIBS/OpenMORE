@@ -1,11 +1,16 @@
-<div align="center">
-  <h1 align="center">OpenMORE</h1>
-  <h3 align="center">
-    Open-source MOtion REplanning library
-  </h3>
-</div>
+![](Documentation/logo_blue.png?raw=true)
 
-The repository contains a library of sampling-based path replanning algorithms. It develops a framework to manage robot's trajectory execution with continuous path replanning and collision checking of the current path. It is based on ROS and *MoveIt!* to get information about the environment and collision check. Check [this paper](https://ieeexplore.ieee.org/document/10013661?source=authoralert) for more information.
+The repository contains a library of sampling-based path replanning algorithms. It develops a framework to manage robot's trajectory execution with continuous path replanning and collision checking of the current path. It is based on ROS and *MoveIt!* to get information about the environment and collision check. Check [this paper](https://ieeexplore.ieee.org/abstract/document/10275365) for more information.
+
+<h1 align="center">🚧 Update in Progress! 🚧</h1>
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Updating-blue?style=for-the-badge&logo=github">
+</p>
+<p align="center">
+    We are currently significantly changing the organisation of the library and updating the documentation. Expect new changes in the coming weeks. Stay tuned!
+</p>
+
+
 ## Build/Installation
 The software can be installed using rosinstall files.
 
@@ -26,8 +31,8 @@ wstool init src
 Then, download and merge the rosinstall file:
 ```
 cd ~/replanning_ws
-wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/replanning_strategies/master/replanning_strategies.rosinstall
-wstool merge -t src ./replanning_strategies.rosinstall
+wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/OpenMORE/master/OpenMORE.rosinstall
+wstool merge -t src ./OpenMORE.rosinstall
 ```
 Download and install the packages specified in the rosinstall file and the other system dipendencies:
 ```
@@ -46,9 +51,9 @@ echo "source /home/$USER/replanning_ws/devel/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ```
 ### Docker
-A [docker file](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/dockerfile_open_more) is also available. Open a terminal, move into the folder where you have saved the docker file and run the following command:
+A [docker file](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/dockerfile_OpenMORE) is also available. Open a terminal, move into the folder where you have saved the docker file and run the following command:
 ```
-sudo docker build -f dockerfile_open_more -t open_more .
+sudo docker build -f dockerfile_OpenMORE -t openmore .
 ```
 Once completed, run the container:
 ```
@@ -59,7 +64,7 @@ sudo docker run -it --net=host --gpus all \
     --env="DISPLAY" \
     --env="QT_X11_NO_MITSHM=1" \
     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
-    open_more
+    openmore
 ```
 Then, inside the container you can try the library (see Quick examples below).
 
@@ -80,40 +85,42 @@ sudo apt install ros-$ROS_DISTRO-trac-ik-kinematics-plugin ros-$ROS_DISTRO-chomp
 ```
 
 ## Packages
-### **replanners_lib [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_lib)**
+### **replanners_lib [see README](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/replanners_lib)**
 It contains two main repository:
  1. **replanners**: contains the implementation of some sample-based replanning algorithms.
  2. **replanner_managers**: contains the implementation of a framework to manage the trajectory execution with continuous replanning for each of the available replanners.
 
  You can implement your replanning algorithm and integrate it into the framework.
 
-### **replanners_benchmark [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_benchmark)**
+### **replanners_benchmark [see README](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/replanners_benchmark)**
 It contains a node to benchmark the available replanners and useful *launch* files. You can configure your benchmark or add new tests.
 
-### **replanners_cells [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/blob/master/replanners_cells)**
+### **replanners_cells [see README](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/replanners_cells)**
 It contains the urdf and *moveit_config* packages of the environments used for benchmarking. You can add your scenario.
 
 ## Work in progress
-This repository is continuously evolving. If you find errors or if you have some suggestions, [please let us know](https://github.com/JRL-CARI-CNR-UNIBS/replanning_strategies/issues).
+This repository is a work in progress and is continuously evolving. As such, it is not free of bugs. Please be careful if you use it on real hardware and take all necessary precautions.
+If you find errors or if you have some suggestions, [please let us know](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/issues).
 
+We are actively seeking support for further development. If you're interested, please reach out via email at <mailto::c.tonola001@unibs.it>.
+
+Future works:
+1. ROS-free version and integration to ROS2
+2. Generalization of the scene-monitoring software (currently, Moveit)
+3. More documentation and tutorials
+   
 ## How to cite
 BibTex:
 ```
-@ARTICLE{Tonola2023,
-  author={Tonola, Cesare and Faroni, Marco and Beschi, Manuel and Pedrocchi, Nicola},
-  journal={IEEE Access}, 
-  title={Anytime Informed Multi-Path Replanning Strategy for Complex Environments}, 
+@INPROCEEDINGS{openmore,
+  author={Tonola, Cesare and Beschi, Manuel and Faroni, Marco and Pedrocchi, Nicola},
+  booktitle={2023 IEEE 28th International Conference on Emerging Technologies and Factory Automation (ETFA)}, 
+  title={{OpenMORE: an open-source tool for sampling-based path replanning in ROS}}, 
   year={2023},
-  volume={11},
+  volume={},
   number={},
-  pages={4105-4116},
-  doi={10.1109/ACCESS.2023.3235652}}
-  
-  
-@misc{open_more,
-  author = {Tonola, Cesare and Beschi, Manuel},
-  title = {{\textit{OpenMORE}: an Open-source MOtion REplanning library}},
-  url = {https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE}}
+  pages={1-4},
+  doi={10.1109/ETFA54631.2023.10275365}} 
 ```
 
 ## Developer Contact
@@ -122,7 +129,7 @@ BibTex:
 - Manuel Beschi (<mailto::manuel.beschi@unibs.it>)
 
 ## Acknowledgements
-**replanning_strategies** is developed by [CNR-STIIMA](http://www.stiima.cnr.it/) and [University of Brescia](https://www.unibs.it/en).
+**OpenMORE** is developed by [CNR-STIIMA](http://www.stiima.cnr.it/) and [University of Brescia](https://www.unibs.it/en).
 
 ***
 
