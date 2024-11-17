@@ -1,9 +1,12 @@
 [submodule "replanners_managers_lib"]
 	path = replanners_managers_lib
 	url = https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib.git
+	branch = master
 [submodule "replanners_lib"]
 	path = replanners_lib
 	url = https://github.com/JRL-CARI-CNR-UNIBS/replanners_lib.git
+	branch = master
 [submodule "trajectories_processors_lib"]
 	path = trajectories_processors_lib
 	url = https://github.com/JRL-CARI-CNR-UNIBS/trajectories_processors_lib.git
+	branch = master
