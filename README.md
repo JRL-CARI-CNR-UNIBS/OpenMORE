@@ -1,7 +1,9 @@
 ![](Documentation/logo_blue.png?raw=true)
 
-The repository contains a library of sampling-based path replanning algorithms. It develops a framework to manage robot's trajectory execution with online path replanning. It is based on ROS and MoveIt to get information about the environment and collision checking. Check [this paper](https://ieeexplore.ieee.org/abstract/document/10275365) for more information.
+## Introduction
+**OpenMORE** contains a library of sampling-based path replanning algorithms. It develops a framework to manage robot's trajectory execution with online path replanning. It is based on ROS and [MoveIt](https://moveit.github.io/moveit_tutorials/) to get information about the environment and collision checking. Check [this paper](https://ieeexplore.ieee.org/abstract/document/10275365) for more information.
 
+## Status
 <h1 align="center">🚧 Update in Progress! 🚧</h1>
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Updating-blue?style=for-the-badge&logo=github">
@@ -12,7 +14,7 @@ The repository contains a library of sampling-based path replanning algorithms. 
 
 
 ## Build & Install
-While many packages are ROS-independent, some require compilation within a ROS workspace (e.g.,[`replanners_managers_lib`](https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib)). This tutorial assumes that OpenMORE and all its dependencies are installed within the same workspace.
+While some `OpenMORE`'s packages are ROS-independent, others require compilation within a ROS workspace (e.g.,[`replanners_managers_lib`](https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib)). This tutorial assumes that OpenMORE and all its dependencies are installed within the same workspace.
 
 First, install some utility packages following the steps indicated at [this page](https://github.com/JRL-CARI-CNR-UNIBS/cnr_common). These packages provides functionalities for logging, read/write parameters and loading plugins.
 
@@ -52,38 +54,29 @@ sudo docker run -it --net=host --gpus all \
     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
     openmore
 ```
-Then, inside the container you can try the library (see Quick examples below).
+Then, inside the container you can try the library.
 
-<!-- ## Quick examples
-If you want to take a look at how the library works, you can run these two quick examples in which the robot follows a trajectory and replans it when a random object obstructs its path. The simulation is repeated with different replanning algorithms, with different performance in the two following scenarios.
+## Packages Overview
+OpenMORE is organized into three core packages, each with a distinct role:
 
-To use a Cartesian point robot, launch:
-```
-roslaunch replanners_lib quick_example_3d.launch
-```
-To use a 6 dof anthropomorphic robot, launch:
-```
-roslaunch replanners_lib quick_example_6d.launch
-```
-Note: when launching the examples you may get errors due to the lack of some libraries (e.g. trac-ik). They aren't needed for these examples, but you can install them with the following commands
-```
-sudo apt install ros-$ROS_DISTRO-trac-ik-kinematics-plugin ros-$ROS_DISTRO-chomp-motion-planner ros-$ROS_DISTRO-moveit-planners-chomp \ros-$ROS_DISTRO-pilz-industrial-motion-planner
-``` -->
+1. **[replanners_lib](https://github.com/JRL-CARI-CNR-UNIBS/replanners_lib)**: Implements various sampling-based path replanning algorithms for dynamic path replanning.
 
-## Packages
-OpenMORE consists of three packages:
- 1. **replanners_lib [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanners_lib)**: contains the implementation of some sampling-based path replanning algorithms;
- 2. **replanners_managers_lib [see README](https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib)**: provides an architecture to run path replanning algorithms during the robot trajectory execution;
- 3. **trajectories_processors_lib [see README](https://github.com/JRL-CARI-CNR-UNIBS/trajectories_processors_lib)**: provides an interface to compute a trajectory on a given path.
+2. **[replanners_managers_lib](https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib)**: Provides a framework for managing and executing path replanning algorithms in real-time during robot trajectory execution.
 
-<!-- ### **replanners_benchmark [see README](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/replanners_benchmark)**
-It contains a node to benchmark the available replanners and useful *launch* files. You can configure your benchmark or add new tests.
+3. **[trajectories_processors_lib](https://github.com/JRL-CARI-CNR-UNIBS/trajectories_processors_lib)**: Provides and interface to convert paths into trajectories and for trajectory interpolation.
 
-### **replanners_cells [see README](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/replanners_cells)**
-It contains the urdf and *moveit_config* packages of the environments used for benchmarking. You can add your scenario. -->
+## Tutorials
+To get started with OpenMORE, refer to the following resources:
+
+- **[Replanners Tutorials](https://github.com/JRL-CARI-CNR-UNIBS/replanners_lib/blob/master/README.md)**: Learn how to use and implement new path replanners.
+- **[Replanner Managers Tutorials](https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib/blob/master/README.md)**: Explore how to create and manage replanner architectures.
+
+Additionally, the **[`openmore_ros_examples`](https://github.com/JRL-CARI-CNR-UNIBS/openmore_ros_examples)** repository provides practical examples of using OpenMORE exploiting MoveIt for managing the planning scene.
 
 ## Work in progress
-This repository is a work in progress and is continuously evolving. As such, it is not free of bugs. Please be careful if you use it on real hardware and take all necessary precautions.
+This repository is a work in progress and is continuously evolving. As such, it is not free of bugs.
+ **Please be careful if you use it on real hardware and ensure all necessary safety measures are in place**.
+
 If you find errors or if you have some suggestions, [please let us know](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/issues).
 
 We are actively seeking support for further development. If you're interested, please reach out via email at <mailto::c.tonola001@unibs.it>.
@@ -116,7 +109,7 @@ BibTex:
 - Manuel Beschi (<mailto::manuel.beschi@unibs.it>)
 
 ## Acknowledgements
-**OpenMORE** is developed within [CNR-STIIMA](http://www.stiima.cnr.it/) and [University of Brescia](https://www.unibs.it/en).
+**OpenMORE** is developed with [CNR-STIIMA](http://www.stiima.cnr.it/) and [University of Brescia](https://www.unibs.it/en).
 
 ***
 
