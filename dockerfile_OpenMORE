@@ -5,14 +5,31 @@ SHELL [ "/bin/bash" , "-c" ]
  
 # Minimal setup
 RUN apt-get update && apt-get install -y 
-
 RUN sudo apt install git-all -y
-
 RUN sudo apt-get install python3-wstool -y
-
 RUN sudo apt-get install python3-rosdep -y
-
 RUN sudo apt-get install wget -y
+
+#cnr_common
+RUN mkdir -p ./cnr_common_ws/src && cd cnr_common/src
+RUN git clone --recurse-submodules https://github.com/JRL-CARI-CNR-UNIBS/cnr_common.git
+RUN cd cnr_common_ws && git submodule update --init --recursive
+RUN . update_submodules.sh
+RUN sudo apt update && sudo apt -y install libboost-all-dev libeigen3-dev libyaml-cpp-dev libpoco-dev liblog4cxx-dev libgtest-dev
+
+RUN echo 'export CNR_COMMON_WS_INSTALL_FOLDER="$HOME/cnr_common_ws/install"' >> ~/source_env_variables && \
+    echo 'if [[ ":$PATH:" != *":$CNR_COMMON_WS_INSTALL_FOLDER/bin:"* ]]; then' >> ~/source_env_variables && \
+    echo '    export PATH="$CNR_COMMON_WS_INSTALL_FOLDER/bin:$PATH"' >> ~/source_env_variables && \
+    echo 'fi' >> ~/source_env_variables && \
+    echo 'if [[ ":$LD_LIBRARY_PATH:" != *":$CNR_COMMON_WS_INSTALL_FOLDER/lib:"* ]]; then' >> ~/source_env_variables && \
+    echo '    export LD_LIBRARY_PATH="$CNR_COMMON_WS_INSTALL_FOLDER/lib:$LD_LIBRARY_PATH"' >> ~/source_env_variables && \
+    echo 'fi' >> ~/source_env_variables && \
+    echo 'if [[ ":$CMAKE_PREFIX_PATH:" != *":$CNR_COMMON_WS_INSTALL_FOLDER:"* ]]; then' >> ~/source_env_variables && \
+    echo '    export CMAKE_PREFIX_PATH="$CNR_COMMON_WS_INSTALL_FOLDER:$CMAKE_PREFIX_PATH"' >> ~/source_env_variables && \
+    echo 'fi' >> ~/source_env_variables && \
+    echo 'export CNR_PARAM_ROOT_DIRECTORY="/tmp/cnr_param"'>> ~/source_env_variables 
+
+RUN source ~/source_env_variables && cd ~
 
 # Catkin tools
 RUN sudo sh \
@@ -22,19 +39,22 @@ RUN wget http://packages.ros.org/ros.key -O - | sudo apt-key add -
 RUN sudo apt-get update && sudo apt-get install python3-catkin-tools -y
 
 # OpenMORE
-RUN mkdir -p ./replanning_ws/src
-RUN cd ./replanning_ws && catkin init && wstool init src
-RUN cd ./replanning_ws && wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/OpenMORE/master/OpenMORE.rosinstall 
-RUN cd ./replanning_ws && wstool merge -t src ./OpenMORE.rosinstall
-RUN cd ./replanning_ws && wstool update -t src 
-RUN cd ./replanning_ws && rosdep install --from-paths src --ignore-src -r -y
+RUN mkdir -p ./openmore_ws/src
+RUN cd ./openmore_ws && catkin init && catkin config --install && wstool init src
+RUN cd ./openmore_ws && wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/OpenMORE/master/OpenMORE.rosinstall 
+RUN cd ./openmore_ws && wstool merge -t src ./OpenMORE.rosinstall
+RUN cd ./openmore_ws && wstool update -t src 
+RUN cd ./openmore_ws && rosdep install --from-paths src --ignore-src -r -y
 
 RUN sudo apt install ros-$ROS_DISTRO-trac-ik-kinematics-plugin -y
 RUN sudo apt install ros-$ROS_DISTRO-chomp-motion-planner -y
 RUN sudo apt install ros-$ROS_DISTRO-moveit-planners-chomp -y
 RUN sudo apt install ros-$ROS_DISTRO-pilz-industrial-motion-planner -y
 
-RUN source /opt/ros/${ROS_DISTRO}/setup.bash && cd ./replanning_ws && catkin build -cs
-RUN cd ./replanning_ws && source devel/setup.bash
+RUN source /opt/ros/$ROS_DISTRO/setup.bash && cd ./openmore_ws && catkin build -cs
+RUN cd ./openmore_ws && source devel/setup.bash
 
-CMD source /opt/ros/${ROS_DISTRO}/setup.bash && source ./replanning_ws/devel/setup.bash && /bin/bash
+RUN echo 'source /opt/ros/$ROS_DISTRO/setup.bash' >> ~/source_env_variables && \
+    echo 'source source /openmore_ws/devel/setup.bash' >> ~/source_env_variables
+
+CMD source ~/source_env_variables && /bin/bash
