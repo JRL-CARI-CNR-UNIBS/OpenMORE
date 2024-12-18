@@ -14,7 +14,7 @@
 
 
 ## Build & Install
-While some `OpenMORE`'s packages are ROS-independent, others require compilation within a ROS workspace (e.g.,[`replanners_managers_lib`](https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib)). This tutorial assumes that OpenMORE and all its dependencies are installed within the same workspace.
+While some `OpenMORE`'s packages are ROS-independent, others require compilation within a ROS workspace (e.g.,[`replanners_managers_lib`](https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib)). This tutorial assumes that `OpenMORE` and all its dependencies are installed within the same workspace.
 
 First, install some utility packages following the steps indicated at [this page](https://github.com/JRL-CARI-CNR-UNIBS/cnr_common). These packages provides functionalities for logging, read/write parameters and loading plugins.
 
