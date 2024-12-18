@@ -25,7 +25,7 @@ cd ~/openmore_ws
 catkin init && catkin config --install
 wstool init src
 ```
-Download OpenMORE and its dependencies:
+Download `OpenMORE` and its dependencies:
 ```bash
 cd ~/openmore_ws
 wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/OpenMORE/master/OpenMORE.rosinstall
@@ -57,7 +57,7 @@ sudo docker run -it --net=host --gpus all \
 Then, inside the container you can try the library.
 
 ## Packages Overview
-OpenMORE is organized into three core packages, each with a distinct role:
+`OpenMORE` is organized into three core packages, each with a distinct role:
 
 1. **[replanners_lib](https://github.com/JRL-CARI-CNR-UNIBS/replanners_lib)**: Implements various sampling-based path replanning algorithms for dynamic path replanning.
 
@@ -71,7 +71,7 @@ To get started with OpenMORE, refer to the following resources:
 - **[Replanners Tutorials](https://github.com/JRL-CARI-CNR-UNIBS/replanners_lib/blob/master/README.md)**: Learn how to use and implement new path replanners.
 - **[Replanner Managers Tutorials](https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib/blob/master/README.md)**: Explore how to create and manage replanner architectures.
 
-Additionally, the **[`openmore_ros_examples`](https://github.com/JRL-CARI-CNR-UNIBS/openmore_ros_examples)** repository provides practical examples of using OpenMORE exploiting MoveIt for managing the planning scene.
+Additionally, the **[`openmore_ros_examples`](https://github.com/JRL-CARI-CNR-UNIBS/openmore_ros_examples)** repository provides practical examples of using `OpenMORE` exploiting MoveIt for managing the planning scene.
 
 ## Work in progress
 This repository is a work in progress and is continuously evolving. As such, it is not free of bugs.
