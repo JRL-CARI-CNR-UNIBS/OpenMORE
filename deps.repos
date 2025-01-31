@@ -1,8 +1,8 @@
 repositories:
   cnr_common:
-  type: git
-  url: https://github.com/JRL-CARI-CNR-UNIBS/cnr_common
-  version: master
+    type: git
+    url: https://github.com/JRL-CARI-CNR-UNIBS/cnr_common
+    version: master
 
   graph_core:
     type: git
