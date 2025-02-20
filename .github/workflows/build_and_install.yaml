@@ -1,0 +1,72 @@
+name: build
+
+on:
+  push:
+    branches:
+      - master
+      - devel
+      - pull_req
+  pull_request:
+    branches:
+      - master
+      - devel
+      - pull_req
+  schedule:
+    - cron: '0 8 * * *'
+
+jobs:
+  install-and-run:
+    runs-on: ubuntu-20.04
+    container:
+      image: ros:noetic
+
+    steps:
+      - name: Install dependencies
+        shell: bash
+        run: |
+          sudo apt update
+          sudo apt install -y git libboost-all-dev libeigen3-dev libyaml-cpp-dev libpoco-dev liblog4cxx-dev libgtest-dev python3-vcstool python3-catkin-tools python3-rosdep
+
+      - name: Setup Catkin Workspace
+        shell: bash
+        run: |
+          echo "Setting up ROS environment"
+          source /opt/ros/noetic/setup.bash
+
+          WORKSPACE_DIR=$(pwd)/openmore_ws
+          echo "WORKSPACE_DIR=$(pwd)/openmore_ws" >> "$GITHUB_ENV"
+
+          echo "Setting up Catkin workspace at $WORKSPACE_DIR"
+          mkdir -p $WORKSPACE_DIR/src
+          cd $WORKSPACE_DIR
+
+          catkin init
+          catkin config --extend /opt/ros/noetic
+          catkin config --install
+
+          ls -la
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: "${{env.WORKSPACE_DIR }}/src/OpenMORE"
+
+      - name: Download deps with vcstool
+        shell: bash
+        run: |
+          cd ${{env.WORKSPACE_DIR }}/src/OpenMORE
+          . update_submodules.sh
+          cd ${{env.WORKSPACE_DIR }}/src
+          vcs import < OpenMORE/deps.repos
+          cd ${{env.WORKSPACE_DIR }}
+          echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
+          sudo apt-get install -y -q
+          rosdep update
+          rosdep install --from-paths src --ignore-src -r -y
+
+      - name: Build & Install replanners_managers_lib in Catkin Workspace
+        shell: bash
+        run: |
+          cd ${{env.WORKSPACE_DIR }}
+          catkin build -cs
+          source install/setup.bash

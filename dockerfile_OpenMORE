@@ -25,12 +25,16 @@ RUN mkdir src
 # Initialize Catkin workspace
 RUN catkin init 
 RUN catkin config --install
+RUN catkin config --extend /opt/ros/$ROS_DISTRO
 
 # Clone dependencies using vcs
+RUN cd src
+RUN git clone --recurse-submodules https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE.git -b devel
 RUN curl -o /openmore_ws/src/deps.repos https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/OpenMORE/devel/deps.repos
 RUN vcs import src < /openmore_ws/src/deps.repos --recursive
 
 # Install dependencies with rosdep
+RUN cd ..
 RUN rosdep install --from-paths src --ignore-src -r -y
 
 # Install additional ROS dependencies

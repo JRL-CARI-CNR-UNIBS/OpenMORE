@@ -1,0 +1,48 @@
+name: clang-format
+
+on:
+  push:
+    branches:
+      - master
+      - devel
+      - pull_req
+  pull_request:
+    branches:
+      - master
+      - devel
+      - pull_req
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Clang Format
+        run: sudo apt-get update && sudo apt-get install -y clang-format
+
+      - name: Check formatting
+        run: |
+          clang-format --version
+          FILES=$(find . -type f \( -name "*.cpp" -o -name "*.h" \))
+
+          CLANG_FORMAT_FILE=".clang-format"
+          if [ ! -f "$CLANG_FORMAT_FILE" ]; then
+            echo "Error: .clang-format file not found in the repository root."
+            exit 1
+          fi
+
+          echo "Using .clang-format from: $(realpath "$CLANG_FORMAT_FILE")"
+
+          for FILE in $FILES; do
+            echo "Checking $FILE..."
+            clang-format --style=file --assume-filename="$CLANG_FORMAT_FILE" -n $FILE #show where the issues are
+            clang-format --Werror --style=file --assume-filename="$CLANG_FORMAT_FILE" -n $FILE #throw the error
+          done
+
+          echo "All files are correctly formatted."
+
+        shell: bash
+
