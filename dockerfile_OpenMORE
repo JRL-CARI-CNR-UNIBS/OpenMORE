@@ -1,49 +1,39 @@
 FROM osrf/ros:noetic-desktop-full
 
-# Change the default shell to Bash
 SHELL [ "/bin/bash" , "-c" ]
 
-# Minimal setup
 RUN apt-get update && apt-get install -y \
     git-all \
     python3-vcstool \
     python3-rosdep \
     wget \
-    sudo
+    curl \
+    python3-catkin-tools 
 
-# Catkin tools
-RUN sudo sh \
-    -c 'echo "deb http://packages.ros.org/ros/ubuntu `lsb_release -sc` main" \
-        > /etc/apt/sources.list.d/ros-latest.list'
-RUN wget http://packages.ros.org/ros.key -O - | sudo apt-key add -
-RUN sudo apt-get update && sudo apt-get install python3-catkin-tools curl -y
+RUN echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list && \
+    wget http://packages.ros.org/ros.key -O - | apt-key add - && \
+    apt-get update
 
-# OpenMORE
-WORKDIR openmore_ws 
-RUN mkdir src
+WORKDIR /root/openmore_ws
+RUN mkdir -p src && catkin init && \
+    catkin config --install && \
+    catkin config --extend /opt/ros/$ROS_DISTRO
 
-# Initialize Catkin workspace
-RUN catkin init 
-RUN catkin config --install
-RUN catkin config --extend /opt/ros/$ROS_DISTRO
-
-# Clone dependencies using vcs
-RUN cd src
+WORKDIR /root/openmore_ws/src
 RUN git clone --recurse-submodules https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE.git -b devel
-RUN curl -o /openmore_ws/src/deps.repos https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/OpenMORE/devel/deps.repos
-RUN vcs import src < /openmore_ws/src/deps.repos --recursive
+WORKDIR /root/openmore_ws
+RUN vcs import src < src/OpenMORE/deps.repos --recursive
 
-# Install dependencies with rosdep
-RUN cd ..
-RUN rosdep install --from-paths src --ignore-src -r -y
+RUN rosdep update && \
+    rosdep install --from-paths src --ignore-src -r -y
 
-# Install additional ROS dependencies
-RUN sudo apt install ros-$ROS_DISTRO-trac-ik-kinematics-plugin -y
-RUN sudo apt install ros-$ROS_DISTRO-chomp-motion-planner -y
-RUN sudo apt install ros-$ROS_DISTRO-moveit-planners-chomp -y
-RUN sudo apt install ros-$ROS_DISTRO-pilz-industrial-motion-planner -y
+RUN apt-get install -y \
+    ros-$ROS_DISTRO-trac-ik-kinematics-plugin \
+    ros-$ROS_DISTRO-chomp-motion-planner \
+    ros-$ROS_DISTRO-moveit-planners-chomp \
+    ros-$ROS_DISTRO-pilz-industrial-motion-planner \
+    && rm -rf /var/lib/apt/lists/*
 
-# Build workspace
-RUN source /opt/ros/$ROS_DISTRO/setup.bash && catkin build -cs --verbose
+RUN source /opt/ros/$ROS_DISTRO/setup.bash && catkin build --verbose
 
-CMD source ~/source_env_variables && /bin/bash
+CMD ["/bin/bash"]
