@@ -36,4 +36,5 @@ RUN apt-get install -y \
 
 RUN source /opt/ros/$ROS_DISTRO/setup.bash && catkin build --verbose
 
+ENV CNR_PARAM_ROOT_DIRECTORY="/tmp/cnr_param"
 CMD ["/bin/bash"]

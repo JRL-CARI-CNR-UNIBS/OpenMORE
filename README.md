@@ -1,43 +1,64 @@
 ![](documentation/logo_blue.png?raw=true)
 
 ## Introduction
-**OpenMORE** contains a library of sampling-based path replanning algorithms. It develops a framework to manage robot's trajectory execution with online path replanning. It is based on ROS and [MoveIt](https://moveit.github.io/moveit_tutorials/) to get information about the environment and collision checking. Check [this paper](https://ieeexplore.ieee.org/abstract/document/10275365) for more information.
+**OpenMORE** is a library that provides a framework for managing robot's trajectory execution with online path replanning. It also includes several state-of-the-art sampling-based path replanning algorithms.
+The goal of `OpenMORE` is to provide an efficient and flexible tool that simplifies the use of existing path replanning algorithms while also enabling the development and testing of new ones.
 
-## Status
-<h1 align="center">🚧 Update in Progress! 🚧</h1>
-<p align="center">
-  <img src="https://img.shields.io/badge/Status-Updating-blue?style=for-the-badge&logo=github">
-</p>
-<p align="center">
-    We are currently significantly changing the organisation of the library and updating the documentation. Expect new changes in the coming weeks. Stay tuned!
-</p>
+Check [this paper](https://ieeexplore.ieee.org/abstract/document/10275365) for more information.
 
+`OpenMORE` is based on ROS and [MoveIt](https://moveit.github.io/moveit_tutorials/) to get information about the environment and collision checking. Currently, it supports Ubuntu 20.04 with ROS Noetic. We are actively working on extending compatibility to ROS 2 Humble.
+
+## Concepts
+
+At its core, `OpenMORE` is built around three key packages:
+
+- [`replanners_lib`](https://github.com/JRL-CARI-CNR-UNIBS/replanners_lib): A library implementing state-of-the-art sampling-based path replanning algorithms.
+- [`replanners_managers_lib`](https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib): Provides the framework for executing robot trajectories with real-time path replanning.
+- [`trajectories_processors_lib`](https://github.com/JRL-CARI-CNR-UNIBS/trajectories_processors_lib): Handles path time-parameterization and trajectory interpolation.
+
+For detailed information on each package, refer to the official documentation.
 
 ## Build & Install
 While some `OpenMORE`'s packages are ROS-independent, others require compilation within a ROS workspace (e.g.,[`replanners_managers_lib`](https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib)). This tutorial assumes that `OpenMORE` and all its dependencies are installed within the same workspace.
 
-First, install some utility packages following the steps indicated at [this page](https://github.com/JRL-CARI-CNR-UNIBS/cnr_common). These packages provides functionalities for logging, read/write parameters and loading plugins.
+Before proceeding, ensure you have the necessary dependencies installed. You can use the provided [deps.repos(https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/devel/deps.repos)] file and [vcstool](https://github.com/dirk-thomas/vcstool). Follow these instructions:
 
-Create your workspace:
+1. Install vcstool:
+```bash
+sudo apt install python3-vcstool
+```
+
+2. Set up a catkin workspace:
 ```bash
 mkdir -p ~/openmore_ws/src
 cd ~/openmore_ws
-catkin init && catkin config --install
-wstool init src
+catkin init 
+catkin config --extend /opt/ros/$ROS_DISTRO
 ```
-Download `OpenMORE` and its dependencies:
+
+3. Clone `OpenMORE` and its dependencies:
 ```bash
 cd ~/openmore_ws
-wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/OpenMORE/master/OpenMORE.rosinstall
-wstool merge -t src ./OpenMORE.rosinstall
-wstool update -t src
+git clone --recurse-submodules https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE.git
+vcs import src < src/OpenMORE/deps.repos
 rosdep install --from-paths src --ignore-src -r -y
 ```
-Finally, compile the workspace:
+
+4. Finally, build the workspace:
 ```bash
+cd ~/openmore_ws
 catkin build -cs
 source devel/setup.bash
 ```
+
+Note that dependency `cnr_param` requires the environment variable `CNR_PARAM_ROOT_DIRECTORY` to be defined. For example, you can define it in the `~/.bashrc` file as follows:
+
+```bash
+export CNR_PARAM_ROOT_DIRECTORY="/tmp/cnr_param"
+```
+
+This is the folder used by `cnr_param` to save parameters. See the dedicated [GitHub page](https://github.com/CNR-STIIMA-IRAS/cnr_param) for more information.
+
 ### Docker
 A [docker file](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/dockerfile_OpenMORE) is also available. Open a terminal, move into the folder where you have saved the docker file and run the following command:
 ```
