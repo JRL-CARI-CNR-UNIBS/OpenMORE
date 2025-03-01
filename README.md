@@ -10,11 +10,11 @@ Check [this paper](https://ieeexplore.ieee.org/abstract/document/10275365) for m
 
 ## Concepts
 
-At its core, `OpenMORE` is built around three key packages:
+At its core, `OpenMORE` is organized into three key packages:
 
 - [`replanners_lib`](https://github.com/JRL-CARI-CNR-UNIBS/replanners_lib): A library implementing state-of-the-art sampling-based path replanning algorithms.
 - [`replanners_managers_lib`](https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib): Provides the framework for executing robot trajectories with real-time path replanning.
-- [`trajectories_processors_lib`](https://github.com/JRL-CARI-CNR-UNIBS/trajectories_processors_lib): Handles path time-parameterization and trajectory interpolation.
+- [`trajectories_processors_lib`](https://github.com/JRL-CARI-CNR-UNIBS/trajectories_processors_lib): Provides and interface to convert paths into trajectories and for trajectory interpolation.
 
 For detailed information on each package, refer to the official documentation.
 
@@ -76,15 +76,6 @@ sudo docker run -it --net=host --gpus all \
     openmore
 ```
 Then, inside the container you can try the library.
-
-## Packages Overview
-`OpenMORE` is organized into three core packages, each with a distinct role:
-
-1. **[replanners_lib](https://github.com/JRL-CARI-CNR-UNIBS/replanners_lib)**: Implements various sampling-based path replanning algorithms for dynamic path replanning.
-
-2. **[replanners_managers_lib](https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib)**: Provides a framework for managing and executing path replanning algorithms in real-time during robot trajectory execution.
-
-3. **[trajectories_processors_lib](https://github.com/JRL-CARI-CNR-UNIBS/trajectories_processors_lib)**: Provides and interface to convert paths into trajectories and for trajectory interpolation.
 
 ## Tutorials
 To get started with OpenMORE, refer to the following resources:
