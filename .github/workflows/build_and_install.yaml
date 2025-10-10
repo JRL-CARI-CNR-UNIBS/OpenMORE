@@ -10,11 +10,9 @@ on:
 
 jobs:
   install-and-run:
-    runs-on: ubuntu-latest         
+    runs-on: ubuntu-latest
     container:
-      image: ros:noetic      
-      env:
-        DEBIAN_FRONTEND: noninteractive
+      image: osrf/ros:noetic-desktop-full
 
     steps:
       - name: Install dependencies (apt)
@@ -25,7 +23,6 @@ jobs:
             git libboost-all-dev libeigen3-dev libyaml-cpp-dev libpoco-dev \
             liblog4cxx-dev libgtest-dev python3-vcstool python3-catkin-tools \
             python3-rosdep
-          # rosdep spesso non è inizializzato nel container base
           rosdep init || true
           rosdep update
 
