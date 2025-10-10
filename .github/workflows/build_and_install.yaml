@@ -54,7 +54,11 @@ jobs:
           cd "${{ env.WORKSPACE_DIR }}/src"
           vcs import < OpenMORE/deps.repos
           cd "${{ env.WORKSPACE_DIR }}"
-          rosdep update
+          
+          if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then
+            rosdep init
+          fi
+          rosdep update --rosdistro noetic
           rosdep install --from-paths src --ignore-src -r -y
 
       - name: Build & Install replanners_managers_lib in Catkin Workspace
