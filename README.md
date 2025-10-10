@@ -21,7 +21,7 @@ For detailed information on each package, refer to the official documentation.
 ## Build & Install
 While some `OpenMORE`'s packages are ROS-independent, others require compilation within a ROS workspace (e.g.,[`replanners_managers_lib`](https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib)). This tutorial assumes that `OpenMORE` and all its dependencies are installed within the same workspace.
 
-Before proceeding, ensure you have the necessary dependencies installed. You can use the provided [deps.repos(https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/devel/deps.repos)] file and [vcstool](https://github.com/dirk-thomas/vcstool). Follow these instructions:
+Before proceeding, ensure you have the necessary dependencies installed. You can use the provided [deps.repos](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/devel/deps.repos) file and [vcstool](https://github.com/dirk-thomas/vcstool). Follow these instructions:
 
 1. Install vcstool:
 ```bash
