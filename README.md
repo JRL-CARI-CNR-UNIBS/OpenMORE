@@ -38,10 +38,10 @@ catkin config --extend /opt/ros/$ROS_DISTRO
 
 3. Clone `OpenMORE` and its dependencies:
 ```bash
-cd ~/openmore_ws
+cd ~/openmore_ws/src
 git clone --recurse-submodules https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE.git
-vcs import src < src/OpenMORE/deps.repos
-rosdep install --from-paths src --ignore-src -r -y
+vcs import < OpenMORE/deps.repos
+rosdep install --from-paths . --ignore-src -r -y
 ```
 
 4. Finally, build the workspace:
