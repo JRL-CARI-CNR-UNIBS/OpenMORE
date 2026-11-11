@@ -1,4 +1,4 @@
-FROM osrf/ros:noetic-desktop-full
+FROM osrf/ros:jazzy-desktop-full
 
 SHELL [ "/bin/bash" , "-c" ]
 
@@ -6,35 +6,19 @@ RUN apt-get update && apt-get install -y \
     git-all \
     python3-vcstool \
     python3-rosdep \
+    python3-colcon-common-extensions \
     wget \
-    curl \
-    python3-catkin-tools 
-
-RUN echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list && \
-    wget http://packages.ros.org/ros.key -O - | apt-key add - && \
-    apt-get update
-
-WORKDIR /root/openmore_ws
-RUN mkdir -p src && catkin init && \
-    catkin config --install && \
-    catkin config --extend /opt/ros/$ROS_DISTRO
+    curl
 
 WORKDIR /root/openmore_ws/src
-RUN git clone --recurse-submodules https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE.git -b devel
+RUN git clone --recurse-submodules https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE.git -b ros2
 WORKDIR /root/openmore_ws
 RUN vcs import src < src/OpenMORE/deps.repos --recursive
 
 RUN rosdep update && \
-    rosdep install --from-paths src --ignore-src -r -y
-
-RUN apt-get install -y \
-    ros-$ROS_DISTRO-trac-ik-kinematics-plugin \
-    ros-$ROS_DISTRO-chomp-motion-planner \
-    ros-$ROS_DISTRO-moveit-planners-chomp \
-    ros-$ROS_DISTRO-pilz-industrial-motion-planner \
+    rosdep install --from-paths src --ignore-src -r -y \
     && rm -rf /var/lib/apt/lists/*
 
-RUN source /opt/ros/$ROS_DISTRO/setup.bash && catkin build --verbose
+RUN source /opt/ros/$ROS_DISTRO/setup.bash && colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 
-ENV CNR_PARAM_ROOT_DIRECTORY="/tmp/cnr_param"
 CMD ["/bin/bash"]

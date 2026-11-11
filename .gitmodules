@@ -1,7 +1,7 @@
 [submodule "replanners_managers_lib"]
 	path = replanners_managers_lib
 	url = https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib.git
-	branch = master
+	branch = ros2
 [submodule "replanners_lib"]
 	path = replanners_lib
 	url = https://github.com/JRL-CARI-CNR-UNIBS/replanners_lib.git

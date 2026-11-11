@@ -6,7 +6,7 @@ The goal of `OpenMORE` is to provide an efficient and flexible tool that simplif
 
 Check [this paper](https://ieeexplore.ieee.org/abstract/document/10275365) for more information.
 
-`OpenMORE` is based on ROS and [MoveIt](https://moveit.github.io/moveit_tutorials/) to get information about the environment and collision checking. Currently, it supports Ubuntu 20.04 with ROS Noetic. We are actively working on extending compatibility to ROS 2 Humble.
+`OpenMORE` is based on ROS and [MoveIt](https://moveit.github.io/moveit_tutorials/) to get information about the environment and collision checking. This branch targets ROS 2 (Ubuntu 24.04, Jazzy); the `master` branch targets Ubuntu 20.04 with ROS Noetic.
 
 ## Concepts
 
@@ -21,25 +21,24 @@ For detailed information on each package, refer to the official documentation.
 ## Build & Install
 While some `OpenMORE`'s packages are ROS-independent, others require compilation within a ROS workspace (e.g.,[`replanners_managers_lib`](https://github.com/JRL-CARI-CNR-UNIBS/replanners_managers_lib)). This tutorial assumes that `OpenMORE` and all its dependencies are installed within the same workspace.
 
-Before proceeding, ensure you have the necessary dependencies installed. You can use the provided [deps.repos](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/devel/deps.repos) file and [vcstool](https://github.com/dirk-thomas/vcstool). Follow these instructions:
+Before proceeding, ensure you have the necessary dependencies installed. You can use the provided [deps.repos](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/ros2/deps.repos) file and [vcstool](https://github.com/dirk-thomas/vcstool). Follow these instructions:
 
 1. Install vcstool:
 ```bash
 sudo apt install python3-vcstool
 ```
 
-2. Set up a catkin workspace:
+2. Set up a workspace:
 ```bash
 mkdir -p ~/openmore_ws/src
 cd ~/openmore_ws
-catkin init 
-catkin config --extend /opt/ros/$ROS_DISTRO
+source /opt/ros/$ROS_DISTRO/setup.bash
 ```
 
 3. Clone `OpenMORE` and its dependencies:
 ```bash
 cd ~/openmore_ws/src
-git clone --recurse-submodules https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE.git
+git clone --recurse-submodules -b ros2 https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE.git
 vcs import < OpenMORE/deps.repos
 rosdep install --from-paths . --ignore-src -r -y
 ```
@@ -47,17 +46,11 @@ rosdep install --from-paths . --ignore-src -r -y
 4. Finally, build the workspace:
 ```bash
 cd ~/openmore_ws
-catkin build -cs
-source devel/setup.bash
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
+source install/setup.bash
 ```
 
-Note that dependency `cnr_param` requires the environment variable `CNR_PARAM_ROOT_DIRECTORY` to be defined. For example, you can define it in the `~/.bashrc` file as follows:
-
-```bash
-export CNR_PARAM_ROOT_DIRECTORY="/tmp/cnr_param"
-```
-
-This is the folder used by `cnr_param` to save parameters. See the dedicated [GitHub page](https://github.com/CNR-STIIMA-IRAS/cnr_param) for more information.
+`OpenMORE` does not depend on `cnr_logger` and `cnr_param` anymore: the libraries log through `graph::core::LoggerPtr` and read their parameters from a `graph::core::ParamMap` (see [`graph_core`](https://github.com/JRL-CARI-CNR-UNIBS/graph_core)), so `CNR_PARAM_ROOT_DIRECTORY` is not needed.
 
 ### Docker
 A [docker file](https://github.com/JRL-CARI-CNR-UNIBS/OpenMORE/blob/master/dockerfile_OpenMORE) is also available. Open a terminal, move into the folder where you have saved the docker file and run the following command:

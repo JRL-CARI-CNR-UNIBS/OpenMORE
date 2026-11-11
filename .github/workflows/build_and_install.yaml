@@ -2,9 +2,9 @@ name: build
 
 on:
   push:
-    branches: [ master, devel, pull_req ]
+    branches: [ ros2 ]
   pull_request:
-    branches: [ master, devel, pull_req ]
+    branches: [ ros2 ]
   schedule:
     - cron: '0 8 * * *'
 
@@ -12,7 +12,7 @@ jobs:
   install-and-run:
     runs-on: ubuntu-latest
     container:
-      image: osrf/ros:noetic-desktop-full
+      image: osrf/ros:jazzy-desktop-full
 
     steps:
       - name: Install dependencies (apt)
@@ -21,49 +21,36 @@ jobs:
           apt-get update
           apt-get install -y \
             git libboost-all-dev libeigen3-dev libyaml-cpp-dev libpoco-dev \
-            liblog4cxx-dev libgtest-dev python3-vcstool python3-catkin-tools \
+            libgtest-dev python3-vcstool python3-colcon-common-extensions \
             python3-rosdep
           rosdep init || true
           rosdep update
 
-      - name: Setup Catkin Workspace
+      - name: Setup workspace
         shell: bash
         run: |
-          echo "Setting up ROS environment"
-          source /opt/ros/noetic/setup.bash
           WORKSPACE_DIR="$(pwd)/openmore_ws"
           echo "WORKSPACE_DIR=$WORKSPACE_DIR" >> "$GITHUB_ENV"
-          echo "Setting up Catkin workspace at $WORKSPACE_DIR"
           mkdir -p "$WORKSPACE_DIR/src"
-          cd "$WORKSPACE_DIR"
-          catkin init
-          catkin config --extend /opt/ros/noetic
-          catkin config --install
-          ls -la
 
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           path: "${{ env.WORKSPACE_DIR }}/src/OpenMORE"
+          submodules: recursive
 
       - name: Download deps with vcstool & rosdep
         shell: bash
         run: |
-          cd "${{ env.WORKSPACE_DIR }}/src/OpenMORE"
-          . update_submodules.sh
           cd "${{ env.WORKSPACE_DIR }}/src"
           vcs import < OpenMORE/deps.repos
           cd "${{ env.WORKSPACE_DIR }}"
-          
-          if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then
-            rosdep init
-          fi
-          rosdep update --rosdistro noetic
           rosdep install --from-paths src --ignore-src -r -y
 
-      - name: Build & Install replanners_managers_lib in Catkin Workspace
+      - name: Build & Install with colcon
         shell: bash
         run: |
+          source /opt/ros/jazzy/setup.bash
           cd "${{ env.WORKSPACE_DIR }}"
-          catkin build -cs
+          colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
           source install/setup.bash
